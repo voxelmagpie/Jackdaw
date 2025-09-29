@@ -16,15 +16,14 @@ throw et sr msg =
   E.throw E.TypeCheckerError sr
     $ T.intercalate "\n"
     $ msg
-    -- If length et == 1 then the error is not in generic code and an error trace is not needed
-    : if length et == 1 then [] else et <&> fmt
+    : (et <&> fmt)
 
 addError :: (MonadTcError m, HasSrcRange r) => [(Text, SrcLoc')] -> r -> Text -> m ()
 addError et sr msg =
   E.addError E.TypeCheckerError sr
     $ T.intercalate "\n"
     $ msg
-    : if length et == 1 then [] else et <&> fmt
+    : (et <&> fmt)
 
 fmt :: (Text, SrcLoc') -> Text
 fmt (wh, SrcLoc' fp l) = "> In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line

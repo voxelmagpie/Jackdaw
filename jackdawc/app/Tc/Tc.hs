@@ -164,7 +164,7 @@ getGenericBuiltinType ctx ns name gArgs = do
 -- 'userCtx' is the context of the code that is accessing this definition
 -- 'outerCtx' is the context of the source file or type that the definition is within
 makeVDefCtx :: (MonadHirRead' m) => Ctx -> Ctx -> [I.GenericArg] -> [A.GenericParameter] -> Bool -> Bool -> VName' -> Bool -> SrcLoc' -> m Ctx
-makeVDefCtx userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsafe srcLoc = do
+makeVDefCtx _userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsafe srcLoc = do
   let gp = zip astGp genericArgs
   let newTypeParams =
         mapMaybe (\case (A.TypeGenericParameter n, I.TypeGenericArg t) -> Just (fst n, t); _ -> Nothing) gp
@@ -180,11 +180,11 @@ makeVDefCtx userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsa
         inIterator = isIterator,
         inAccessor = isAccessor,
         inUnsafeCode = isUnsafe,
-        et = if null outerCtx.genericParams && null genericArgs then [(dbgName, srcLoc)] else (dbgName, srcLoc) : userCtx.et
+        et = if null genericArgs then outerCtx.et else (dbgName, srcLoc) : outerCtx.et
       }
 
 makeTSDefCtx :: (MonadHirRead' m) => Ctx -> Ctx -> TFqn -> [A.GenericParameter] -> [I.GenericArg] -> Maybe I.Type -> TName -> Bool -> SrcLoc' -> m Ctx
-makeTSDefCtx userCtx outerCtx fqn astGp genericArgs typ name isUnsafe srcLoc = do
+makeTSDefCtx _userCtx outerCtx fqn astGp genericArgs typ name isUnsafe srcLoc = do
   let gp = zip astGp genericArgs
   let newTypeParams =
         mapMaybe (\case (A.TypeGenericParameter n, I.TypeGenericArg t) -> Just (fst n, t); _ -> Nothing) gp
@@ -208,7 +208,7 @@ makeTSDefCtx userCtx outerCtx fqn astGp genericArgs typ name isUnsafe srcLoc = d
         inAccessor = False,
         inLoop = False,
         inUnsafeCode = isUnsafe,
-        et = if null genericArgs then [(dbgName, srcLoc)] else (dbgName, srcLoc) : userCtx.et
+        et = [(dbgName, srcLoc) | notNull genericArgs]
       }
 
 -- If this type has a type definition in code (Xyz, Array, Slice, etc.) then this function gets the relevant context

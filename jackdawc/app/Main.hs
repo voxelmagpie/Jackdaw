@@ -213,8 +213,9 @@ runTests cfg stLibDir = do
   let timings = ("stlib", stLibTimings) : concat timings'
   writeTimingsFile "tests_output/timings.txt" timings
 
-  testTypeCheckFailure stLib
-  testBorrowCheckFailure stLib
+  handle (\(CompileException e) -> die $ T.unpack e) $ do
+    testTypeCheckFailure stLib
+    testBorrowCheckFailure stLib
 
   endTime <- getCurrentTime
 

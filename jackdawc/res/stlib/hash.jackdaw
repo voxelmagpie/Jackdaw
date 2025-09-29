@@ -1,0 +1,70 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+// 63-bit hash (MSB is always one)
+alias Hash = USize
+
+// FNV-1a
+fn hashBytes (bytes: Slice[U8]): Hash {
+    var hash: USize = 14695981039346656037;
+    addHashBytes(hash, bytes);
+    return hash;
+}
+
+// FNV-1a
+fn addHashBytes (ref hash: Hash, bytes: Slice[U8]) {
+    for (var i: ISize = 0; i < bytes.length(); i += 1) {
+        var x = bytes.at(i);
+        hash = (hash ~ x) *% 1099511628211;
+        // TODO Maybe don't do this and have logic for making hashes non-zero in hash_map.jackdaw
+        hash = hash | (1 as USize << 63); // Don't allow zero values
+    }
+}
+
+fn hash [A] (x: A): Hash {
+    if const hasMemberFn[A, "hash"] {
+        return x.hash();
+    }
+    else {
+        var hash: USize = 14695981039346656037;
+        x.addToHash(hash);
+        return hash;
+    }
+}
+
+fn addToHash [A] (self: A, ref h: Hash) {
+    if const hasMemberFn[A, "addToHash"] {
+        x.addToHash(h);
+    }
+    else if const hasMemberFn[A, "hash"] {
+        self.hash().addToHash(h);
+    }
+    else {
+        // Struct/tuple
+        for const (var i = 0; i < fieldsCount[A]; i += 1) {
+            getField[A, i](self).addToHash(h);
+        }
+
+        // Array
+        if const isArrayType[A] {
+            for (var i = 0; i < arrayLength[A]; i += 1) {
+                self.at(i).addToHash(h);
+            }
+        }
+
+        // Enum
+        if const enumDataConsCount[A] > 0 {
+            var active = getEnumActiveIndex[A](self);
+            active.addToHash(h);
+            for const (var i = 0; i < enumDataConsCount[A]; i += 1) {
+                if active == i {
+                    if const dataConsTakesType[A, i] {
+                        getEnumIndexUnsafe[A, i](self).addToHash(h);
+                    }
+                }
+            }
+        }
+    }
+}

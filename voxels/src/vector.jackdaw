@@ -1,0 +1,110 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+struct Vector [A, n] {
+    require typeIsCopyable[A]
+    require n > 0
+
+    values: Array[A, n]
+
+    fn new (): Self {
+        return Self{ values = initArray[A, n](0) };
+    }
+
+    accessor at (self: Self, i: I32): A {
+        return self.values.at(i);
+    }
+
+    accessor iterator iter (self: Self): A {
+        for (var i = 0; i < n; i=i+1) {
+            yield self.values.at(i);
+        }
+    }
+
+    fn - neg (var self: Self): Self {
+        foreach ref x in self.iter() {
+            x = -x;
+        } 
+        return self;
+    }
+
+    fn - sub (var self: Self, other: Self): Self {
+        for (var i = 0; i < n; i=i+1) {
+            self.at(i) = self.at(i) - other.at(i);
+        }
+        return self;
+    }
+
+    fn + add (var self: Self, other: Self): Self {
+        for (var i = 0; i < n; i=i+1) {
+            self.at(i) = self.at(i) + other.at(i);
+        }
+        return self;
+    }
+
+    fn * mul (var self: Self, other: Self): Self {
+        for (var i = 0; i < n; i=i+1) {
+            self.at(i) = self.at(i) * other.at(i);
+        }
+        return self;
+    }
+
+    fn / div (var self: Self, other: Self): Self {
+        for (var i = 0; i < n; i=i+1) {
+            self.at(i) = self.at(i) / other.at(i);
+        }
+        return self;
+    }
+
+    fn dot (self: Self, other: Self): A {
+        var sum: A = 0;
+        for (var i = 0; i < n; i=i+1) {
+            sum = sum + self.at(i) * other.at(i);
+        }
+        return sum;
+    }
+
+    fn cross (self: Self, other: Self): Self {
+        require n == 3;
+
+        var v = Self.new();
+        v.at(0) = self.at(1) * other.at(2) - self.at(2) * other.at(1);
+        v.at(1) = self.at(2) * other.at(0) - self.at(0) * other.at(2);
+        v.at(2) = self.at(0) * other.at(1) - self.at(1) * other.at(0);
+        return v;
+    }
+
+    fn toString (self: Self): String {
+        var s = String.new();
+        s.appendString("[");
+        for (var i = 0; i < n-1; i = i + 1) {
+            s.appendString(self.at(i).toString());
+            s.appendString(", ");
+        }
+        s.appendString(self.at(n-1).toString());
+        s.appendString("]");
+
+        return s;
+    }
+
+    fn length (self: Self): A {
+        var l: A = 0;
+        foreach x in self.values.iter() {
+            l = l + x*x;
+        }
+        return l.sqrt();
+    }
+
+    fn normalise (var self: Self): Self {
+        var l = self.length();
+        foreach ref x in self.values.iter() {
+            x = x/l;
+        }
+        return self;
+    }
+}
+
+alias Vec2 = Vector[F32, 2]
+alias Vec3 = Vector[F32, 3]
+alias Vec4 = Vector[F32, 4]

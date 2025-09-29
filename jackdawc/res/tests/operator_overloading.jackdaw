@@ -1,0 +1,9 @@
+//! 3 4 # -7
+//! -1 1 # 0
+
+// Operator overloading is currently only for allowing a prefix and infix operator with the same name
+// Multiple operators with the same name and pre/infix is not implemented yet
+
+fn start () {
+    writeI32(-readI32() - readI32());
+}

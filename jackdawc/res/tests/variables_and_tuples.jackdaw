@@ -1,0 +1,30 @@
+//! 3 4 # 56
+//! -1 2 # -5
+
+const one: I32 = 1
+const eins: I32 = one
+
+fn add1 (x: I32, y: I32): (I32, I32) { 
+	return (x+one, y+eins);
+}
+
+fn swap [A, B] (x: (A, B)): (B, A) {
+	return (x.1, x.0);
+}
+
+fn start () {
+	var i = readI32();
+	var j: I32 = readI32();
+
+	var x = i - 1;
+	var y = j + 2;
+
+	var t = swap[I32, I32](add1(x, y));
+
+	if i > 0 {
+		t.0 = t.0 * 2;
+		t.1 = t.1 + 1;
+	}
+
+	writeI32(t.0*t.1);
+}

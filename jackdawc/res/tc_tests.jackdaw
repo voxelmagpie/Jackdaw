@@ -1,0 +1,226 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Iterator dependency loops
+
+iterator f (): I32 {
+    foreach x in g() {
+        yield x;
+    }
+}
+
+iterator g (): I32 {
+    foreach x in h() {
+        yield x;
+    }
+}
+
+iterator h (): I32 {
+    foreach x in f() {
+        yield x;
+    }
+}
+
+fn start () {}
+
+// --- //
+
+// Missing return
+
+fn start () {}
+fn f (): I32 {}
+
+// --- //
+
+fn f (I32) {}
+fn start () {f(1.0);}
+
+// --- //
+
+fn start () {var x: I32 = (0, 0);}
+
+// --- //
+
+struct X { a: I32 }
+fn start () {var x = X{};}
+
+// --- //
+
+struct X { a: I32 }
+fn start () {var x = X{a=0.0};}
+
+// --- //
+
+struct X { a: I32 }
+fn start () {var x = X{a=0, b=1};}
+
+// --- //
+
+struct X { a: I32 }
+fn start () {var x = X{};}
+
+// --- //
+
+fn start () {var x = {0 as I32, 1.0};}
+
+// --- //
+
+fn start () {var x: Array[I32, 2] = {0.0, 1.0};}
+
+// --- //
+
+fn start () {var x: Array[I32, 3] = {0, 1};}
+
+// --- //
+
+fn start () {var x: Array[I32, 1] = {0}; _ = x.1;}
+
+// --- //
+
+fn start () {_ = x;}
+
+// --- //
+
+fn start () {var x = 3; _ = x[F32];}
+
+// --- //
+
+fn start () {var x = 3; _ = x.1;}
+
+// --- //
+
+fn start () {var x: *I32 = nullptr; _ = x*2;}
+
+// --- //
+
+fn start () {var x: *I32 = nullptr; var y: String = x.*;}
+
+// --- //
+
+fn f (): I32
+fn start () {var x: String = f();}
+
+// --- //
+
+fn start () {var x = 3 > 5 ? false : 3.3;}
+
+// --- //
+
+fn start () {var x: I8 = 222222;}
+
+// --- //
+
+fn start () {var x: I32 = 3; var y: I8 = x;}
+
+// --- //
+
+fn start () {var x: String = "a".clone(); var y = &x; var z: I32 = y.*;}
+
+// --- //
+
+// Name lookup failure
+alias X = ArrayList[I8]
+fn start () {}
+
+// --- //
+
+import "@stlib/array_list" ~(ArrayList)
+alias X = ArrayList[I8, 4]
+fn start () {}
+
+// --- //
+
+fn start () { _ = X[List[I32]]{a=List[I32].new()}.f(); }
+struct X [A] {
+    a: A
+    fn f (self: Self): A { return self.a + 1; }
+}
+
+// --- //
+
+fn start () { var x: Slice[I8]; }
+
+// --- //
+
+fn f (xs: Slice[I8]) { var x = xs; }
+fn start () {}
+
+// --- //
+
+fn start () { var x = {1,2}; _ = x.asSlice(); }
+
+// --- //
+
+@Unsafe fn f () {}
+fn start() {f();}
+
+// --- //
+
+@Unsafe fn f () {}
+const g: fn () = f
+fn start() {}
+
+// --- //
+
+struct X { @Unsafe a: I32, b: I32 }
+fn start () {
+    var x: X;
+    unsafe { x = X{ a=1, b=4 }; }
+    _ = x.a;
+}
+
+// --- //
+
+fn f (x: *I32) {}
+fn start (){}
+
+// --- //
+
+fn f (): *I32 { return nullptr; }
+fn start (){}
+
+// --- //
+
+struct X { a: I32, @Unsafe b: *I32 }
+fn f (): X unsafe { return X{ a=3, b=nullptr }; }
+fn start () { var .{a, b} = f(); }
+
+// --- //
+
+fn start(){ _ = f()!; }
+fn f (): Result[I32, I32] { return .Ok(0); }
+
+// --- //
+
+
+fn start(){}
+fn f (): Result[I32, I32] { return .Ok(0); }
+fn g (): Result[I32, Bool] { return .Ok(f()!); }
+
+// --- //
+
+fn start(){}
+fn f (): Result[I32, I32] { return .Ok(0); }
+fn g (): Maybe[I32] { return .Ok(f()!); }
+
+// --- //
+
+fn start(){}
+fn f (): MaybeError[I32] { return .Ok; }
+fn g (): IsError { f()!; return .{ x=false }; }
+
+// --- //
+
+struct X {a: X}
+fn start(){}
+
+// --- //
+
+const a: type (a) = 0
+fn start(){}
+
+// --- //
+
+fn f (): Slice[I32] { throw &""; }
+fn start(){}

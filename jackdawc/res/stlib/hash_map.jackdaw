@@ -1,0 +1,183 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/bits"
+import "hash"
+
+struct HashMap [K, V] {
+    @Unsafe
+    occupied: BitList,
+    
+    @Unsafe
+    data: *(K, V),
+
+    @Unsafe
+    capacity: ISize
+
+    fn new (): Self unsafe {
+        return Self{ occupied = BitList.new(), data = nullptr, capacity=0 };
+    }
+
+    fn count (self: Self): ISize unsafe {
+        return self.occupied.bitsSet;
+    }
+
+    fn insert (ref self: Self, var key: K, var value: V) unsafe {
+        var h = key.hash();
+        self.insert_(key, h, value);
+    }
+
+    @Unsafe
+    fn insert_ (ref self: Self, var key: K, h: Hash, var value: V) {
+        if self.capacity == 0 {
+            self.capacity = 30;
+            self.occupied = BitList.zeros(self.capacity);
+            self.data = memAlloc(self.capacity * sizeOf[(K, V)]) as *(K, V);
+        }
+        else if self.count() >= ((self.capacity / 10) * 7) {
+            var newCap = self.capacity + (self.capacity / 2);
+            var new = Self {
+                capacity = newCap,
+                occupied = BitList.zeros(newCap),
+                data = memAlloc(newCap * sizeOf[(K, V)]) as *(K, V)
+            };
+
+            for (var i: ISize = 0; i < self.capacity; i += 1) {
+                if !self.occupied.get(i) { continue; }
+                var (k, v) = self.data.(i);
+                var h = k.hash();
+                new.insert_(k, h, v);
+            }
+
+            self.occupied.bitsSet = 0; // Stop drop functions being called
+            self = new; // Free memory
+        }
+        
+        var i = (h % (self.capacity as USize)) as ISize;
+        var chosenIndex: ISize = -1;
+
+        for (var j: ISize = 0; j < self.capacity; j += 1) {
+            var k = (i + j) % self.capacity;
+            if !self.occupied.get(k) {
+                chosenIndex = k;
+                break;
+            }
+        }
+
+        self.occupied.set(chosenIndex, true);
+        self.data.(chosenIndex) = (key, value);
+    }
+
+    accessor get (self: Self, key: K): V {
+        return self.getEntry(key).1;
+    }
+
+    accessor getEntry (self: Self, key: K): (K, V) unsafe {
+        if self.count() < 1 { throw &"Key not in map"; }
+        
+        var h = key.hash();
+        var i = (h % (self.capacity as USize)) as ISize;
+
+        for (var j: ISize = 0; j < self.capacity; j += 1) {
+            var k = (i + j) % self.capacity;
+            if !self.occupied.get(k) { break; }
+            if self.data.(k).0 == key {
+                return self.data.(k);
+            }
+        }
+
+        throw &"Key not in map";
+    }   
+
+
+    fn contains (self: Self, key: K): Bool unsafe {
+        if self.count() < 1 { return false; }
+        
+        var h = key.hash();
+        var i = (h % (self.capacity as USize)) as ISize;
+
+        for (var j: ISize = 0; j < self.capacity; j += 1) {
+            var k = (i + j) % self.capacity;
+            if !self.occupied.get(k) { break; }
+            if equal[K](self.data.(k).0, key) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // Returns true if an entry was removed
+    fn remove (ref self: Self, key: K): Bool unsafe {
+        if self.count() < 1 { return false; }
+
+        var h = key.hash();
+        var i = (h % (self.capacity as USize)) as ISize;
+
+        for (var j: ISize = 0; j < self.capacity; j += 1) {
+            var k = (i + j) % self.capacity;
+            if !self.occupied.get(k) { break; }
+            drop[K](self.data.(i).0);
+            drop[V](self.data.(i).1);
+            self.occupied.set(k, false);
+        }
+
+        return false;
+    }
+
+    // Throws if the key is not found
+    fn take (ref self: Self, key: K): V unsafe {
+        var h = key.hash();
+        var i = (h % (self.capacity as USize)) as ISize;
+
+        for (var j: ISize = 0; j < self.capacity; j += 1) {
+            var k = (i + j) % self.capacity;
+            if !self.occupied.get(k) { break; }
+            drop[K](self.data.(i).0);
+            var x = self.data.(i).1;
+            self.occupied.set(k, false);
+            return 1;
+        }
+
+        throw &"Key not found";
+    }
+
+    accessor iterator iter (self: Self): V unsafe {
+        if self.count() > 0 { 
+            foreach i in self.occupied.iterSet() {
+                yield self.data.(i).1;
+            }
+        }
+    }
+
+    accessor iterator iterEntries (self: Self): (K,V) unsafe {
+        if self.count() > 0 { 
+            foreach i in self.occupied.iterSet() {
+                yield self.data.(i);
+            }
+        }
+    }
+
+    fn clear (ref self: Self) unsafe {
+        // If count == 0 then drop functions are not called
+        if self.count() > 0 { 
+            foreach i in self.occupied.iterSet() {
+                drop[K](self.data.(i).0);
+                drop[V](self.data.(i).1);
+            }
+            self.occupied.clearAll();
+        }
+    }
+
+
+    fn onDrop (ref self: Self) unsafe {
+        self.clear();
+        if self.capacity > 0 {
+            memFree(self.data);
+            self.capacity = 0;
+        }
+    }
+
+}
+

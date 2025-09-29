@@ -1,0 +1,22 @@
+//! 7 # 9
+
+import "@stlib/raw_slice"
+
+fn f (ref x: Slice[I32]) {
+    if x.length() > 0 {
+        x.at(0) += 1;
+    }
+}
+
+fn g (ref x: I32) {
+    x += 1;
+}
+
+fn start () unsafe {
+    var ptr = memAlloc(4) as *I32;
+    ptr.* = readI32();
+    var rSl = RawSlice[I32]{ ptr, length=1 };
+    f(rSl);
+    g(ptr.*);
+    writeI32(ptr.*);
+}

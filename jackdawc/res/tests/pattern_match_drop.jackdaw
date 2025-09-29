@@ -1,0 +1,26 @@
+//! -4 6 # 7
+
+fn start () {
+    var x: X = readI32() > 0 ? .A : .B(.{ a = readI32() });
+    match var x {
+        A {}
+        B(y) {
+            var .{a} = y;
+            writeI32(a+1);
+        }
+    }
+}
+
+
+enum X {
+    A,
+    B(Y)
+}
+
+struct Y {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}

@@ -1,0 +1,388 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "ring_buffer"
+import "raw_slice"
+import "io"
+import "posix"
+
+alias Port = U16
+
+struct ListenSocket {
+    @Unsafe
+    fd: I32
+
+    fn open (): (Self, Port) unsafe {
+        var fd = socket(af_inet6, sock_stream, 0);
+        if fd < 0 { ioError("socket"); }
+
+        var addr = SockAddrIn6{
+            family = af_inet6,
+            port = 0,
+            flowinfo = 0,
+            addr = initArray[U8, 16](0),
+            scope_id = 0
+        };
+
+        var len: U32 = sizeOf[type(addr)] as U32;
+        if bind(fd, &addr, len) < 0 { ioError("bind"); }
+        if listen (fd, 64) != 0 { ioError("listen"); }
+
+        if getsockname(fd, &addr, &len) != 0 { ioError("getsockname"); }
+
+        return (Self{fd}, ntohs(addr.port));
+    }
+
+    // TODO Return Maybe[Self]
+    fn openOn (port: Port): Self unsafe {
+        var fd = socket(af_inet6, sock_stream, 0);
+        if fd < 0 { ioError("socket"); }
+
+        // TODO Provide option to disable this
+        var one: I32 = 1;
+        if setsockopt(fd, sol_socket, so_reuseaddr, &one, sizeOf[type(one)] as U32) != 0 { ioError("setsockopt"); }
+
+        var addr = SockAddrIn6{
+            family = af_inet6,
+            port = htons(port),
+            flowinfo = 0,
+            addr = initArray[U8, 16](0),
+            scope_id = 0
+        };
+
+        if bind(fd, &addr, sizeOf[type(addr)] as U32) < 0 { ioError("bind"); }
+        if listen (fd, 64) != 0 { ioError("listen"); }
+
+        return Self{fd};
+    }
+
+    fn acceptUnbuffered (ref self: Self): UnbufferedSocket unsafe {
+        var fd = accept(self.fd, nullptr, nullptr);
+        if fd < 0 { ioError("accept"); }
+        return UnbufferedSocket{fd};
+    }
+
+    fn accept (ref self: Self): Socket unsafe {
+        return Socket.fromUnbuffered(self.acceptUnbuffered());
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        _ = close(self.fd);
+    }
+}
+
+struct UnbufferedSocket {
+    @Unsafe
+    fd: I32
+
+    // TODO Return Maybe[Self]
+    fn connect (host: String, port: U16): Self unsafe {
+        var hints = AddrInfo{
+            flags=0,
+            family=pf_unspec,
+            socktype=sock_stream,
+            protocol=0,
+            addrlen=0,
+            addr=nullptr,
+            canonname=nullptr,
+            next=nullptr
+        };
+
+        var res: *AddrInfo;
+        if getaddrinfo(host.getCPtr(), nullptr, &hints, &res) != 0 or res == nullptr { ioError("getaddrinfo"); }
+
+        // TODO Try all
+
+        if res.*.family == af_inet6 {
+            var a = (res.*.addr as *SockAddrIn6).*.addr;
+            freeaddrinfo(res);
+            return Self.connectIpv6(a, port);
+        }
+        else if res.*.family == af_inet {
+            var a = (res.*.addr as *SockAddrIn).*.addr;
+            freeaddrinfo(res);
+            return Self.connectIpv4(a, port);
+        }
+        else {
+            freeaddrinfo(res);
+            throw &"Unknown address family";
+        }
+        return uninitialised;
+    }
+
+    fn connectIpv4 (address: Array[U8, 4], port: U16): Self unsafe {
+        var fd = socket(af_inet, sock_stream, 0);
+        if fd < 0 { ioError("socket"); }
+        
+        var addr = SockAddrIn{
+            family = af_inet,
+            port = htons(port),
+            addr=address,
+            padding = initArray[U8, 8](0)
+        };
+
+        if connect(fd, &addr, sizeOf[type(addr)] as U32) != 0 { ioError("connect"); }
+        
+        return Self{fd};
+    }
+
+    fn connectIpv4s (address: String, port: U16): Self unsafe {
+        var addr: Array[U8, 4];
+        if inet_pton(af_inet, address.getCPtr(), &addr) != 1 { throw &"Invalid IPv4 address"; }
+
+        return Self.connectIpv4(addr, port);
+    }
+
+    fn connectIpv6 (address: Array[U8, 16], port: U16): Self unsafe {
+        var fd = socket(af_inet6, sock_stream, 0);
+        if fd < 0 { ioError("socket"); }
+        
+        var addr = SockAddrIn6{
+            family = af_inet6,
+            port = htons(port),
+            flowinfo = 0,
+            addr = address,
+            scope_id = 0
+        };
+
+        if connect(fd, &addr, sizeOf[type(addr)] as U32) != 0 { ioError("connect"); }
+
+        return Self{fd};
+    }
+
+    fn connectIpv6s (address: String, port: U16): Self unsafe {
+        var addr: Array[U8, 16];
+        if inet_pton(af_inet6, address.getCPtr(), &addr) != 1 { throw &"Invalid IPv6 address"; }
+
+        return Self.connectIpv6(addr, port);
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        _ = close(self.fd);
+    }
+
+    fn readBytes (ref self: Self, ref buffer: Slice[U8]): ISize unsafe {
+        var r = read(self.fd, buffer.asRawSlice().ptr, buffer.length());
+        if r < 0 { ioError("read"); }
+        return r;
+    }
+
+    @Unsafe
+    fn readBytesMany (ref self: Self, ioVecs: Slice[IoVec]): ISize {
+        var r = readv(self.fd, ioVecs.asRawSlice().ptr, ioVecs.length() as I32);
+        if r < 0 { ioError("readv"); }
+        return r;
+    }
+
+    fn writeBytes (ref self: Self, buffer: Slice[U8]): ISize unsafe {
+        var r = write(self.fd, buffer.asRawSlice().ptr, buffer.length());
+        if r != buffer.length() { ioError("write"); }
+        return buffer.length();
+    }
+
+    @Unsafe
+    fn writeBytesMany (ref self: Self, ioVecs: Slice[IoVec]) {
+        var ex: ISize = 0;
+        for (var i = 0; i < ioVecs.length() as I32; i+=1) { ex += ioVecs.at(i).iov_len; }
+        var n = writev(self.fd, ioVecs.asRawSlice().ptr, ioVecs.length() as I32);
+        if n != ex { ioError("writev"); }
+    }
+
+}
+
+struct Socket {
+    s: UnbufferedSocket,
+    rRing: RingBuffer[U8],
+    wRing: RingBuffer[U8]
+
+    fn fromUnbuffered (var s: UnbufferedSocket): Self {
+        return Self{ s, rRing = RingBuffer[U8].new(2048), wRing = RingBuffer[U8].new(2048) };
+    }
+
+    fn connect (host: String, port: U16): Self {
+        return Self.fromUnbuffered(UnbufferedSocket.connect(host, port));
+    }
+
+    fn connectIpv4 (address: Array[U8, 4], port: U16): Self {
+        return Self.fromUnbuffered(UnbufferedSocket.connectIpv4(address, port));
+    }
+
+    fn connectIpv4s (address: String, port: U16): Self {
+        return Self.fromUnbuffered(UnbufferedSocket.connectIpv4s(address, port));
+    }
+
+    fn connectIpv6 (address: Array[U8, 16], port: U16): Self {
+        return Self.fromUnbuffered(UnbufferedSocket.connectIpv6(address, port));
+    }
+
+    fn connectIpv6s (address: String, port: U16): Self {
+        return Self.fromUnbuffered(UnbufferedSocket.connectIpv6s(address, port));
+    }
+
+    // Returns false if the socket is closed
+    fn readToRingBuffer (ref self: Self): Bool unsafe {
+        if self.rRing._count >= self.rRing.capacity {
+            return true;
+        }
+        self.flush();
+        if self.rRing._count == 0 { 
+            self.rRing.start = 0; 
+            var n = self.s.readBytes(RawSlice[U8]{ ptr = self.rRing.ptr, length = self.rRing.capacity });
+            if n == 0 { return false; }
+            self.rRing._count = n;
+        }
+        else if self.rRing.start + self.rRing._count >= self.rRing.capacity {
+            var start = (self.rRing.start + self.rRing._count) % self.rRing.capacity;
+            var max = self.rRing.start - start;
+            var n = self.s.readBytes(RawSlice[U8]{ ptr = &self.rRing.ptr.(start), length=max });
+            if n == 0 { return false; }
+            self.rRing._count += n;
+        }
+        else {
+            var ioVecs = {
+                IoVec{
+                    iov_base = &self.rRing.ptr.(self.rRing.start + self.rRing._count),
+                    iov_len = self.rRing.capacity - (self.rRing.start + self.rRing._count)
+                },
+                IoVec{
+                    iov_base = self.rRing.ptr,
+                    iov_len = self.rRing.start
+                }
+            };
+            var n = self.s.readBytesMany(ioVecs.asSlice());
+            if n == 0 { return false; }
+            self.rRing._count += n;
+        }
+        return true;
+    }
+
+    fn readByte (ref self: Self): Maybe[U8] {
+        for (; self.rRing.count() < 1;) {
+            if !self.readToRingBuffer() { return Maybe[U8].None; }
+        }
+        return Maybe[U8].Some(self.rRing.pop());
+    }
+
+    fn readByteOrThrow (ref self: Self): U8 {
+        return self.readByte().orThrowMsg(&"EOF");
+    }
+
+    fn peekByte (ref self: Self): Maybe[U8] {
+        for (; self.rRing.count() < 1;) {
+            if !self.readToRingBuffer() { return Maybe[U8].None; }
+        }
+        return Maybe[U8].Some(self.rRing.peek());
+    }
+
+    fn readU32 (ref self: Self): Maybe[U32] {
+        for (; self.rRing.count() < 4;) {
+            if !self.readToRingBuffer() { return Maybe[U32].None; }
+        }
+        var x0 = self.rRing.pop() as U32;
+        var x1 = self.rRing.pop() as U32;
+        var x2 = self.rRing.pop() as U32;
+        var x3 = self.rRing.pop() as U32;
+        return Maybe[U32].Some(x0 | (x1 << 8) | (x2 << 16) | (x3 << 8));
+    }
+
+    fn readU32OrThrow (ref self: Self): U32 {
+        return self.readU32().orThrowMsg(&"EOF");
+    }
+
+    fn writeByte (ref self: Self, x: U8) {
+        for (; self.wRing.spaceRemaining() < 1;) {
+            self.flush();
+        }
+        self.wRing.push(x);
+    }
+
+    fn writeU32 (ref self: Self, x: U32) {
+        for (; self.wRing.spaceRemaining() < 4;) {
+            self.flush();
+        }
+        self.wRing.push(x as U8);
+        self.wRing.push((x >> 8) as U8);
+        self.wRing.push((x >> 16) as U8);
+        self.wRing.push((x >> 24) as U8);
+    }
+
+    fn writeBytes (ref self: Self, buffer: Slice[U8]) unsafe {
+        if buffer.length() < 1 { return; }
+
+        if self.wRing.capacity - self.wRing._count > buffer.length() {
+            for (var i: ISize = 0; i < buffer.length(); i += 1) {
+                var x = buffer.asRawSlice().ptr.(i);
+                self.wRing.ptr.((self.wRing.start + self.wRing._count + i) % self.wRing.capacity) = x;
+            }
+            self.wRing._count += buffer.length();
+        }
+        else if self.wRing.start + self.wRing._count <= self.wRing.capacity {
+            var ioVecs = {
+                IoVec{
+                    iov_base = &self.wRing.ptr.(self.wRing.start),
+                    iov_len = self.wRing._count
+                },
+                IoVec{ iov_base = buffer.asRawSlice().ptr, iov_len=buffer.length() }
+            };
+            self.s.writeBytesMany(ioVecs.asSlice());
+            self.wRing._count = 0;
+            self.wRing.start = 0;
+        }
+        else {
+            var ioVecs = {
+                IoVec{
+                    iov_base = &self.wRing.ptr.(self.wRing.start),
+                    iov_len = self.wRing.capacity - self.wRing.start
+                },
+                IoVec{
+                    iov_base = self.wRing.ptr,
+                    iov_len = self.wRing._count - (self.wRing.capacity - self.wRing.start)
+                },
+                IoVec{ iov_base = buffer.asRawSlice().ptr, iov_len=buffer.length() }
+            };
+            self.s.writeBytesMany(ioVecs.asSlice());
+            self.wRing._count = 0;
+            self.wRing.start = 0;
+        }
+    }
+
+    fn writeString (ref self: Self, str: String) {
+        var l = str.utf8Data.length() - 1;
+        self.writeBytes(str.utf8Data.asSlice().subSlice(0, l));
+    }
+
+    fn writeStringNullTerminated (ref self: Self, str: String) {
+        self.writeBytes(str.utf8Data.asSlice());
+    }
+
+    // Returns false if the socket is closed
+    fn flush (ref self: Self) unsafe {
+        if self.wRing._count < 1 {
+        }
+        else if self.wRing.start + self.wRing._count > self.wRing.capacity {
+            var ioVecs = {
+                IoVec{
+                    iov_base = &self.wRing.ptr.(self.wRing.start),
+                    iov_len = self.wRing.capacity - self.wRing.start
+                },
+                IoVec{
+                    iov_base = self.wRing.ptr,
+                    iov_len = self.wRing._count - (self.wRing.capacity - self.wRing.start)
+                }
+            };
+            self.s.writeBytesMany(ioVecs.asSlice());
+            self.wRing._count = 0;
+            self.wRing.start = 0;
+        }
+        else {
+            self.s.writeBytes(RawSlice[U8]{ ptr = &self.wRing.ptr.(self.wRing.start), length = self.wRing._count });
+            self.wRing._count = 0;
+            self.wRing.start = 0;
+        }
+    }
+
+    fn onDrop (ref self: Self) {
+        self.flush();
+    }
+}

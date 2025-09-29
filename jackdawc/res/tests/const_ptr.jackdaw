@@ -1,0 +1,11 @@
+//! # 1\n0\n1
+
+fn start () {
+    var x = "abc".clone();
+    x ++= "def";
+    var x = toConstPtr[String](x);
+    var y = &"abcdef";
+    writeI32(x.* == y.* ? 1 : 0);
+    writeI32(x == y ? 1 : 0);
+    writeI32(&"abcdef" == y ? 1 : 0);
+}

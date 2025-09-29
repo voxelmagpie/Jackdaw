@@ -1,0 +1,23 @@
+//! 5 # 0\n2\n4
+
+iterator iter (x: I32, y: I32): X {
+    var i: I32 = x;
+    loop {
+        if i > y { break; }
+        yield X{ x=i };
+        i += 2;
+    }
+}
+
+fn start () {
+    foreach x in iter(0, readI32()) {
+    }
+}
+
+struct X {
+    x: I32
+
+    fn onDrop (self: Self) {
+        writeI32(self.x);
+    }
+}

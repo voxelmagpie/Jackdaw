@@ -1,0 +1,283 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/network"
+import "@stlib/hash_map"
+
+enum HttpRequestType {
+    Get,
+    Head
+
+    fn toString (self: Self): String {
+        match self {
+            Get { return "GET".clone(); }
+            Head { return "HEAD".clone(); }
+        }
+    }
+}
+
+fn readWord (ref s: Socket): String {
+    var str = String.new();
+    loop {
+        match s.peekByte() {
+            None { break; }
+            Some(c) {
+                if c == '\n' or c == '\r' or c == ' ' {
+                    break;
+                }
+                else {
+                    str.pushAsciiChar(c);
+                    _ = s.readByte();
+                }
+            }
+        }
+    }
+    return str;
+}
+
+fn readHeaderName (ref s: Socket): String {
+    var str = String.new();
+    loop {
+        match s.peekByte() {
+            None { break; }
+            Some(c) {
+                if c == '\n' or c == '\r' or c == ' ' or c == ':' {
+                    break;
+                }
+                else {
+                    _ = s.readByte();
+                    if c >= 'A' and c <= 'Z' { c += 'a' - 'A'; }
+                    str.pushAsciiChar(c);
+                }
+            }
+        }
+    }
+    return str;
+}
+
+alias HttpResult [A] = Result[A, *const String]
+
+fn asciiHexCharToInt (c: U8): HttpResult[I32] {
+    if c >= '0' and c <= '9' { return .Ok(c - '0'); }
+    if c >= 'a' and c <= 'f' { return .Ok(c - 'a' + 0xa); }
+    if c >= 'A' and c <= 'F' { return .Ok(c - 'A' + 0xA); }
+
+    return .Err(&"Not a hexadecimal character");
+}
+
+fn readUri (ref s: Socket): HttpResult[String] {
+    var str = String.new();
+    loop {
+        match s.peekByte() {
+            None { break; }
+            Some(c) {
+                if c == '\n' or c == '\r' or c == ' ' or c == '\t' {
+                    break;
+                }
+
+                if c > 127 { return .Err(&"Non-ASCII character in URI"); }
+                if c < 32  { return .Err(&"Null/control character in URI"); }
+
+                _ = s.readByte();
+                
+                if c == '+' {
+                    str.pushAsciiChar(' ');
+                }
+                else if c == '%' {
+                    var hi = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
+                    var lo = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
+                    var c = (hi << 4) | lo;
+                    if c > 127 { return .Err(&"Non-ASCII % character in URI"); }
+                    if c < 32  { return .Err(&"Null/control % character in URI"); }
+                    str.pushAsciiChar(c as U8);
+                }
+                else {
+                    str.pushAsciiChar(c);
+                }
+            }
+        }
+    }
+    return .Ok(str);
+}
+
+fn readHeaderValue (ref s: Socket): String {
+    var str = String.new();
+    loop {
+        match s.peekByte() {
+            None { break; }
+            Some(c) {
+                if c == '\n' or c == '\r' {
+                    break;
+                }
+                else {
+                    str.pushAsciiChar(c);
+                    _ = s.readByte();
+                }
+            }
+        }
+    }
+    str.trimEnd();
+    return str;
+}
+
+fn skipWhitespace (ref s: Socket) {
+    loop {
+        match s.peekByte() {
+            None { break; }
+            Some(c) {
+                if c == ' ' {
+                    _ = s.readByte();
+                }
+                else { break; }
+            }
+        }
+    }
+}
+
+fn skipWhitespaceAndNewlines (ref s: Socket): MaybeError[*const String] {
+    loop {
+        match s.peekByte() {
+            None { break; }
+            Some(c) {
+                if c == ' ' {
+                    _ = s.readByte();
+                }
+                else if c == '\r' {
+                    _ = s.readByte();
+                    var c = s.readByte();
+                    if c != .Some('\n') { return .Err(&"Malformed newline"); }
+                }
+                else {
+                    break;
+                }
+            }
+        }
+    }
+    return .Ok;
+}
+
+fn expectNewLine (ref s: Socket): MaybeError[*const String] {
+    if s.readByte() != .Some('\r') { return .Err(&"Expected newline"); }
+    if s.readByte() != .Some('\n') { return .Err(&"Expected newline"); }
+    return .Ok;
+}
+
+struct HttpRequest {
+    reqType: HttpRequestType,
+    uri: String,
+    keepAliveDefault: Bool
+
+    fn read (ref s: Socket): HttpResult[Self] {
+        skipWhitespaceAndNewlines(s)!;
+
+        var reqStr = readWord(s);
+        var reqType: HttpRequestType;
+        if reqStr == "GET" {
+            reqType = HttpRequestType.Get;
+        }
+        else if reqStr == "HEAD" {
+            reqType = HttpRequestType.Head;
+        }
+        else {
+            return .Err(&"Unknown request type");
+        }
+
+        skipWhitespace(s);
+
+        var uri = readUri(s)!;
+        if uri.length() < 1 { return .Err(&"Expected uri"); }
+
+        skipWhitespace(s);
+
+        var keepAliveDefault: Bool;
+        var proto = readWord(s);
+        if proto == "HTTP/1.0" {
+            keepAliveDefault = false;
+        }
+        else if proto == "HTTP/1.1" {
+            keepAliveDefault = true;
+        }
+        else {
+            return .Err(&"Unknown protocol version");
+        }
+
+        expectNewLine(s)!;
+
+        
+        return .Ok(Self{ reqType, uri, keepAliveDefault });
+    }
+}
+
+fn skipLine (ref s: Socket): MaybeError[*const String] {
+    loop {
+        match s.peekByte() {
+            None { return .Err(&"EOF before end of line"); }
+            Some(c) {
+                if c == '\n' or c == '\r' {
+                    break;
+                }
+            }
+        }
+    }
+    return expectNewLine(s);
+}
+
+struct HttpHeader {
+    header: String,
+    value: String
+
+    fn readMaybe (ref s: Socket): HttpResult[Maybe[Self]] {
+        if s.peekByte() == .Some('\r') {
+            return .Ok(.None);
+        }
+        return .Ok(.Some(Self.read(s)!));
+    }
+
+    fn read (ref s: Socket): HttpResult[Self] {
+        var header = readHeaderName(s);
+        if header.length() < 0 { return .Err(&"Invalid HTTP header"); }
+
+        // TODO make header lowercase
+
+        skipWhitespace(s);
+
+        var c = s.readByte();
+        if c == .Some(':') {
+            skipWhitespace(s);
+            var value = readHeaderValue(s);
+            expectNewLine(s)!;
+            return .Ok(Self{ header, value });
+        }
+        else if c == .Some('\r') {
+            // Empty headers are not valid HTTP but accept them anyway
+            expectNewLine(s)!;
+            return .Ok(Self{ header, value = String.new() });
+        }
+        else {
+            return .Err(&"Invalid HTTP header: missing ':'");
+        }
+    }
+}
+
+
+
+fn readHttpHeaders (ref s: Socket): HttpResult[HashMap[String, String]] {
+    var map = HashMap[String, String].new();
+    loop {
+        match HttpHeader.readMaybe(s)! {
+            Some(h) { // TODO Destructuring
+                var .{header, value} = h;
+                map.insert(header, value);
+            }
+            _ {
+                expectNewLine(s)!;
+                break;
+            }
+        }
+    }
+    
+    return .Ok(map);
+}
+
+

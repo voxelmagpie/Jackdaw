@@ -1,0 +1,13 @@
+//! 3 # 24
+
+fn start () {
+    for (var x = X{a=readI32()}, i: I32 = 0; i < 3; x.a = x.a*2, i += 1) {}
+}
+
+struct X {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}

@@ -1,0 +1,23 @@
+//! # 0\n4\n1
+
+accessor iterator iter (xs: List[I32]): I32 {
+    for (var i: ISize = 0; i < xs.length(); i += 2) {
+        yield xs.at(i);
+    }
+}
+
+fn start () {
+    var xs = List[I32].new();
+    xs.push(0);
+    xs.push(1);
+    xs.push(4);
+    foreach ref x in iter(xs) {
+        writeI32(x);
+        x = x*2;
+    }
+    foreach x in xs.iter() {
+        if x == 0 { continue; }
+        if x == 8 { break; }
+        writeI32(x);
+    }
+}

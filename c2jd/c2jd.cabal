@@ -1,0 +1,31 @@
+cabal-version:      3.0
+name:               c2jd
+version:            0.1.0.0
+-- synopsis:
+-- description:
+license:            MPL-2.0
+license-file:       LICENSE
+author:             VoxelMagpie
+-- maintainer:
+-- copyright:
+category:           Language
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall -Wall -rtsopts=all
+
+executable c2jd
+    import:           warnings
+    main-is:          Main.hs
+    other-modules:    Token, Lexer, Prelude2, C, Pp, State, Names
+    -- other-extensions:
+    build-depends:    base ^>=4.18.3.0, text, process-extras, language-c, array, process, hashtables, hashable, directory
+    hs-source-dirs:   app
+    default-language: GHC2021
+    default-extensions: OverloadedStrings, LambdaCase, NoImplicitPrelude,
+        DuplicateRecordFields, NoFieldSelectors, OverloadedRecordDot,
+        DeriveAnyClass, DerivingStrategies, StrictData, FunctionalDependencies,
+        TypeFamilies, RecordWildCards
+    build-tool-depends: alex:alex

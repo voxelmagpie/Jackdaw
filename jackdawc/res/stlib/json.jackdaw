@@ -1,0 +1,51 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/table"
+import "@stlib/hash_map"
+import "@stlib/json_encode"
+import "@stlib/json_parse"
+
+// TODO newtypes
+struct JsonObjectId { x: I32 }
+struct JsonArrayId { x: I32 }
+struct JsonStringId { x: I32 }
+
+struct Json {
+    objects: Table[JsonObjectId, HashMap[String, JsonValue]],
+    arrays: Table[JsonArrayId, List[JsonValue]],
+    strings: Table[JsonStringId, String]
+
+    fn new (): Self {
+        return .{
+            // TODO type inference for member function calls
+            objects = Table[JsonObjectId, HashMap[String, JsonValue]].new(),
+            arrays = Table[JsonArrayId, List[JsonValue]].new(), 
+            strings = Table[JsonStringId, String].new()
+        };
+    }
+
+    fn encode (self: Self, rootId: JsonObjectId): String {
+        return encodeJson(self, rootId);
+    }
+
+    fn parse (s: String): JsonResult[(Self, JsonObjectId)] {
+        var i: ISize = 0;
+        return parseJson(s, i); 
+    }
+}
+
+enum JsonValue {
+    Object  (JsonObjectId),
+    Array   (JsonArrayId),
+    String  (JsonStringId),
+    Number  (F64),
+    Bool    (Bool),
+    Null
+}
+
+alias JsonResult [A] = Result[A, *const String]
+alias JsonMaybeError = MaybeError[*const String]
+
+

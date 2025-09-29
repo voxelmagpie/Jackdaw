@@ -1,0 +1,37 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/range"
+
+@Unsafe
+struct RawSlice [A] {
+    @Unsafe ptr: *A,
+    @Unsafe length: ISize
+
+    @Unsafe
+    accessor at (self: Self, i: ISize): A {
+        return self.atPtr(i);
+    }
+
+    @Unsafe
+    fn atPtr (self: Self, i: ISize): *A {
+        if i < 0 or i >= self.length { throw &"Index out of range"; }
+        return &self.ptr.(i);
+    }
+
+    @Unsafe
+    fn subSlice (self: Self, var i: ISize, var n: ISize): Self {
+        putRangeInBounds(self.length, i, n);
+        return Self{ ptr = &self.ptr.(i), length = n };
+    }
+
+    @Unsafe
+    iterator iter (self: Self): *A {
+        for (var i: ISize = 0; i < self.length; i += 1) {
+            yield &self.ptr.(i);
+        }
+    }
+}
+
+

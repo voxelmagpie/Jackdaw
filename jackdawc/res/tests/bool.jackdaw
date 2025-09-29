@@ -1,0 +1,12 @@
+//! 3 5 # 0
+//! 2 -2 # 1
+
+fn start () {
+    var a = readI32() > 0;
+    var b = !(readI32() > 0);
+    if a == b {
+        writeI32(1);
+    } else {
+        writeI32(0);
+    }
+}

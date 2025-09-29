@@ -1,0 +1,26 @@
+//! 4 # 1
+//! -7 # 0
+
+fn start () {
+    var x: X;
+    var i = readI32();
+    if i > 0 {
+        x = X.A;
+    }
+    else if i < 0 {
+        x = X.B;
+    }
+    else {
+        throw &"";
+    }
+
+    match x {
+        A { writeI32(1); }
+        B { writeI32(0); }
+    }
+}
+
+enum X {
+    A,
+    B
+}

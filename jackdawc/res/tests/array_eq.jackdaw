@@ -1,0 +1,8 @@
+//! 3 5 3 6 # 0
+// ! 1 2 1 2 # 1
+
+fn start () {
+    var x = {readI32(), readI32()};
+    var y = {readI32(), readI32()};
+    writeI32(x == y ? 1 : 0);
+}

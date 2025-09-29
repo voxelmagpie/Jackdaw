@@ -1,0 +1,14 @@
+dist-newstyle*
+.vscode
+*.info
+tests_output
+*.prof
+*.hp
+*.ps
+*.eventlog
+*.aux
+happy_info.txt
+happy_pretty.txt
+TODO.txt
+res/stlib/primitives.jackdaw
+stlib_asts

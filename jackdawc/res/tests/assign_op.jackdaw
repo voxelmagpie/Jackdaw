@@ -1,0 +1,20 @@
+//! 2 4 1 # 3\n5
+
+fn start () {
+    var x = X{ a = readI32(), b = readI32() };
+    x += readI32();
+    writeI32(x.a);
+    writeI32(x.b);
+}
+
+
+
+struct X {
+    a: I32,
+    b: I32
+
+    fn += add (ref self: Self, x: I32) {
+        self.a += x;
+        self.b += x;
+    }
+}

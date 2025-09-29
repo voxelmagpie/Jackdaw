@@ -1,0 +1,14 @@
+//! 3 # 3
+
+@Unsafe
+struct X {
+    a: *X,
+    b: I32
+}
+
+fn start () unsafe {
+    var p = memAlloc(sizeOf[X]) as *X;
+    p.* = X{ a=nullptr, b = readI32() };
+    p.*.a = p;
+    writeI32(p.*.a.*.a.*.a.*.b);
+}

@@ -1,0 +1,77 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/hash"
+import "@stlib/os_string"
+import "pgm"
+
+// A noise generator based on blurring white noise
+// TODO Function for generating noise in bulk (pixels in same cell can reuse calculated random values)
+fn noise2d (x: F32, y: F32): F32 {
+    // Each cell has 4 corners, each with a random value from 0 to 1
+    // Adjacent cells share corners and 'see' the same random value for each shared corner
+    var cellX = x as I32;
+    var cellY = y as I32;
+
+    // The offset of the pixel within the cell is used to sample the four corners
+    var offX = x - (cellX as F32);
+    var offY = y - (cellY as F32);
+
+    // Get the random values and weights for each corner
+    var samples = {
+        (makeRandom(cellX, cellY), 1 as F32 - offX, 1 as F32 - offY),
+        (makeRandom(cellX+1, cellY), offX, 1 as F32 - offY),
+        (makeRandom(cellX+1, cellY+1), offX, offY),
+        (makeRandom(cellX, cellY+1), 1 as F32 - offX, offY)
+    };
+
+    // Combine them, use smoothstep (same function as in GLSL) to prevent artefacts from linear interpolation
+    var sum: F32 = 0;
+    foreach r in samples.iter() {
+        var x = smoothStep(r.1);
+        var y = smoothStep(r.2);
+        sum = sum + r.0 * (x*y);
+    }
+
+    return sum;
+}
+
+// Assumes value is between 0 and 1
+fn smoothStep (t: F32): F32 {
+    return t * t * (-t * 2 + 3);
+}
+
+fn makeRandom (x: I32, y: I32): F32 {
+    var h = hash[U64](x as U64 | (y as U64 << 32));
+
+    return (h % 4194304) as F32 / 4194304;
+}
+
+fn makeNoise (off: F32): List[U8] {
+    var img = List[U8].new();
+    img.reserve(32*32);
+    for (var y: F32 = 0; y < 32; y += 1) {
+        for (var x: F32 = 0; x < 32; x += 1) {
+            var p0 = noise2d(x * 0.04*2 + off, y * 0.04*2);
+            img.push((p0 * 255) as U8);
+        }
+    }
+    return img;
+}
+
+// Uses multiple layers of noise at different sizes
+fn makeNoise2 (off: F32): List[U8] {
+    var img = List[U8].new();
+    img.reserve(32*32);
+    for (var y: F32 = 0; y < 32; y += 1) {
+        for (var x: F32 = 0; x < 32; x += 1) {
+            var p0 = noise2d(x * 0.03*2 + off, y * 0.03*2);
+            var p1 = noise2d(x * 0.13*2 + off, y * 0.13*2);
+            var p2 = noise2d(x * 0.5*2 + off, y * 0.5*2);
+            var p = p0*0.76 + p1*0.2 + p2*0.04;
+            img.push((p * 255) as U8);
+        }
+    }
+    return img;
+}

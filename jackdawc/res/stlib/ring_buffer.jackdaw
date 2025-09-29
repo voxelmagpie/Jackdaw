@@ -1,0 +1,65 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+struct RingBuffer [A] {
+    @Unsafe ptr: *A,
+    @Unsafe capacity: ISize,
+    @Unsafe start: ISize,
+    @Unsafe _count: ISize
+
+    fn new (var capacity: ISize): Self unsafe {
+        if capacity < 0 { capacity = 0; }
+        return Self {
+            ptr = capacity == 0 ? nullptr : memAlloc(capacity) as *U8,
+            capacity,
+            start=0,
+            _count=0
+        };
+    }
+
+    fn count (self: Self): ISize unsafe {
+        return self._count;
+    }
+
+    fn spaceRemaining (self: Self): ISize unsafe {
+        return self.capacity - self._count;
+    }
+
+    fn isFull (self: Self): Bool unsafe {
+        return self._count >= self.capacity;
+    }
+
+    fn isEmpty (self: Self): Bool unsafe {
+        return self._count < 1;
+    }
+
+    fn push (ref self: Self, var x: A) unsafe {
+        if self.isFull() { throw &"Ring buffer is full"; }
+        var i = (self.start + self._count) % self.capacity;
+        self.ptr.(i) = x;
+        self._count += 1;
+    }
+
+    fn pop (ref self: Self): A unsafe {
+        if self.isEmpty() { throw &"Ring buffer is empty"; }
+        var x = self.ptr.(self.start);
+        self.start = (self.start + 1) % self.capacity;
+        self._count -= 1;
+        return x;
+    }
+
+    fn peek (ref self: Self): A unsafe {
+        if self.isEmpty() { throw &"Ring buffer is empty"; }
+        return self.ptr.(self.start);
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        if self.ptr != nullptr {
+            memFree(self.ptr);
+            self.ptr = nullptr;
+        }
+    }
+
+    // TODO insert/remove functions to match list
+}

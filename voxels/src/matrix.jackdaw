@@ -1,0 +1,179 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "vector"
+
+// Square matrices only for now
+// Layout is what OpenGL expects
+struct Matrix [A, size] {
+    require typeIsCopyable[A]
+    require size >= 2
+
+    values: Array[A, size * size]
+
+    fn zeros (): Self {
+        return Self{ values = initArray[A, size*size](0) };
+    }
+
+    fn identity (): Self unsafe {
+        var m: Self = uninitialised;
+        for (var y = 0; y < size; y = y + 1) {
+            for (var x = 0; x < size; x = x + 1) {
+                m.values.at(y*size + x) = x == y ? 1 : 0;
+            }
+        }
+        return m;
+    }
+
+    accessor at (self: Self, x: I32, y: I32): A {
+        // TODO dbgAssert
+        assert(x >= 0 and x < size);
+        assert(y >= 0 and y < size);
+        return self.values.at(x*size + y);
+    }
+
+    accessor atIndex (self: Self, i: I32): A {
+        // TODO dbgAssert
+        assert(i >= 0 and i < size);
+        return self.values.at(i);
+    }
+
+    fn * mulMatrix (self: Self, other: Self): Self unsafe {
+        var result: Self = uninitialised;
+
+        for (var y = 0, dstIdx = 0; y < size; y = y + 1) {
+            for (var x = 0; x < size; x = x + 1, dstIdx = dstIdx + 1) {
+                var sum: A = 0;
+                for (var k = 0; k < size; k = k + 1) {
+                    sum = sum + self.at(k, x) * other.at(y, k);
+                }
+
+                result.values.at(dstIdx) = sum;
+            }
+        }
+        
+        return result;
+    }
+
+    fn toString (self: Self): String {
+        var s = String.new();
+        s.appendString("[");
+        for (var y = 0, i = 0; y < size; y = y + 1) {
+            for (var x = 0; x < size; x = x + 1) {
+                s.appendString(self.at(x, y).toString());
+                if x < size-1  {s.appendString(", "); }
+            }
+            if y < size-1 { s.appendString("\n"); }
+        }
+        s.appendString("]");
+
+        return s;
+    }
+
+    fn uniformScale (s: A): Self unsafe {
+        var m: Self = uninitialised;
+        for (var y = 0; y < size-1; y = y + 1) {
+            for (var x = 0; x < size; x = x + 1) {
+                m.values.at(y*size + x) = x == y ? s : 0;
+            }
+        }
+        for (var y = size-1, x = 0; x < size; x = x + 1) {
+            m.values.at(y*size + x) = x == y ? 1 : 0;
+        }
+        return m;
+    }
+
+    fn scale (s: Vector[A, size-1]): Self unsafe {
+        var m: Self = uninitialised;
+        for (var y = 0; y < size-1; y = y + 1) {
+            for (var x = 0; x < size; x = x + 1) {
+                m.values.at(y*size + x) = x == y ? s.at(y) : 0;
+            }
+        }
+        for (var y = size-1, x = 0; x < size; x = x + 1) {
+            m.values.at(y*size + x) = x == y ? 1 : 0;
+        }
+        return m;
+    }
+
+    fn translate (t: Vector[A, size-1]): Self {
+        var m = Self.identity();
+        for (var i = 0; i < size-1; i=i+1) {
+            m.at(size-1, i) = t.at(i);
+        }
+        return m;
+    }
+
+    fn rotateX (r: A): Self {
+        require size >= 3;
+        // TODO put sin/cos/tan inside F32 and F64
+        var m = Self.identity();
+        m.at(1, 1) = cosf(r);
+        m.at(2, 1) = sinf(r);
+        m.at(1, 2) = -sinf(r);
+        m.at(2, 2) = cosf(r);
+        return m;
+    }
+
+    fn rotateY (r: A): Self {
+        require size >= 3;
+        var m = Self.identity();
+        m.at(0, 0) = cosf(r);
+        m.at(2, 0) = -sinf(r);
+        m.at(0, 2) = sinf(r);
+        m.at(2, 2) = cosf(r);
+        return m;
+    }
+
+    fn rotateZ (r: A): Self {
+        var m = Self.identity();
+        m.at(0, 0) = cosf(r);
+        m.at(1, 0) = -sinf(r);
+        m.at(0, 1) = sinf(r);
+        m.at(1, 1) = cosf(r);
+        return m;
+    }
+
+    fn ortho2d (left: A, right: A, bottom: A, top: A): Self {
+        require size == 3 or size == 4;
+
+        var width = right-left;
+        var height = top-bottom;
+
+        var scale = Self.identity();
+        scale.at(0, 0) = (2 as A) / width;
+        scale.at(1, 1) = (2 as A) / height;
+
+        var translate = Self.identity();
+        translate.at(size-1, 0) = -1;
+        translate.at(size-1, 1) = -1;
+
+        return translate*scale;
+    }
+
+}
+
+// Right handed
+// Port of perspectiveRH_ZO from GLM, Copyright (c) 2005 - G-Truc Creation
+fn perspectiveMatrixGl (fovy: F32, aspect: F32, zNear: F32, zFar: F32): Mat4 {
+    var m = Mat4.zeros();
+    var tanHalfFovy = tanf(fovy / 2);
+
+    m.at(0, 0) = (1 as F32) / (aspect * tanHalfFovy);
+    m.at(1, 1) = (1 as F32) / (tanHalfFovy);
+    m.at(2, 2) = zFar / (zNear - zFar);
+    m.at(2, 3) = -1;
+    m.at(3, 2) = -(zFar * zNear) / (zFar - zNear);
+
+    return m;
+}
+
+
+alias Mat4 = Matrix[F32, 4]
+alias Mat3 = Matrix[F32, 3]
+alias Mat2 = Matrix[F32, 2]
+
+fn sinf (F32): F32
+fn cosf (F32): F32
+fn tanf (F32): F32

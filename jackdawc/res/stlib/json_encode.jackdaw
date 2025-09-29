@@ -1,0 +1,110 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/json"
+
+fn encodeJson (j: Json, rootId: JsonObjectId): String {
+    var s = String.new();
+    encodeObject(s, j, rootId);
+    return s;
+}
+
+fn encodeObject (ref s: String, j: Json, id: JsonObjectId) {
+    // TODO Operator overloading, have ++= work with U8 (ASCII) and I32 (UTF)
+    s.pushAsciiChar('{');
+    var empty = true;
+    foreach field in j.objects.get(id).iterEntries() {
+        empty = false;
+        encodeString_(s, j, field.0);
+        s.pushAsciiChar(':');
+        s.pushAsciiChar(' ');
+        encodeValue(s, j, field.1);
+        s.pushAsciiChar(',');
+        s.pushAsciiChar(' ');
+    }
+    if !empty { s.utf8Data.removeLastN(3); s.utf8Data.push(0); }
+    s.pushAsciiChar('}');
+}
+
+fn encodeArray (ref s: String, j: Json, id: JsonArrayId) {
+    s.pushAsciiChar('[');
+    var empty = true;
+    foreach value in j.arrays.get(id).iter() {
+        empty = false;
+        encodeValue(s, j, value);
+        s.pushAsciiChar(',');
+        s.pushAsciiChar(' ');
+    }
+    if !empty { s.utf8Data.removeLastN(3); s.utf8Data.push(0); }
+    s.pushAsciiChar(']');
+}
+
+fn encodeValue (ref s: String, j: Json, value: JsonValue) {
+    match value {
+        Object(id) {
+            encodeObject(s, j, id);
+        }
+        Array(id) {
+            encodeArray(s, j, id);
+        }
+        String(id) {
+            encodeString(s, j, id);
+        }
+        Number(x) {
+            s ++= x.toString();
+        }
+        Bool(x) {
+            if x { s ++= "true"; } else { s ++= "false"; }
+        }
+        Null {
+            s ++= "null";
+        }
+    }
+}
+
+iterator allButLast [C, T] (xs: C): T {
+    foreach x in xs.iterRange(0, xs.length()-1) {
+        yield x;
+    }
+}
+
+fn encodeString (ref s: String, j: Json, id: JsonStringId) {
+    encodeString_(s, j, j.strings.get(id));
+}
+
+fn encodeString_ (ref s: String, j: Json, str: String) {
+    _ = s.utf8Data.pop();
+    s.utf8Data.push('"');
+    foreach c in allButLast[List[U8], U8](str.utf8Data) {
+        if c == 0 {
+            s.utf8Data.push('\\'); s.utf8Data.push('0');
+        }
+        else if c == '"' {
+            s.utf8Data.push('\\'); s.utf8Data.push('"');
+        }
+        else if c == '\\' {
+            s.utf8Data.push('\\'); s.utf8Data.push('\\');
+        }
+        else if c == '\b' {
+            s.utf8Data.push('\\'); s.utf8Data.push('b');
+        }
+        else if c == '\f' {
+            s.utf8Data.push('\\'); s.utf8Data.push('f');
+        }
+        else if c == '\n' {
+            s.utf8Data.push('\\'); s.utf8Data.push('n');
+        }
+        else if c == '\r' {
+            s.utf8Data.push('\\'); s.utf8Data.push('r');
+        }
+        else if c == '\t' {
+            s.utf8Data.push('\\'); s.utf8Data.push('t');
+        }
+        else {
+            s.utf8Data.push(c);
+        }
+    }
+    s.utf8Data.push('"');
+    s.utf8Data.push(0);
+}

@@ -1,0 +1,15 @@
+// n may be 0
+fn putRangeInBounds (limit: ISize, ref i: ISize, ref n: ISize) {
+    if i < 0 { i = 0; n += i; }
+    if n <= 0 or i >= limit { n = 0; return; }
+    if i+n > limit { n = limit - i; }
+}
+
+
+iterator range [A] (start: A, end: A): A {
+    if start >= end { return; }
+
+    for (var i = start; i < end; i += 1) {
+        yield i;
+    }
+}

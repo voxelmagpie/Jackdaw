@@ -1,0 +1,31 @@
+//! 3 # 3\n6\n-1\n-1
+
+fn lenPlus1 [A] (xs: List[A]): ISize {
+    return xs.length() + 1;
+}
+
+fn start () {
+    var xs = List[I32].new();
+
+    xs.push(-1);
+    xs.insertAt(0, readI32());
+    writeI32(lenPlus1[I32](xs) as I32);
+
+    xs.at(0) = xs.at(0) * 2;
+    writeI32(xs.at(0));
+
+    var xs = xs.clone();
+
+    xs.takeAt(0);
+    writeI32(xs.at(0));
+
+    var ys = List[I32].new();
+    ys.push(8);
+    ys.insertListAt(0, xs);
+    writeI32(ys.at(0));
+}
+
+
+
+
+

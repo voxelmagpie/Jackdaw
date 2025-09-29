@@ -1,0 +1,43 @@
+//! 8 8 # 1
+//! 3 4 # 0
+//! 3 5 # 0\n-2
+//! -1 -2 # 0\n-1
+
+fn start () {
+    writeI32(g(readI32()).isSome() ? 1 : 0);
+    match g2(readI32()) {
+        Ok{}
+        Err(x) { writeI32(x); }
+    }
+}
+
+fn g (x: I32): Maybe[I32] {
+    var xIsErr = f(x);
+    xIsErr!;
+    return x % 2 == 0 ? .Some(x) : .None;
+}
+
+fn f (x: I32): IsError {
+    return x >= 0 ? .Ok : .Err;
+}
+
+
+fn g2 (x: I32): MaybeError[I32] {
+    var xIsErr = f2(x);
+    xIsErr!;
+    if x % 2 == 0 {
+        return .Ok;
+    }
+    else {
+        return .Err(-2);
+    }
+}
+
+fn f2 (x: I32): MaybeError[I32] {
+    if x >= 0 {
+        return .Ok;
+    }
+    else {
+        return .Err(-1);
+    }
+}

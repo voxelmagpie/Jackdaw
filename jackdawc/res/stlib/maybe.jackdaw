@@ -1,0 +1,45 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+enum Maybe [A] {
+    Some(A),
+    None
+
+    fn isSome (self: Self): Bool {
+        match self {
+            Some(_) { return true; }
+            _ {}
+        }
+        return false;
+    }
+
+    fn orElse (var self: Self, var x: A): A {
+        match self {
+            Some(y) { return y; }
+            _ {}
+        }
+        return x;
+    }
+
+    fn toResult [E] (var self: Self, var e: E): Result[A, E] {
+        match self {
+            Some(x) { return .Ok(x); }
+            _ { return .Err(e); }
+        }
+    }
+
+    fn orThrow (var self: Self): A {
+        match self {
+            Some(x) { return x; }
+            _ { throw &"Maybe was None"; }
+        }
+    }
+
+    fn orThrowMsg (var self: Self, msg: *const String): A {
+        match self {
+            Some(x) { return x; }
+            _ { throw msg; }
+        }
+    }
+}

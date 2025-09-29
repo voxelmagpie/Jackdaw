@@ -1,0 +1,3 @@
+// Empty test for checking the concrete stlib functions type check
+
+fn start () {}

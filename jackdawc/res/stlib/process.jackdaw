@@ -1,0 +1,44 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "io"
+import "posix"
+
+struct Process {
+    @Unsafe
+    pid: I32
+
+    // Function return value is process exit code, parameter can be anything
+    // Child process inherits all memory (copy-on-write) and files/sockets
+    // If a file/socket handle is to be sent from the parent process to the child then
+    // it needs to be closed in the parent after forking.
+    fn new (f: fn (USize): I32, arg: USize): Self unsafe {
+        var x = fork();
+        if x == -1 {
+            ioError("fork");
+        }
+        else if x == 0 {
+            // Child process
+            exit(f(arg));
+        }
+        else {
+            // Parent process
+            return Self{ pid=x };
+        }
+    }
+
+    fn join (var self: Self) unsafe {
+        if waitpid(self.pid, nullptr, 0) == -1 { trace("waitpid returned -1"); }
+    }
+
+    fn cancel (var self: Self) unsafe {
+        kill(self.pid, sigTerm);
+    }
+
+    fn kill (var self: Self) unsafe {
+        kill(self.pid, sigKill);
+    }
+
+    fn onDrop (ref Self) {}
+}

@@ -1,0 +1,14 @@
+//! # 0\n2.00\n2\n6.00
+
+fn start () {
+    for const (var (i: I32, _) = (0, 0); i < 4; i += 1) {
+        if const i % 2 == 0 {
+            writeI32(i);
+        }
+        else {
+            writeF64(double[i]);
+        }
+    }
+}
+
+const double [x]: I32 = x*2

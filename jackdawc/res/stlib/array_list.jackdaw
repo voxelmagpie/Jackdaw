@@ -1,0 +1,49 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+struct ArrayList [A, capacity] {
+    @Unsafe 
+    data: Array[A, capacity],
+    
+    @Unsafe 
+    _count: I32
+
+    fn new (): Self unsafe {
+        return Self { data=uninitialised, _count=0 };
+    }
+
+    fn push (ref self: Self, var x: A) unsafe {
+        if self.isFull() { throw &"Array list is full"; }
+
+        // (&x).* pattern disables move semantics
+        (&self.data.at(self._count)).* = x;
+        self._count += 1;
+    }
+
+    fn pop (ref self: Self): A unsafe {
+        if self.isEmpty() { throw &"Array list is empty"; }
+        var x = (&self.data.at(self._count - 1)).*;
+        self._count -= 1;
+        return x;
+    }
+
+    // TODO insert/remove functions to match list
+
+    fn count (self: Self): I32 unsafe {
+        return self._count;
+    }
+
+    fn isFull (self: Self): Bool unsafe {
+        return self._count >= capacity;
+    }
+
+    fn isEmpty (self: Self): Bool unsafe {
+        return self._count < 1;
+    }
+
+    accessor at (self: Self, i: I32): A unsafe {
+        if i < 0 or i >= self._count { throw &"Index out of range"; }
+        return self.data.at(i);
+    }
+}

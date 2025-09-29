@@ -1,0 +1,28 @@
+//! # 1\n2\n4\n5\n7\n6\n3\n0
+
+fn start () {
+    var y = X{x=0};
+    {
+        var x = X{x=1};
+    }
+    var x = X{x=2};
+    x = X{x=3};
+    _ = X{x=4};
+    f(X{x=5});
+    g(X{x=6});
+}
+
+fn f (x: X) {}
+fn g (var x: X) {
+    var y = X{x=7};
+    if true { return; }
+    var z = X{x=7};
+}
+
+struct X {
+    x: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.x);
+    }
+}

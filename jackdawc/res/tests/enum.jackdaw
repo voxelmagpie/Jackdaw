@@ -1,0 +1,46 @@
+//! -3 # Foo
+//! 0 7 # Bar: 7\n8
+//! 7 7 # Baz\n-7
+
+enum Stuff {
+    Foo,
+    Bar(I32),
+    Baz(X)
+}
+
+fn start (args: Args, var streams: IoStreams) {
+    var i = readI32();
+    var stuff = i < 0 ? Stuff.Foo : i == 0 ? Stuff.Bar(readI32()) : Stuff.Baz(X{ a = -readI32() });
+
+    match stuff {
+        Foo {
+            streams.stdOut.writeLine("Foo");
+        }
+        Bar(j) {
+            streams.stdOut.writeLine("Bar: " ++ j.toString());
+        }
+        Baz(_) {
+            streams.stdOut.writeLine("Baz");
+        }
+    }
+
+    match ref stuff {
+        Bar(i) {
+            i += 1;
+        }
+        _ {}
+    }
+
+    match var stuff {
+        Bar(i) {
+            streams.stdOut.writeLine(i.toString());
+        }
+        _ {}
+    }
+}
+
+struct X {
+    a: I32
+
+    fn onDrop (ref self: Self) { writeI32(self.a); }
+}

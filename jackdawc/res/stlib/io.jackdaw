@@ -1,0 +1,23 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+@Unsafe
+fn __errno_location (): *I32
+
+fn getErrNo (): I32 unsafe {
+    return __errno_location().*;
+}
+
+@Unsafe
+fn strerror (errnum: I32): *CChar
+
+@NoReturn
+fn ioError (wh: String) unsafe {
+    var e = getErrNo();
+    var s = "IO error in " ++ wh ++ ": ";
+    s.appendCString(strerror(e));
+    s ++= " (errno " ++ e.toString() ++ ")";
+    trace(s);
+    throw &"IO Error";
+}

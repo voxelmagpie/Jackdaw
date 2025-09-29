@@ -1,0 +1,140 @@
+{
+	"$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+	"name": "jackdaw",
+	"patterns": [
+		{
+			"include": "#keywords"
+		},
+		{
+			"include": "#strings"
+		},
+		{
+			"include": "#char_lit"
+		},
+		{
+			"include": "#comments"
+		},
+		{
+			"include": "#numbers"
+		},
+		{
+			"include": "#types"
+		},
+		{
+			"include": "#attributes"
+		},
+		{
+			"include": "#operators"
+		},
+		{
+			"include": "#self"
+		}
+	],
+	"repository": {
+		"self": {
+			"name": "variable.language.self.jackdaw",
+			"match": "\\b(Self)\\b"
+		},
+		"keywords": {
+			"patterns": [
+				{
+					"name": "keyword.other.jackdaw",
+					"match": "\\b(require|uninitialised|unsafe)\\b"
+				},
+				{
+					"name": "keyword.operator.expression.jackdaw",
+					"match": "\\b(as)\\b"
+				},
+				{
+					"name": "constant.language.jackdaw",
+					"match": "\\b(true|false|nullptr)\\b"
+				},
+				{
+					"name": "keyword.control.import.jackdaw",
+					"match": "\\b(import)\\b"
+				},
+				{
+					"name": "keyword.control.jackdaw",
+					"match": "\\b((if|for|foreach)[\\s]+const)\\b"
+				},
+				{
+					"name": "keyword.control.jackdaw",
+					"match": "\\b(case|of|if|else|for|foreach|in|loop|break|continue|return|yield|match|and|or|try|catch|throw)\\b"
+				},
+				{
+					"name": "storage.type.jackdaw",
+					"match": "\\b(const|void|var|ref|type|struct|union|enum|interface|alias|newtype)\\b"
+				},
+				{
+					"name": "storage.type.function.jackdaw",
+					"match": "\\b(fn|accessor|iterator)\\b"
+				}
+			]
+		},
+		"strings": {
+			"name": "string.quoted.double.jackdaw",
+			"begin": "\"",
+			"end": "\"",
+			"patterns": [
+				{
+					"include": "#string_char_common"
+				}
+			]
+		},
+		"char_lit": {
+			"name": "string.quoted.single.jackdaw",
+			"begin": "'",
+			"end": "'",
+			"patterns": [
+				{
+					"include": "#string_char_common"
+				}
+			]
+		},
+		"string_char_common": {
+			"patterns": [
+				{
+					"name": "constant.character.escape.jackdaw",
+					"match": "\\\\."
+				}
+			]
+		},
+		"comments": {
+			"name": "comment.line.jackdaw",
+			"match": "//.*"
+		},
+		"numbers": {
+			"patterns": [
+				{
+					"match": "\\b[0-9]+(\\.[0-9]+l?)?\\b",
+					"name": "constant.numeric.jackdaw"
+				},
+				{
+					"match": "\\b(0x|0X)[0-9a-fA-F]+\\b",
+					"name": "constant.numeric.jackdaw"
+				},
+				{
+					"match": "\\b(0b|0B)[0-1]+\\b",
+					"name": "constant.numeric.jackdaw"
+				}
+			]
+		},
+		"types": {
+			"name": "entity.name.type.jackdaw",
+			"match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+		},
+		"attributes": {
+			"name": "support.function.attribute.jackdaw",
+			"match": "\\@"
+		},
+		"operators": {
+			"patterns": [
+				{
+					"match": "(!|%|\\^|&|\\*|\\+|-|/|=|~|<|>)+",
+					"name": "keyword.operator.jackdaw"
+				}
+			]
+		}
+	},
+	"scopeName": "source.jackdaw"
+}

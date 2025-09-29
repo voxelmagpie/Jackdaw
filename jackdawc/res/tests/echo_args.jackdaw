@@ -1,0 +1,7 @@
+//! # abc
+
+fn start (args: Args, var streams: IoStreams) {
+    foreach arg in args.iterRange(1, args.length() - 1) {
+        streams.stdOut.writeLine(arg.clone().toStringMv());
+    }
+}

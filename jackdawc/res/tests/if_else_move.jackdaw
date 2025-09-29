@@ -1,0 +1,23 @@
+//! 2 # 1\n2
+//! 0 # 2\n1
+
+fn start () {
+    var x = X{a=1};
+    var y = X{a=2};
+
+    if readI32() > 0 {
+        _ = x;
+    }
+    else {
+        _ = y;
+    }
+}
+
+struct X {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}
+

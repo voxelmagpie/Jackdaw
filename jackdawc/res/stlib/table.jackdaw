@@ -1,0 +1,30 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/hash_map"
+
+struct Table [Id, A] {
+    data: HashMap[Id, A],
+    nextId: I32
+
+    fn new (): Self {
+        return .{ data = HashMap[Id, A].new(), nextId = 0 };
+    }
+
+    fn insert (ref self: Self, var x: A): Id {
+        // TODO newtypes
+        var id = Id{ x = self.nextId };
+        self.data.insert(id, x);
+        self.nextId += 1;
+        return id;
+    }
+
+    fn take (ref self: Self, id: Id): A {
+        return self.data.take(id);
+    }
+
+    accessor get (self: Self, id: Id): A {
+        return self.data.get(id);
+    }
+} 

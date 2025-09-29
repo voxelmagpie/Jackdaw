@@ -1,0 +1,21 @@
+//! 3 # 4
+
+fn start () unsafe {
+    var x = X{a=readI32()};
+    writeI32(add1(x.a));
+}
+
+@Unsafe
+fn add1 (x: I32): I32 {
+    return x+1;
+}
+
+@Unsafe
+struct X {
+    a: I32
+}
+
+@Unsafe
+struct Y {
+    a: I32
+}

@@ -1,0 +1,20 @@
+//! 3 # 1\n3
+
+struct X {
+    a: I32,
+    b: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}
+
+fn f (ref x: X): I32 {
+    var y = x.a;
+    x.a = x.b;
+    return y;
+}
+
+fn start () {
+    writeI32(f(X{a=readI32(), b=1}));
+}

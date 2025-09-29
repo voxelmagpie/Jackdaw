@@ -1,0 +1,26 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Returns false if the uri includes "." or ".." file names, or is empty, or doesn't start with "/"
+// Assumes that the string only contains ascii characters
+// TODO AsciiString (null terminated, msb always 0)
+fn uriIsValid (uri: String): Bool {
+    if uri.length() > 4000 { return false; }
+    var uriLen = uri.utf8Data.length() as I32 - 1;
+    if uriLen < 1 or uri.utf8Data.at(0) != '/' { return false; }
+
+    var i = 1;
+    loop {
+        if i >= uriLen { break; }
+        var fileNameLen = 0;
+        for (; i+fileNameLen < uriLen and uri.utf8Data.at(i+fileNameLen) != '/'; fileNameLen+=1) {}
+        if fileNameLen == 1 and uri.utf8Data.at(i) == '.' { return false; }
+        if fileNameLen == 2 and uri.utf8Data.at(i) == '.' and uri.utf8Data.at(i+1) == '.' { return false; }
+        i += fileNameLen;
+        if i >= uriLen { break; }
+        i += 1; // Skip '/'
+    }
+
+    return true;
+}

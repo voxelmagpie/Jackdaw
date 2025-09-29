@@ -1,0 +1,20 @@
+//! 3 5 # 10
+
+struct X [A] {
+    a: A,
+    b: A
+}
+
+alias Y = X[I32]
+alias Z [E] = X[E]
+
+fn f (ref a: Y) {
+    a.a = a.a + 1;
+    a.b = a.b + 1;
+}
+
+fn start () {
+    var a = Z[I32]{ a=readI32(), b=readI32() };
+    f(a);
+    writeI32(a.a + a.b);
+}

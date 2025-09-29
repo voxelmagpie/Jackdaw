@@ -1,0 +1,28 @@
+//! 3 4 # 3\n4\n0\n4\n0
+
+import "@stlib/hash_map"
+
+fn start () {
+    var m = HashMap[String, X].new();
+    m.insert("a".clone(), X{ a=readI32() });
+    m.insert("b".clone(), X{ a=readI32() });
+    assert(m.contains("b"));
+    writeI32(m.get("a").a);
+    writeI32(m.get("b").a);
+    m.remove("a");
+    foreach k in m.iter() {
+        writeI32(k.a);
+    }
+
+    var m2 = HashMap[(I32, I32), Bool].new();
+    m2.insert((3, 3), true);
+    assert(m2.contains((3, 3)));
+}
+
+struct X {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(0);
+    }
+}

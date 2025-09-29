@@ -1,0 +1,16 @@
+//! 2 4 0 1 3 3 # 7.00\n1\n9.00
+//! -2 -5 2 3 4 4 # -6.00\n5\n16.00
+
+fn start () {
+    writeF64(1.0 + readI32().add(readI32()));
+
+    writeI32(I32.add(readI32(), readI32()));
+
+    writeF64(X.mul[F64](readF64(), readF64()));
+}
+
+struct X {
+    a: I32
+
+    fn mul [A] (x: A, y: A): A { return x*y; }
+}

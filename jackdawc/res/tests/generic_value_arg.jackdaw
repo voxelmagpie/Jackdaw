@@ -1,0 +1,14 @@
+//! 1 # 4
+
+struct X [z] {
+    a: I32
+}
+
+fn f [z] (a: I32): X[z] {
+    return X[z]{ a=a+z };
+}
+
+fn start () {
+    var x = f[3](readI32());
+    writeI32(x.a);
+}

@@ -1,0 +1,28 @@
+//! 5 1 2 # 6\n3
+//! 5 2 2 # 6\n20
+
+struct X {
+    a: I32,
+    b: Y
+}
+
+struct Y {
+    c: Bool,
+    d: (F64, F64)
+}
+
+const x: X = X{ a=1, b = Y{ c=false, d=(3, 2.2) } }
+
+const y: Array[X, 2] = { x, x }
+
+
+fn start () {
+    var a = x;
+    a.a = a.a + readI32();
+    writeI32(a.a);
+
+    var b = { 10, 20, 30 };
+    var i = readI32();
+    b.at(i) = y.at(1).a + readI32();
+    writeI32(b.at(1));
+}

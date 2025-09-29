@@ -1,0 +1,61 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "raw_slice"
+
+// Returns None if utf8 is invalid
+// If valid, returns (code point, number of bytes read)
+fn readUtf8CodePoint (bytes: Slice[U8]): Maybe[(U32, I32)] {
+    var c0 = bytes.at(0);
+    if c0 >> 7 == 0 { return .Some((c0, 1)); }
+
+    var n: I32;
+    var min: U32; // Prevent overlong encodings
+    var c: U32;
+    if c0 >> 5 == 0b110 {
+        n = 1;
+        min = 0x80;
+        c = c0 & 0b00011111;
+    }
+    else if c0 >> 4 == 0b1110 {
+        n = 2;
+        min = 0x800;
+        c = c0 & 0b00001111;
+    }
+    else if c0 >> 3 == 0b11110 {
+        n = 3;
+        min = 0x10000;
+        c = c0 & 0b00000111;
+    }
+    else {
+        return .None;
+    }
+
+    for (var j: ISize = 0; j < n; j += 1) {
+        if j >= bytes.length() { return .None; }
+
+        var c2 = bytes.at(j+1);
+        if (c2 >> 6) != 0b10 { return .None; }
+        c = (c << 6) | (c2 & 0b111111);
+    }
+
+    if c < min or c > 0x10FFFF { return .None; }
+    if c >= 0xd800 and c <= 0xdfff { return .None; }
+
+    return .Some((c, n+1));
+}
+
+fn isValidUtf8 (bytes: Slice[U8]): Bool {
+    var i = 0 as ISize;
+    loop {
+        if i >= bytes.length() { return true; }
+        
+        match readUtf8CodePoint(bytes.subSlice(i, bytes.length() - i)) {
+            None { return false; }
+            Some(x) { i += x.1; }
+        }
+    }
+    
+    return true;
+}

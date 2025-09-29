@@ -1,0 +1,32 @@
+//! 9 # 0\n1\n2\n9\n0\n9
+
+iterator iter (a: I32): I32 {
+    yield 0;
+    var x = X{a};
+    yield 1;
+    yield 2;
+}
+
+struct X {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}
+
+fn start () {
+    var a = readI32();
+    foreach x in iter(a) {
+        writeI32(x);
+    }
+    foreach x in iter(a) {
+        break;
+    }
+    foreach x in iter(a) {
+        if x > 0 { break; }
+        writeI32(x);
+    }
+}
+
+

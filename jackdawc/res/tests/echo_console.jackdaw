@@ -1,0 +1,6 @@
+//! xyz # xyz
+
+fn start (args: Args, var streams: IoStreams) {
+    var l = streams.stdIn.readLine();
+    streams.stdOut.writeString(l);
+}

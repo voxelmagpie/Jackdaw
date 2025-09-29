@@ -1,0 +1,10 @@
+//! # -1
+
+fn start () {
+    writeI32(f[I32](3));
+}
+
+fn f [T] (i: T): T {
+    if i <= 0 { return i; }
+    return f[T](i - 2);
+}

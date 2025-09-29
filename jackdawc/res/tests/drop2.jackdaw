@@ -1,0 +1,21 @@
+//! 3 5 # 5\n3
+
+fn start () {
+    _ = X{
+        a = List[Y].singleton(Y{ a = readI32() }), 
+        b = List[Y].singleton(Y{ a = readI32() })
+    };
+}
+
+struct X {
+    a: List[Y],
+    b: List[Y]
+}
+
+struct Y {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}

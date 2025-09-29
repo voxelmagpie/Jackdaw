@@ -1,0 +1,19 @@
+//! # 0\n-1\n1
+
+fn start () {
+    var i: I32 = 0;
+    loop {
+        var x = X{ x=i };
+        if i == 0 { i += 1; continue; }
+        var y = X{ x = -i };
+        if i == 1 { break; } else { writeI32(-99); }
+    }
+}
+
+struct X {
+    x: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.x);
+    }
+}

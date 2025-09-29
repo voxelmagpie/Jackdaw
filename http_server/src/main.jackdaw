@@ -1,0 +1,140 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/network"
+import "@stlib/process"
+import "@stlib/raw_slice"
+import "@stlib/io"
+import "@stlib/posix"
+import "http"
+import "uri"
+
+fn start (Args, var streams: IoStreams) unsafe {
+    // var server = ListenSocket.openOn(25565);
+    // streams.stdOut.writeLine("Listening");
+
+    var (server, port) = ListenSocket.open();
+    streams.stdOut.writeLine("Listening on port " ++ port.toString());
+
+    
+    
+    loop {
+        var s = server.acceptUnbuffered();
+        unsafe {
+            Process.new(handleConn, s.fd as U64);
+            // The child process now has a copy of the file descriptor
+            // so this (parent) process's file descriptor is closed
+        }
+    }
+}
+
+fn handleConn (fdU64: U64): I32 {
+    var s: Socket;
+    unsafe {
+        var fd = fdU64 as I32;
+        s = Socket.fromUnbuffered(UnbufferedSocket{fd});
+    }
+
+    loop {
+        if !s.peekByte().isSome() { return 0; }
+
+        var .{ reqType, uri, keepAliveDefault:keepAlive } = HttpRequest.read(s).orThrow();
+
+        var headers = readHttpHeaders(s).orThrow();
+        if headers.contains("connection") {
+            keepAlive = headers.get("connection") != "close";
+        }
+
+        trace(uri);
+
+        // for x in headers.iterEntries() { // TODO destructuring of for-each loop value
+        //     trace(x.0 ++ ": " ++ x.1);
+        // }
+
+        if !uriIsValid(uri) { 
+            s.writeString(response400);
+            continue;
+        }
+
+        var filePath = uri == "/" ? rootFilePath ++ "/index.html" : rootFilePath ++ uri;
+        var st: Stat;
+        unsafe {
+            if stat(filePath.getCPtr(), &st) != 0 {
+                if getErrNo() == 2 {
+                    if uri == "/" {
+                        s.writeString(response404Root);
+                    }
+                    else {
+                        s.writeString(response404);
+                    }
+                    continue;
+                }
+                ioError("stat");
+            }
+            if (st.st_mode & s_ifmt) != s_ifreg {
+                // TODO List files as hyperlinks
+                s.writeString(response400);
+                continue;
+            }
+        }
+        var fileLength = st.st_size;
+
+        if uri == "/" {
+            s.writeString(responseHeadHtml);
+        }
+        else {
+            s.writeString(responseHead);
+        }
+
+        var flStr = fileLength.toString();
+        s.writeString(flStr);
+        s.writeString("\r\n\r\n");
+
+        match reqType {
+            Head {
+            }
+            Get {
+                unsafe {
+                    if fileLength > 0 {
+                        var fd = open(filePath.getCPtr(), o_rdonly);
+                        if fd < 0 { ioError("open"); }
+                        var fileData = mmap(nullptr, fileLength as USize, prot_read, map_private, fd, 0);
+                        if fileData == nullptr or fileData == (-1 as USize as *void) { ioError("mmap"); }
+                        s.writeBytes(RawSlice[U8]{ ptr = fileData as *U8, length=fileLength });
+                        _ = munmap(fileData, fileLength as USize);
+                        _ = close(fd);
+                    }
+                }
+            }
+        }
+
+        if !keepAlive { break; }
+    }
+
+    return 0;
+}
+
+fn loadGoogle (ref streams: IoStreams) {
+    var s = Socket.connect("www.google.com", 80);
+    s.writeString(requestGoogle);
+    loop {
+        match s.readByte() {
+            Some(c) { 
+                streams.stdOut.writeByte(c);
+            }
+            _ { break; }
+        }
+    }
+}
+
+const responseHead: String = "HTTP/1.1 200 OK\r\nContent-Length: "
+const responseHeadHtml: String = "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: "
+const responseFile: String = "hello\r\n"
+const response404: String = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"
+const response404Root: String = "HTTP/1.1 404 Not Found\r\nContent-Length: 31\r\n\r\nMissing index.html in /var/www/"
+const response400: String = "HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n"
+const response403: String = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n"
+const rootFilePath: String = "/var/www"
+
+const requestGoogle: String = "GET / HTTP/1.1\r\nHost: www.google.com\r\n\r\n"

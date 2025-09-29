@@ -1,0 +1,117 @@
+struct Stat {
+	st_dev: U64,
+	st_ino: U64,
+	st_nlink: U64,
+	st_mode: U32,
+	st_uid: U32,
+	st_gid: U32,
+	__pad0: U32,
+	st_rdev: U64,
+	st_size: I64,
+	st_blksize: I64,
+	st_blocks: I64,
+	st_atime: U64,
+	st_atime_nsec: U64,
+	st_mtime: U64,
+	st_mtime_nsec: U64,
+	st_ctime: U64,
+	st_ctime_nsec: U64,
+	__unused: Array[I64, 3]
+}
+
+// Big endian
+alias Be16 = U16
+alias Be32 = U32
+
+struct SockAddrIn {
+	family: U16,       // af_inet6
+	port: Be16,        // Transport layer port #
+	addr: InAddr,     // IPv6 address
+    padding: Array[U8, 8]
+}
+
+struct SockAddrIn6 {
+	family: U16,       // af_inet6
+	port: Be16,        // Transport layer port #
+	flowinfo: Be32,  // IPv6 flow information
+	addr: In6Addr,     // IPv6 address
+	scope_id: U32      // scope id (new in RFC2553)
+}
+
+alias InAddr = Array[U8, 4]
+alias In6Addr = Array[U8, 16]
+
+@Unsafe
+struct AddrInfo{
+    flags: I32,          // Input flags. 
+    family: I32,         // Protocol family for socket. 
+    socktype: I32,       // Socket type. 
+    protocol: I32,       // Protocol for socket. 
+    addrlen: U32,        // Length of socket address. 
+    addr: SockAddrPtr,   // Socket address for socket. 
+    canonname: *CChar,   // Canonical name for service location. 
+    next: *void          // Pointer to next in list. 
+}
+
+@Unsafe
+struct IoVec {
+    iov_base: *void,  // Starting address
+    iov_len: ISize   // Size of the memory pointed to by iov_base.
+}
+
+// Either *SockAddrIn or *SockAddrIn6
+@Unsafe
+alias SockAddrPtr = *void
+
+const pf_unspec: I32 = 0
+const pf_inet: I32 = 2
+const pf_inet6: I32 = 10
+const af_inet: I32 = pf_inet
+const af_inet6: I32 = pf_inet6
+const sock_stream: I32 = 1
+const sock_dgram: I32 = 2
+const sock_nonblock: I32 = 2048
+const so_reuseaddr: I32 = 2
+const sol_socket: I32 = 1
+const o_rdonly: I32 = 0
+const prot_read: I32 = 1
+const map_private: I32 = 2
+const sigTerm: I32 = 15
+const sigKill: I32 = 9
+const s_ifmt: I32 = 0xf000
+const s_ifreg: I32 = 0x8000
+
+@Unsafe fn socket (socket_family: I32, socket_type: I32, protocol: I32): I32
+@Unsafe fn bind (fd: I32, addr: *SockAddrIn6, len: U32): I32
+@Unsafe fn listen (sockfd: I32, backlog: I32): I32
+@Unsafe fn accept (sockfd: I32, *void, *void): I32
+@Unsafe fn open (pathname: *CChar, flags: I32): I32
+@Unsafe fn close (sockfd: I32): I32
+@Unsafe fn getsockname (sockfd: I32, addr: SockAddrPtr, addrlen: *U32): I32
+@Unsafe fn recv (sockfd: I32, buf: *void, size: ISize, flags: I32): ISize
+@Unsafe fn send (sockfd: I32, buf: *void, size: ISize, flags: I32): ISize
+@Unsafe fn read (fd: I32, buf: *void, size: ISize): ISize
+@Unsafe fn write (fd: I32, buf: *void, size: ISize): ISize
+@Unsafe fn readv (fd: I32, iov: *IoVec, iovcnt: I32): ISize
+@Unsafe fn writev (fd: I32, iov: *IoVec, iovcnt: I32): ISize
+@Unsafe fn inet_pton (af: I32, src: *CChar, dst: *void): I32
+@Unsafe fn connect (sockfd: I32, addr: SockAddrPtr, addrlen: U32): I32
+@Unsafe fn getaddrinfo (node: *CChar, service: *CChar, hints: *AddrInfo, res: **AddrInfo): I32
+@Unsafe fn freeaddrinfo (*AddrInfo)
+@Unsafe fn setsockopt(sockfd: I32, level: I32, optname: I32, optval: *void, optlen: U32): I32
+@Unsafe fn mmap (addr: *void, length: USize, prot: I32, flags: I32, fd: I32, offset: I64): *void
+@Unsafe fn munmap (addr: *void, length: USize): I32
+@Unsafe fn stat (pathname: *CChar, statbuf: *Stat): I32
+@Unsafe fn fork (): I32
+@Unsafe fn waitpid (pid: I32, wstatus: *I32, options: I32): I32
+@Unsafe fn kill (pid: I32, sig: I32)
+@NoReturn fn exit (I32)
+
+
+fn __builtin_bswap16 (U16): U16
+fn __builtin_bswap32 (U32): U32
+
+fn htons (x: U16): Be16 { return __builtin_bswap16(x); }
+fn htonl (x: U32): Be32 { return __builtin_bswap32(x); }
+fn ntohs (x: U16): Be16 { return __builtin_bswap16(x); }
+fn ntohl (x: U32): Be32 { return __builtin_bswap32(x); }

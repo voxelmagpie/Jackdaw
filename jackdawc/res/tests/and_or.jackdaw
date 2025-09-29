@@ -1,0 +1,9 @@
+//! 1 1 # 1\n1
+//! 1 0 # 0\n1
+
+fn start () {
+    var a = readI32() > 0;
+    var b = readI32() > 0;
+    {writeI32(a and b ? 1 : 0);}
+    {writeI32(a or b ? 1 : 0);}
+}

@@ -1,0 +1,18 @@
+//! 1 # 2.00
+//! -3 # 2.00
+
+fn f (a: I32): F64 {
+    if a > 0 {
+        return a + 1;
+    }
+    else {
+        return 2.0;
+    }
+
+    return 7;
+}
+
+fn start () {
+    writeF64(f(readI32()));
+    return;
+}

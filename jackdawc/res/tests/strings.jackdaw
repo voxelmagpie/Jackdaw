@@ -1,0 +1,12 @@
+//! # 5
+
+const constString: String = "a"
+
+fn start () {
+    var s = constString.clone();
+    s.pushCodePoint(97);
+    s.pushCodePoint(98);
+    s.pushCodePoint(99);
+
+    writeI32(s.sizeInBytes() as I32);
+}

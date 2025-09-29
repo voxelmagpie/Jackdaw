@@ -1,0 +1,14 @@
+//! 3 4 # 4
+
+fn swap (ref i: I32, ref j: I32) {
+    var tmp = i;
+    i = j;
+    j = tmp;
+}
+
+fn start () {
+	var i = readI32();
+	var j = readI32();
+    swap(i, j);
+    writeI32(i);
+}

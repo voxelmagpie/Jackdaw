@@ -1,0 +1,10 @@
+//! # 0
+
+import "@stlib/array_list" ~(ArrayList)
+
+alias ArrayList = List[I32]
+
+fn start () {
+    var x = ArrayList.new();
+    writeI32(x.length() as I32);
+}

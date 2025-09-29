@@ -1,0 +1,24 @@
+//! 4 5 6 # 4\n5\n6
+
+fn start () {
+    var x: (I32, I32, I32) = (1, 2, readI32());
+    var (x, _, z: I32) = x;
+    writeI32(z);
+
+    var {(x, _)} = { (readI32(), 3) };
+    writeI32(x);
+
+    var .{a: .{a: b}} = X{a=Y{a=readI32()}};
+    writeI32(b);
+}
+
+struct X {
+    a: Y
+    fn onDrop (Self) {}
+}
+
+struct Y {
+    a: I32
+
+    fn onDrop (self: Self) { writeI32(0); }
+}

@@ -1,0 +1,151 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "hash"
+import "utf8"
+import "raw_slice"
+
+struct String {
+    utf8Data: List[U8] // Null terminated
+
+    fn new (): Self {
+        return Self{ utf8Data = List[U8].singleton(0) };
+    }
+
+    fn hash (self: Self): Hash {
+        return hashBytes(self.utf8Data.asSlice());
+    }
+
+    fn ++= appendString (ref self: Self, other: String) {
+        _ = self.utf8Data.pop();
+        self.utf8Data.append(other.utf8Data.asSlice());
+    }
+
+    @Unsafe
+    fn appendCString (ref self: Self, c: *CChar) {
+        var sl = RawSlice[U8]{ ptr = c as *U8, length = strlen(c) as ISize };
+        if !isValidUtf8(sl) { throw &"C string is not valid UTF-8"; }
+        sl.length += 1; // Add null terminator back
+        _ = self.utf8Data.pop();
+        self.utf8Data ++= sl;
+    }
+
+    fn ++ join (self: Self, other: String): String {
+        var utf8Data = List[U8].new();
+        utf8Data.reserve(self.utf8Data.length() + other.utf8Data.length() - 1);
+        utf8Data.append(self.utf8Data.asSlice());
+        _ = utf8Data.pop();
+        utf8Data.append(other.utf8Data.asSlice());
+        return Self{utf8Data};
+    }
+
+    fn pushAsciiChar (ref self: Self, c: U8) {
+        if c == 0 or c > 127 { throw &"ASCII character out of range"; }
+        self.utf8Data.at(self.utf8Data.length()-1) = c;
+        self.utf8Data.push(0);
+    }
+
+    // TODO Test this properly
+    fn pushCodePoint (ref self: Self, c: U32) {
+        _ = self.utf8Data.pop();
+        if c == 0 {
+            self.pushCodePoint(0xfffd);
+        }
+        else if c <= 0x7f {
+            self.utf8Data.push(c as U8);
+        }
+        else if c <= 0x7ff {
+            self.utf8Data.push((((c >> 6) & 0b11111) | 0b11000000) as U8);
+            self.utf8Data.push(((c & 0b111111) | 0b10000000) as U8);
+        }
+        else if c >= 0xD800 and c <= 0xDFFF {
+            throw &"Surrogate values are not valid UTF8";
+        }
+        else if c <= 0xffff {
+            self.utf8Data.push((((c >> 12) & 0b1111) | 0b11100000) as U8);
+            self.utf8Data.push((((c >> 6) & 0b111111) | 0b10000000) as U8);
+            self.utf8Data.push(((c & 0b111111) | 0b10000000) as U8);
+        }
+        else if c <= 0x10FFFF {
+            self.utf8Data.push((((c >> 18) & 0b111) | 0b11110000) as U8);
+            self.utf8Data.push((((c >> 12) & 0b111111) | 0b10000000) as U8);
+            self.utf8Data.push((((c >> 6) & 0b111111) | 0b10000000) as U8);
+            self.utf8Data.push(((c & 0b111111) | 0b10000000) as U8);
+        }
+        else {
+            throw &"Unicode code point out of range";
+        }
+        self.utf8Data.push(0);
+    }
+
+    // Includes null terminator
+    fn sizeInBytes (self: Self): ISize {
+        return self.utf8Data.length();
+    }
+
+    // Does not include null terminator
+    fn length (self: Self): ISize {
+        return self.utf8Data.length() - 1;
+    }
+
+    @Unsafe
+    fn getCPtr (self: Self): *CChar {
+        return self.utf8Data.ptr as *CChar;
+    }
+
+    @Unsafe
+    fn getUtf8RawSlice (self: Self): RawSlice[U8] {
+        return self.utf8Data.asRawSlice();
+    }
+
+    @Unsafe
+    fn getUtf8RawSliceNoNull (self: Self): RawSlice[U8] {
+        var x = self.utf8Data.asRawSlice(); 
+        x.length -= 1;
+        return x;
+    }
+
+    fn trimEnd (ref self: Self) {
+        var atEnd: ISize = 0;
+        for (var i: ISize = self.utf8Data.length()-2; i >= 0; i -= 1) {
+            var c = self.utf8Data.at(i);
+            if c == ' ' or c == '\t' { atEnd += 1; } else { break; }
+        }
+
+        if atEnd > 0 {
+            self.utf8Data.removeLastN(atEnd);
+            self.utf8Data.at(self.utf8Data.length()-1) = 0;
+        }
+    }
+
+    fn toString (self: Self): String {
+        return self.clone();
+    }
+
+    fn findStartOfCodePoint (self: Self, var i: ISize): ISize {
+        if i < 0 or i >= self.utf8Data.length()-1 { throw &"Index out of range"; }
+        
+        loop {
+            if (self.utf8Data.at(i) >> 6) == 0b10 {
+                i -= 1;
+                if i <= 0 { i = 0; break; }
+            }
+            else {
+                break;
+            }
+        }
+
+        return i;
+    }
+
+    // Returns (code point, utf8 bytes length)
+    fn codePointAt (self: Self, var i: ISize): (U32, I32) {
+        i = self.findStartOfCodePoint(i);
+
+        match readUtf8CodePoint(self.utf8Data.asSlice().subSlice(i, self.utf8Data.length()-1-i)) {
+            None { throw &"Invalid UTF8"; }
+            Some(x) { return x; }
+        }
+    }
+}

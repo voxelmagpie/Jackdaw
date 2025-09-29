@@ -1,0 +1,16 @@
+//! 4 5 1 # 4\n6
+
+accessor f (x: (I32, I32), i: I32): I32 unsafe {
+    var ptr = &x.0;
+    if i < 0 or i > 1 { throw &"Out of range"; }
+    ptr = ptr + i;
+    return ptr;
+}
+
+fn start () {
+    var x = (readI32(), readI32());
+    var i = readI32();
+    f(x, i) += 1;
+    writeI32(x.0);
+    writeI32(x.1);
+}

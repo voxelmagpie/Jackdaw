@@ -1,0 +1,19 @@
+//! 3 4 1 # 4
+//! 2 2 0 # 3
+
+fn start () unsafe {
+    var p = memAlloc(sizeOf[I32] * 2) as *I32;
+    getI32AndIncPtr(p);
+    p -= 1;
+    p.(1) = readI32();
+    p.(abs[I32](readI32()) % 2) = 1;
+    p.(1) = p.(1) + p.(0);
+    writeI32(p.(1));
+    free(p);
+}
+
+@Unsafe
+fn getI32AndIncPtr (ref ptr: *I32) {
+    ptr.* = readI32();
+    ptr += 1;
+}

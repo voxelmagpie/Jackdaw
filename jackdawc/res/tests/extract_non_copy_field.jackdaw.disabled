@@ -1,0 +1,16 @@
+fn start () {
+    writeI32(X{ a=0, b=.{a=9} }.b.a);
+}
+
+struct X {
+    a: I32,
+    b: Y
+}
+
+struct Y {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}

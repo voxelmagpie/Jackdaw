@@ -1,0 +1,98 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// Requires pthreads
+
+struct Thread [A, R] {
+    @Unsafe id: PThreadId
+
+    // Set stackSize to 0 for default size (8MiB for glibc)
+    fn new (f: fn (var A): R, var arg: A, var stackSize: I32): Self unsafe {
+        if stackSize > 0 and stackSize < 16384 { stackSize = 16384; }
+
+        var attr: PThreadAttr;
+        _ = pthread_attr_init(&attr);
+        if stackSize > 0 {
+            _ = pthread_attr_setstacksize(&attr, stackSize as USize);
+        }
+
+        var initPtr = memAlloc(sizeOf[ThreadInit[A, R]]) as *ThreadInit[A, R];
+        initPtr.* = .{ arg, f };
+
+        var id: PThreadId = 0;
+        if pthread_create(&id, &attr, runThread[A, R] as fn (*void): *void, initPtr) != 0 {
+            throw &"pthread_create error";
+        }
+
+        _ = pthread_attr_destroy(&attr);
+        return Self{id};
+    }
+
+    @Unsafe
+    fn _join (ref self: Self): Maybe[R] unsafe {
+        var rPtr: *R = nullptr;
+        if pthread_join(self.id, &rPtr as **void) != 0 { throw &"pthread_join error"; }
+        self.id = 0;
+        if rPtr == nullptr {
+            return .None;
+        }
+        else {
+            var r = rPtr.*;
+            memFree(rPtr);
+            return .Some(r);
+        }
+    }
+
+    fn join (var self: Self): Maybe[R] unsafe {
+        var x = self._join();
+        leak[Self](self);
+        return x;
+    }
+
+    @Unsafe
+    fn cancel (var self: Self) unsafe {
+        pthread_cancel(self.id);
+        self.id = 0;
+    }
+
+    @NoThrow
+    fn onDrop (ref self: Self) unsafe {
+        try { _ = self._join(); } catch e { trace(e.*); }
+    }
+}
+
+@Unsafe
+struct ThreadInit [A, R] {
+    arg: A,
+    f: fn (var A): R
+}
+
+@Unsafe
+fn runThread [A, R] (var initPtr: *ThreadInit[A, R]): *void {
+    try {
+        var .{arg, f} = initPtr.*;
+        memFree(initPtr);
+
+        var r = f(arg);
+        var rPtr = memAlloc(sizeOf[R]) as *R;
+        rPtr.* = r;
+        return rPtr;
+    }
+    catch e {
+        trace("Unhandled exception: " ++ e.*);
+        return nullptr;
+    }
+    return nullptr;
+}
+
+alias PThreadId = U64
+
+alias PThreadAttr = Array[I8, 56]
+
+@Unsafe fn pthread_create (*PThreadId, *PThreadAttr, fn (*void): *void, arg: *void): I32
+@Unsafe fn pthread_join(PThreadId, **void): I32
+@Unsafe fn pthread_cancel(PThreadId): I32
+@Unsafe fn pthread_attr_init(*PThreadAttr): I32
+@Unsafe fn pthread_attr_setstacksize(*PThreadAttr, USize): I32
+@Unsafe fn pthread_attr_destroy(*PThreadAttr): I32

@@ -1,0 +1,15 @@
+//! 9 # 9
+
+struct X {
+    a: I32
+    fn onDrop (Self) {}
+}
+
+fn des (var x: X) {
+    var .{a} = x;
+    writeI32(a);
+}
+
+fn start () {
+    des(X{a=readI32()});
+}

@@ -1,0 +1,127 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+struct BitList {
+    words: List[U64],
+    size: ISize,
+    bitsSet: ISize
+
+    fn new (): Self {
+        return Self{ words = List[U64].new(), size=0, bitsSet=0 };
+    }
+
+    fn ones (size: ISize): Self {
+        var wordsCount = (size + 63) / 64;
+        var words = List[U64].new();
+        words.reserve(wordsCount);
+        for (var i: ISize = 0; i < wordsCount; i += 1) {
+            words.push(0xffffffffffffffff);
+        }
+        return Self{ words, size, bitsSet=size };
+    }
+
+    fn zeros (size: ISize): Self {
+        var wordsCount = (size + 63) / 64;
+        var words = List[U64].new();
+        words.reserve(wordsCount);
+        for (var i: ISize = 0; i < wordsCount; i += 1) {
+            words.push(0);
+        }
+        return Self{ words, size, bitsSet=0 };
+    }
+
+    fn clearAll (ref self: Self) {
+        self.bitsSet = 0;
+        foreach ref x in self.words.iter() {
+            x = 0;
+        }
+    }
+
+    fn setAll (ref self: Self) {
+        self.bitsSet = self.size;
+        foreach ref x in self.words.iter() {
+            x = 0xffffffffffffffff;
+        }
+    }
+
+    fn get (self: Self, i: ISize): Bool {
+        if i < 0 or i >= self.size { throw &"Index out of range"; }
+        return ((self.words.at(i / 64) >> ((i % 64) as I32)) & 1) as Bool;
+    }
+
+    fn set (ref self: Self, i: ISize, x: Bool) {
+        if i < 0 or i >= self.size { throw &"Index out of range"; }
+        var w = self.words.at(i / 64);
+        var j = (i % 64) as I32;
+        var b = (w & (1 as U64 << j)) as Bool;
+        var w_ = x ? w | (1 as U64 << j) : w & ~(1 as U64 << j);
+        self.words.at(i / 64) = w_;
+        if !b and x { self.bitsSet = self.bitsSet + 1; }
+        if b and !x { self.bitsSet = self.bitsSet - 1; }
+    }
+
+    iterator iter (self: Self): (ISize, Bool) {
+        var i: ISize = 0;
+        foreach w in self.words.iter() {
+            for (var j = 0; j < 64 and i < self.size; j += 1, i += 1) {
+                yield (i, ((w >> j) & 1) as Bool);
+            }
+        }
+    }
+
+    iterator iterSet (self: Self): ISize {
+        if self.bitsSet < 1 { return; }
+
+        var i: ISize = 0;
+        foreach w in self.words.iter() {
+            for (var j = 0; j < 64 and i < self.size; j += 1, i += 1) {
+                if ((w >> j) & 1) != 0 {
+                    yield i;
+                }
+            }
+        }
+    }
+
+    iterator iterClear (self: Self): ISize {
+        if self.bitsSet >= self.size { return; }
+
+        var i: ISize = 0;
+        foreach w in self.words.iter() {
+            for (var j = 0; j < 64 and i < self.size; j += 1, i += 1) {
+                if ((w >> j) & 1) == 0 {
+                    yield i;
+                }
+            }
+        }
+    }
+
+    fn findFirstSet (self: Self): ISize {
+        if self.bitsSet < 1 { return -1; }
+
+        var i: ISize = 0;
+        foreach w in self.words.iter() {
+            if w != 0 {
+                return i + __builtin_ctz(w);
+            }
+            i += 64;
+        }
+        return -1; // TODO Maybe[ISize]
+    }
+
+    fn findFirstClear (self: Self): ISize {
+        if self.bitsSet >= self.size { return -1; }
+        
+        var i: ISize = 0;
+        foreach w in self.words.iter() {
+            if w != 0xffffffffffffffff {
+                return i + __builtin_ctz(~w);
+            }
+            i += 64;
+        }
+        return -1;
+    }
+}
+
+fn __builtin_ctz (U64): I32
+

@@ -1,0 +1,54 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "utf8"
+
+// A string with an unknown encoding used for file paths and command line arguments
+struct OsString {
+    data: List[U8] // Null terminated, encoding will be UTF-16 on Windows and is ASCII-compatible on Linux
+
+    fn fromString (var s: String): Self {
+        // This will need to convert to UTF-16 when Windows support is added
+        var .{utf8Data} = s;
+        return Self{ data = utf8Data };
+    }
+
+    fn removeNullTerminator (ref self: Self) {
+        _ = self.data.pop();
+        if const targetWin32 { _ = self.data.pop(); }
+    }
+
+    fn addNullTerminator (ref self: Self) {
+        self.data.push(0);
+        if const targetWin32 { self.data.push(0); }
+    }
+    
+    fn ++= append (ref self: Self, other: OsString) {
+        self.removeNullTerminator();
+        self.data.append(other.data.asSlice());
+    }
+
+    fn appendPathSep (ref self: Self) {
+        self.removeNullTerminator();
+        self.data.push('/');
+        if const targetWin32 { self.data.push(0); }
+        self.addNullTerminator();
+    }
+
+    @Unsafe
+    fn getCPtr (self: Self): *CChar {
+        return self.data.ptr as *CChar;
+    }
+
+    fn isValidUtf8 (self: Self): Bool {
+        return isValidUtf8(self.data.asSlice());
+    }
+
+    fn toStringMv (var self: Self): String {
+        if !self.isValidUtf8() {
+             throw &"Invalid unicode in OsString"; }
+        var .{data} = self;
+        return String{ utf8Data=data };
+    }
+}

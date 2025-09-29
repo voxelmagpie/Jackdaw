@@ -1,0 +1,20 @@
+//! 3 4 1 # 3
+//! 3 4 -1 # 4
+
+struct X {
+    a: I32,
+    b: I32 
+
+    accessor get (self: Self, x: Bool): I32 {
+        if x {
+            return self.a;
+        }
+        return self.b;
+    }
+}
+
+fn start () {
+    var x = X { a = readI32(), b = readI32() };
+    writeI32(x.get(readI32() > 0));
+}
+

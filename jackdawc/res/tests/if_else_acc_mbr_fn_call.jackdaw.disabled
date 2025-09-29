@@ -1,0 +1,20 @@
+// TODO Accessor conditional operators are not implemented yet
+
+//! 1 # 1\n0
+//! 0 # 0\n1
+
+fn start () {
+    var x = X{a=0};
+    var y = X{a=0};
+    (readI32() > 0 ? x : y).inc();
+    writeI32(x.a);
+    writeI32(y.a);
+}
+
+struct X {
+    a: I32
+
+    fn inc (ref self: Self) {
+        self.a = self.a + 1;
+    }
+}

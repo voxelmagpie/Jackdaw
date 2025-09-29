@@ -1,0 +1,7 @@
+//! 1 # b
+
+fn start (args: Args, var streams: IoStreams) {
+    var c = 'a';
+    c += readI32() as U8;
+    streams.stdOut.writeByte(c);
+}

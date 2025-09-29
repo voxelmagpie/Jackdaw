@@ -1,0 +1,25 @@
+//! 4 # 4\n1
+//! -1 # 1
+
+fn start () {
+    try {
+        f(readI32());
+    }
+    catch e {
+        writeI32(e.*.length() as I32);
+    }
+}
+
+fn f (a: I32) {
+    var x = X{a};
+    if a > 0 { throw &"z"; }
+    x.a = -x.a;
+}
+
+struct X {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(self.a);
+    }
+}

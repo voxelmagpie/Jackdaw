@@ -1,0 +1,26 @@
+//! 3 3 3 # -3\n6
+//! 0 1 0 # -1\n3
+
+struct X [A] {
+    a: A,
+    b: Bool,
+    c: I32,
+    d: Y
+}
+
+struct Y {
+    a: I32,
+    b: I32
+}
+
+fn f (x: X[I32]): I32 {
+    return x.b ? x.d.a : 0 as I32 - x.d.a;
+}
+
+fn start () {
+    var a = readI32();
+    var x = X[I32]{ a, c=2+2, d=.{ a = readI32(), b = readI32() }, b=false };
+    writeI32(f(x));
+    x.a = x.a + 3;
+    writeI32(x.a);
+}

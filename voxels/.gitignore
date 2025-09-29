@@ -1,0 +1,5 @@
+build
+.vscode
+.pgm
+src/headers.jackdaw
+timings.txt

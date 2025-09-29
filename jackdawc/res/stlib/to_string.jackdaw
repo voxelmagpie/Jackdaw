@@ -1,0 +1,51 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/array_list"
+
+@Unsafe fn snprintf_f32(buffer: *CChar, bufsz: USize, F32): I32
+@Unsafe fn snprintf_f64(buffer: *CChar, bufsz: USize, F64): I32
+
+fn floatToString [A, f] (var i: A): String unsafe {
+	// TODO require f == snprintf_f32 or f == snprintf_f64;
+
+	var utf8Data = List[U8].new();
+	utf8Data.reserve(32);
+	utf8Data._length = f(utf8Data.ptr as *CChar, 32, i) + 1;
+	return String{utf8Data};
+}
+
+fn intToString [A] (var i: A): String {
+    var signFlip: A = i < 0 ? (-1) as A : 1;
+	var chars = ArrayList[U8, 20].new();
+
+	loop {
+		chars.push((((i % 10) * signFlip) + 48) as U8);
+		i = i/10;
+		if i == 0 { break; }
+	}
+
+	var s = String.new();
+    s.utf8Data.reserve((i < 0 ? 1 : 0) + chars.count() + 1);
+
+	if i < 0 {
+		s ++= "-";
+	}
+
+	for (var i = chars.count()-1; i >= 0; i=i-1) {
+		s.pushCodePoint(chars.at(i));
+	}
+
+	return s;
+}
+
+fn toString [A] (x: A): String {
+	if const hasMemberFn[A, "toString"] {
+        return x.toString();
+    }
+	else {
+		// TODO Proper toString implementation using reflection
+		return typeName[A].clone();
+	}
+}

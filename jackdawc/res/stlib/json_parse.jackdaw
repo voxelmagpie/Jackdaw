@@ -1,0 +1,243 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/json"
+import "@stlib/hash_map"
+
+// TODO Could treat the string as being ASCII, just make sure the json strings are copied exactly..
+
+fn peekChar (s: String, ref i: ISize): Maybe[U32] {
+    if i >= s.sizeInBytes()-1 { return .None; }
+    return .Some(s.codePointAt(i).0);
+}
+
+fn readChar (s: String, ref i: ISize): Maybe[U32] {
+    if i >= s.sizeInBytes()-1 { return .None; }
+    var (c, n) = s.codePointAt(i);
+    i += n;
+    return .Some(c);
+}
+
+
+fn skipWhitespace (s: String, ref i: ISize) {
+    loop {
+        match peekChar(s, i) {
+            None { break; }
+            Some(c) {
+                if c == ' ' or c == '\r' or c == '\n' or c == '\t' {
+                    _ = readChar(s, i);
+                }
+                else {
+                    break;
+                }
+            }
+        }
+    }
+}
+
+fn parseJson (s: String, ref i: ISize): JsonResult[(Json, JsonObjectId)] {
+    var json = Json.new();
+    skipWhitespace(s, i);
+    var rootId = parseObject(s, i, json)!;
+    return .Ok((json, rootId));
+}
+
+fn parseObject (s: String, ref i: ISize, ref j: Json): JsonResult[JsonObjectId] {
+    if readChar(s, i) != .Some('{') { return .Err(&"Expected '{'"); }
+    skipWhitespace(s, i);
+    
+    var fields = HashMap[String, JsonValue].new();
+
+    loop {
+        if peekChar(s, i) != .Some('"') {
+            break;
+        }
+
+        var fieldName = parseString_(s, i)!;
+        skipWhitespace(s, i);
+        if readChar(s, i) != .Some(':') { return .Err(&"Expected ':'"); }
+        skipWhitespace(s, i);
+        var v = parseValue(s, i, j)!;
+        fields.insert(fieldName, v);
+
+        if peekChar(s, i) != .Some(',') {
+            break;
+        }
+        _ = readChar(s, i);
+        skipWhitespace(s, i);        
+    }
+
+    if readChar(s, i) != .Some('}') { return .Err(&"Missing closing '}'"); }
+    skipWhitespace(s, i);
+
+    return .Ok(j.objects.insert(fields));
+}
+
+fn parseString (s: String, ref i: ISize, ref j: Json): JsonResult[JsonStringId] {
+    return .Ok(j.strings.insert(parseString_(s, i)!));
+}
+
+fn parseString_ (s: String, ref i: ISize): JsonResult[String] {
+    if readChar(s, i) != .Some('"') { return .Err(&"Expected '\"'"); }
+
+    var str = String.new();
+    loop {
+        var c: U32;
+        match readChar(s, i) {
+            None { return .Err(&"Expected '\"'"); }
+            Some(c_) { c=c_; }
+        }
+
+        if c == '"' {
+            break;
+        }
+        else {
+            str.pushCodePoint(c);
+        }
+    }
+    skipWhitespace(s, i);
+
+    return .Ok(str);
+}
+
+fn parseValue (s: String, ref i: ISize, ref j: Json): JsonResult[JsonValue] {
+    var c: U32;
+    match peekChar(s, i) {
+        None { throw &"Expected JSON value, got EOF"; }
+        Some(c_) { c=c_; }
+    }
+
+    if c == '"' {
+        return .Ok(.String(parseString(s, i, j)!));
+    }
+    else if c == '{' {
+        return .Ok(.Object(parseObject(s, i, j)!));
+    }
+    else if c == 't' {
+        _ = readChar(s, i);
+        if readChar(s, i) != .Some('r') { return .Err(&"Expected 'true'"); }
+        if readChar(s, i) != .Some('u') { return .Err(&"Expected 'true'"); }
+        if readChar(s, i) != .Some('e') { return .Err(&"Expected 'true'"); }
+        skipWhitespace(s, i);
+        return .Ok(.Bool(true));
+    }
+    else if c == 'f' {
+        _ = readChar(s, i);
+        if readChar(s, i) != .Some('a') { return .Err(&"Expected 'false'"); }
+        if readChar(s, i) != .Some('l') { return .Err(&"Expected 'false'"); }
+        if readChar(s, i) != .Some('s') { return .Err(&"Expected 'false'"); }
+        if readChar(s, i) != .Some('e') { return .Err(&"Expected 'false'"); }
+        skipWhitespace(s, i);
+        return .Ok(.Bool(true));
+    }
+    else if c == 'n' {
+        _ = readChar(s, i);
+        if readChar(s, i) != .Some('u') { return .Err(&"Expected 'null'"); }
+        if readChar(s, i) != .Some('l') { return .Err(&"Expected 'null'"); }
+        if readChar(s, i) != .Some('l') { return .Err(&"Expected 'null'"); }
+        skipWhitespace(s, i);
+        return .Ok(.Null);
+    }
+    else if c == '[' {
+        return .Ok(.Array(parseArray(s, i, j)!));
+    }
+    else if c == '-' or (c >= '0' and c <= '9') {
+        return .Ok(.Number(parseNumber(s, i)!));
+    }
+    else {
+        return .Err(&"TODO");
+    }
+}
+
+fn parseArray (s: String, ref i: ISize, ref j: Json): JsonResult[JsonArrayId] {
+    if readChar(s, i) != .Some('[') { return .Err(&"Expected '['"); }
+    skipWhitespace(s, i);
+
+    var elements = List[JsonValue].new();
+
+    loop {
+        elements.push(parseValue(s, i, j)!);
+
+        if peekChar(s, i) != .Some(',') {
+            break;
+        }
+        _ = readChar(s, i);
+        skipWhitespace(s, i);        
+    }
+
+    if readChar(s, i) != .Some(']') { return .Err(&"Missing closing ']'"); }
+    skipWhitespace(s, i);
+
+    return .Ok(j.arrays.insert(elements));
+}
+
+@Unsafe fn strtod (str: *CChar, str_end: **CChar): F64
+
+fn parseNumber (s: String, ref i: ISize): JsonResult[F64] {
+    var startI = i;
+
+    match peekChar(s, i) {
+        None { return .Err(&"Expected digit or '-'"); }
+        Some(c) {
+            if c == '-' {
+                i += 1;
+            }
+            else if c >= '0' and c <= '9' {
+            }
+            else {
+                return .Err(&"Expected digit or '-'");
+            }
+        }
+    }
+
+    parseDigits(s, i)!;
+
+    if peekChar(s, i) == .Some('.') {
+        i += 1;
+        parseDigits(s, i)!;
+    }
+
+    var c = peekChar(s, i);
+    if c == .Some('e') or c == .Some('E') {
+        i += 1;
+        var c = peekChar(s, i);
+        if c == .Some('+') or c == .Some('-') {
+            i += 1;
+        }
+        parseDigits(s, i)!;
+    }
+
+    skipWhitespace(s, i);
+
+    unsafe {
+        return .Ok(strtod(s.utf8Data.ptr as *I8 + startI, nullptr));
+    }
+}
+
+fn parseDigits (s: String, ref i: ISize): JsonMaybeError {
+    match readChar(s, i) {
+        None { return .Err(&"Expected digit"); }
+        Some(c) {
+            if !(c >= '0' and c <= '9') {
+                return .Err(&"Expected digit");
+            }
+        }
+    }
+
+    loop {
+        match peekChar(s, i) {
+            None { break; }
+            Some(c) {
+                if c >= '0' and c <= '9' {
+                    i += 1;
+                } else {
+                    break;
+                }
+            }
+        }
+    }
+
+    return .Ok;
+}
+

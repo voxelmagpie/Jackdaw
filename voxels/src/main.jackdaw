@@ -1,0 +1,233 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/fs"
+import "@stlib/os_string"
+import "headers"
+import "terrain"
+import "matrix"
+import "vector"
+
+@Unsafe
+fn glfwErrorCallback (error: I32, description: *CChar) {
+    traceCStr(description);
+}
+
+@Unsafe
+fn glMsgCallback (source: GLenum, type_: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *GLchar, userParam: *void) {
+    if type_ == _GL_DEBUG_TYPE_ERROR_KHR {
+        traceCStr(message as *CChar);
+    }
+}
+
+const _GL_DEBUG_OUTPUT_KHR: U32 = 0x92E0
+const _GL_DEBUG_TYPE_ERROR_KHR: U32 = 0x824C
+
+const degToRad: F32 = 0.0174532925199
+
+@Unsafe
+fn modff (arg: F32, iptr: *F32): F32
+
+
+@Unsafe
+fn makeTerrainMeshBuffer (t: Terrain, isWater: Bool): (GLuint, I32) {
+    var (vertexData, normalsData, colours) = makeTerrainMesh(t, isWater);
+    var vertexCount = vertexData._length as I32;
+
+    var vertexBuffer: GLuint;
+    glGenBuffers(1, &vertexBuffer);
+    glBindBuffer(_GL_ARRAY_BUFFER, vertexBuffer);
+    glBufferData(_GL_ARRAY_BUFFER, vertexCount*12, nullptr, _GL_STATIC_DRAW);
+    glBufferSubData(_GL_ARRAY_BUFFER, 0, vertexCount*4, vertexData.ptr);
+    glBufferSubData(_GL_ARRAY_BUFFER, vertexCount*4, vertexCount*4, normalsData.ptr);
+    glBufferSubData(_GL_ARRAY_BUFFER, vertexCount*8, vertexCount*4, colours.ptr);
+
+    return (vertexBuffer, vertexCount);
+}
+
+@Unsafe
+fn time (*void): I64
+
+@Unsafe
+fn makeProgram (vsSrc: List[U8], fsSrc: List[U8]): GLuint {
+    var vs = glCreateShader(_GL_VERTEX_SHADER);
+    var vsSrc_ = vsSrc.ptr as *GLchar;
+    glShaderSource(vs, 1, &vsSrc_, nullptr);
+    glCompileShader(vs);
+    var status: GLint = 0;
+    glGetShaderiv(vs, _GL_COMPILE_STATUS, &status);
+    if status == 0 { throw &"Vertex shader compilation error"; }
+
+    var fs = glCreateShader(_GL_FRAGMENT_SHADER);
+    var fsSrc_ = fsSrc.ptr as *GLchar;
+    glShaderSource(fs, 1, &fsSrc_, nullptr);
+    glCompileShader(fs);
+    glGetShaderiv(fs, _GL_COMPILE_STATUS, &status);
+    if status == 0 { throw &"Fragment shader compilation error"; }
+
+    var program = glCreateProgram();
+    glAttachShader(program, vs);
+    glAttachShader(program, fs);
+    glBindAttribLocation(program, 0, "p".getCPtr());
+    glLinkProgram(program);
+    glGetProgramiv(program, _GL_LINK_STATUS, &status);
+    if status == 0 { throw &"Shader link error"; }
+
+    glDeleteShader(vs);
+    glDeleteShader(fs);
+
+    return program;
+}
+
+fn start () unsafe {
+    var vsSrc = readFile("src/vs.glsl");
+    vsSrc.push(0);
+    var vsDepthSrc = readFile("src/vs_depth.glsl");
+    vsDepthSrc.push(0);
+    var fsSrc = readFile("src/fs.glsl");
+    fsSrc.push(0);
+    var fsDepthSrc = readFile("src/fs_depth.glsl");
+    fsDepthSrc.push(0);
+
+    if glfwInit() == 0 { throw &"GLFW initialisation failure"; }
+    glfwSetErrorCallback(glfwErrorCallback);
+
+    glfwWindowHint(_GLFW_CLIENT_API, _GLFW_OPENGL_ES_API);
+    glfwWindowHint(_GLFW_CONTEXT_VERSION_MAJOR, 2);
+    glfwWindowHint(_GLFW_CONTEXT_VERSION_MINOR, 0);
+    glfwWindowHint(_GLFW_SAMPLES, 4);
+    glfwWindowHint(_GLFW_SRGB_CAPABLE, _GL_FALSE);
+    
+
+    var window = glfwCreateWindow(640, 480, "Voxels".getCPtr(), nullptr, nullptr);
+    if window == nullptr { throw &"GLFW window creation failure"; }
+    glfwMakeContextCurrent(window);
+
+    var glDebugMessageCallback = glfwGetProcAddress("DebugMessageCallback".getCPtr());
+    if glDebugMessageCallback != nullptr {
+        trace("OpenGL debug callback is supported");
+        glEnable(_GL_DEBUG_OUTPUT_KHR);
+        (glDebugMessageCallback as fn (type (glMsgCallback), *void))(glMsgCallback, nullptr);
+    }
+
+    traceCStr(glGetString(_GL_VERSION) as *CChar);
+
+    glClearColor(0.7, 1, 1.0, 1);
+    glEnable(_GL_DEPTH_TEST);
+    glEnable(_GL_CULL_FACE);
+    glBlendFunc(_GL_SRC_ALPHA, _GL_ONE_MINUS_SRC_ALPHA);  
+
+    var terrain = Terrain.generate(((time(nullptr) % 256) * 8) as F32);
+    var (vertexBuffer, vertexCount) = makeTerrainMeshBuffer(terrain, false);
+    var (waterVertexBuffer, waterVertexCount) = makeTerrainMeshBuffer(terrain, true);
+    _ = terrain;
+
+    var program = makeProgram(vsSrc, fsSrc);
+    var depthProgram = makeProgram(vsDepthSrc, fsDepthSrc);
+
+    var matLoc = glGetUniformLocation(program, "m".getCPtr() as *GLchar);
+    var modelMatLoc = glGetUniformLocation(program, "model".getCPtr() as *GLchar);
+    var timeLoc = glGetUniformLocation(program, "time".getCPtr() as *GLchar);
+
+    var depthMatLoc = glGetUniformLocation(depthProgram, "m".getCPtr() as *GLchar);
+
+    var r: F32 = 0;
+    var x: F32 = 0;
+    var y: F32 = 0;
+    var lastFrameTime = glfwGetTime() as F32;
+
+    glfwPollEvents();
+    loop {
+        if glfwWindowShouldClose(window) != 0 { break; }
+        if glfwGetKey(window, _GLFW_KEY_ESCAPE) != 0 { break; }
+
+        var thisFrameTime = glfwGetTime() as F32;
+        var delta = thisFrameTime - lastFrameTime;
+
+        if glfwGetKey(window, _GLFW_KEY_RIGHT) != 0 {
+            r = r - delta*2;
+        }
+        else if glfwGetKey(window, _GLFW_KEY_LEFT) != 0 {
+            r = r + delta*2;
+        }
+        else {
+            r = r - delta*0.1;
+        }
+
+        var width: I32;
+        var height: I32;
+        glfwGetFramebufferSize(window, &width, &height);
+        glViewport(0, 0, width, height);
+
+        glDepthMask(_GL_TRUE);
+        glColorMask(_GL_TRUE, _GL_TRUE, _GL_TRUE, _GL_TRUE);
+        glClear(_GL_COLOR_BUFFER_BIT as U32 | _GL_DEPTH_BUFFER_BIT);
+
+        var tr1 = Mat4.translate(Vec3{ values = {-16, -4, -16} });
+        var rm = Mat4.rotateY(r);
+        var model = rm*tr1;
+        var tr = Mat4.translate(Vec3{ values = {x, y-20, -25} });
+        var viewRot = Mat4.rotateX(-degToRad * 45);
+        var proj = perspectiveMatrixGl(degToRad*45, (width as F32) / (height as F32), 1, 100);
+        var m = proj*viewRot*tr*model;
+
+        // Depth prepass
+
+        glDepthMask(_GL_TRUE);
+        glDepthFunc(_GL_LESS);
+        glColorMask(_GL_FALSE, _GL_FALSE, _GL_FALSE, _GL_FALSE);
+        glDisable(_GL_BLEND);  
+
+        glUseProgram(depthProgram);
+        glUniformMatrix4fv(depthMatLoc, 1, _GL_FALSE, &m.values.at(0));
+
+        glBindBuffer(_GL_ARRAY_BUFFER, vertexBuffer);
+        glVertexAttribPointer(0, 4, _GL_BYTE, _GL_FALSE, 0, nullptr);
+        glEnableVertexAttribArray(0);
+        glDisableVertexAttribArray(1);
+        glDisableVertexAttribArray(2);
+        glDrawArrays(_GL_TRIANGLES, 0, vertexCount);
+
+
+        // Colour render
+
+        glDepthMask(_GL_FALSE);
+        glDepthFunc(_GL_LEQUAL);
+        glColorMask(_GL_TRUE, _GL_TRUE, _GL_TRUE, _GL_TRUE);
+
+        glUseProgram(program);
+        glUniformMatrix4fv(matLoc, 1, _GL_FALSE, &m.values.at(0));
+        glUniformMatrix4fv(modelMatLoc, 1, _GL_FALSE, &model.values.at(0));
+        glUniform1f(timeLoc, glfwGetTime() as F32);
+
+        glBindBuffer(_GL_ARRAY_BUFFER, vertexBuffer);
+        glVertexAttribPointer(0, 4, _GL_BYTE, _GL_FALSE, 0, nullptr);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 4, _GL_BYTE, _GL_FALSE, 0, ((vertexCount*4) as USize) as *void);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 4, _GL_UNSIGNED_BYTE, _GL_TRUE, 0, ((vertexCount*4*2) as USize) as *void);
+        glEnableVertexAttribArray(2);
+        glDrawArrays(_GL_TRIANGLES, 0, vertexCount);
+        
+        glEnable(_GL_BLEND);  
+        glDepthFunc(_GL_LESS);
+        
+        glBindBuffer(_GL_ARRAY_BUFFER, waterVertexBuffer);
+        glVertexAttribPointer(0, 4, _GL_BYTE, _GL_FALSE, 0, nullptr);
+        glEnableVertexAttribArray(0);
+        glVertexAttribPointer(1, 4, _GL_BYTE, _GL_FALSE, 0, ((waterVertexCount*4) as USize) as *void);
+        glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 4, _GL_UNSIGNED_BYTE, _GL_TRUE, 0, ((waterVertexCount*4*2) as USize) as *void);
+        glEnableVertexAttribArray(2);
+        glDrawArrays(_GL_TRIANGLES, 0, waterVertexCount);
+
+        glfwSwapBuffers(window);
+        // glfwWaitEvents();
+        glfwPollEvents();
+        lastFrameTime=thisFrameTime;
+    }
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
+}

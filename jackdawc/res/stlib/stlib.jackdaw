@@ -1,0 +1,390 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/fs"
+import "@stlib/os_string"
+import "@/main"
+
+const uncheckedArithmetic: Bool
+
+//
+// Compile-time reflection
+//
+
+
+// This constant is special as it compiles down to the sizeof operator in C
+// This means it cannot be constant folded as the type checker does not know the value
+const sizeOf [T]: I32
+
+// This does not include auto-generated functions such as eq, hash, etc. unless they are implemented manually
+const hasMemberFn [T, name]: Bool
+
+const typeName [T]: String
+
+// Tuple and array elements count as fields and are named by their index
+const getFields [A]: List[String]
+const fieldsCount [A]: I32
+alias FieldType [A, f] // TODO Take string as well as index
+@NoThrow accessor getField [A, f] (A): FieldType[A, f] // TODO Take string as well as index
+@Unsafe @NoThrow fn getFieldPtr [A, f] (*A): *FieldType[A, f] 
+const typeIsCopyable [A]: Bool
+
+const parameterCount[f]: I32
+
+const enumDataConsCount [A]: I32
+const dataConsTakesType [A, i]: Bool
+alias DataConsType [A, i] // Not valid for data constructors that do not take a value
+@NoThrow fn getEnumActiveIndex [A] (A): I32
+@NoThrow fn setEnumActiveIndexUnsafe [A] (ref A, i: I32)
+@NoThrow accessor getEnumIndexUnsafe [A, i] (A): DataConsType[A, i]
+@Unsafe @NoThrow fn getEnumIndexPtrUnsafe [A, i] (*A): *DataConsType[A, i]
+
+const isArrayType [A]: Bool
+alias ArrayElemType [A]
+const arrayLength [A]: I32
+const typesEq [A, B]: Bool
+
+// Gives field names, tuple/array lengths, parameter count
+enum TypeMeta {
+  Struct(List[String]),
+  Enum(List[String]),
+  Tuple(I32),
+  Fn(I32),
+  Ptr,
+  Array(I32),
+  Number,
+  BoolType
+}
+
+// TODO
+const typeInfo [A]: TypeMeta
+
+// enum FloatT {
+//     F32T,
+//     F64T
+// }
+
+// enum IntSize {
+//     Int8,
+//     Int16,
+//     Int32,
+//     Int64
+// }
+
+// struct IntT {
+//     size: IntSize,
+//     signed: Signedness
+// }
+
+// enum Signedness {
+//     Signed,
+//     Unsigned
+// }
+
+// enum NumPrim {
+//     AnIntT(IntT),
+//     AFloatT(FloatT)
+// }
+
+
+
+// struct TypeMeta {
+//     size: I32,
+//     typeName: String,
+//     copyable: Bool,
+//     memberFunctions: List[String],
+
+//     // Empty if not a struct or tuple
+//     // Tuple fields are indices as text ("0", "1", ..)
+//     fields: List[String],
+
+//     dataConstructors: List[String]
+// }
+
+
+//
+//
+//
+
+@Unsafe @NoThrow fn _takeException (): *void
+@Unsafe @NoThrow fn _restoreException (*void)
+
+@Unsafe @NoThrow
+fn drop [A] (ref x: A) {
+    var ex = _takeException();
+
+    if const hasMemberFn[A, "onDrop"] {
+        x.onDrop();
+    }
+
+    // TODO Type inference for generic functions
+
+    // Struct/tuple
+    for const (var i = fieldsCount[A]-1; i >= 0; i = i - 1) {
+        if const !typeIsCopyable[FieldType[A, i]] {
+            drop[FieldType[A, i]](getField[A, i](x));
+        }
+    }
+
+    // Array
+    if const isArrayType[A] {
+        for (var i = 0; i < arrayLength[A]; i += 1) {
+            drop[ArrayElemType[A]](x.at(i));
+        }
+    }
+
+    // Enum
+    for const (var i = 0; i < enumDataConsCount[A]; i += 1) {
+        if const dataConsTakesType[A, i] and !typeIsCopyable[DataConsType[A, i]] {
+            if getEnumActiveIndex[A](x) == i {
+                drop[DataConsType[A, i]](getEnumIndexUnsafe[A, i](x));
+            }
+        }
+    }
+
+    _restoreException(ex);
+}
+
+
+fn clone [A] (self: A): A unsafe {
+    if const hasMemberFn[A, "clone"] {
+        return self.clone();
+    }
+    else if const typeIsCopyable[A] {
+        return self;
+    } 
+    else {
+        // Manually initialise the type
+        var new: A;
+
+        // Struct/tuple: clone each field and move it into 'new'
+        for const (var i = 0; i < fieldsCount[A]; i += 1) {
+            var x = getField[A, i](self).clone();
+            // Take pointer so drop fn is not called on uninitialised data
+            getFieldPtr[A, i](&new).* = x;
+        }
+
+        // Array
+        if const isArrayType[A] {
+            for (var i = 0; i < arrayLength[A]; i += 1) {
+                var x = self.at(i).clone();
+                (&new.at(i)).* = x;
+            }
+        }
+
+        // Enum
+        if const enumDataConsCount[A] > 0 {
+            var active = getEnumActiveIndex[A](self);
+            setEnumActiveIndexUnsafe[A](new, active);
+            for const (var i = 0; i < enumDataConsCount[A]; i += 1) {
+                if const dataConsTakesType[A, i] {
+                    if active == i {
+                        var x = getEnumIndexUnsafe[A, i](self).clone();
+                        getEnumIndexPtrUnsafe[A, i](&new).* = x;
+                    }
+                }
+            }
+        }
+        return new;
+    }
+}
+
+
+fn equal [A] (x: A, y: A): Bool {
+    if const hasMemberFn[A, "eq"] {
+        return x.eq(y);
+    } else {
+        // Struct/tuple
+        for const (var i = 0; i < fieldsCount[A]; i += 1) {
+            if !equal[FieldType[A, i]](getField[A, i](x), getField[A, i](y)) { return false; }
+        }
+
+        // Array
+        if const isArrayType[A] {
+            for (var i = 0; i < arrayLength[A]; i += 1) {
+                if !equal[ArrayElemType[A]](x.at(i), y.at(i)) { return false; }
+            }
+        }
+
+        // Enum
+        if const enumDataConsCount[A] > 0 {
+            var active = getEnumActiveIndex[A](x);
+            if active != getEnumActiveIndex[A](y) { return false; }
+            for const (var i = 0; i < enumDataConsCount[A]; i += 1) {
+                if const dataConsTakesType[A, i] {
+                    if active == i {
+                        if !equal[DataConsType[A, i]](getEnumIndexUnsafe[A, i](x), getEnumIndexUnsafe[A, i](y)) { return false; }
+                    }
+                }
+            }
+        }
+        return true;
+    }
+}
+
+fn notEqual [A] (x: A, y: A): Bool {
+    if const hasMemberFn[A, "neq"] {
+        return x.neq(y);
+    }
+    else {
+        return !x.eq(y);
+    }
+}
+
+
+// TODO Change this to fn memAlloc [T] (ISize): *T
+@Unsafe @NoThrow fn memAlloc (ISize): *void
+@Unsafe @NoThrow fn memAllocZero (ISize): *void
+@Unsafe @NoThrow fn memRealloc (*void, ISize): *void
+@Unsafe @NoThrow fn free (*void)
+@Unsafe @NoThrow fn memFree (x: *void) { free(x); }
+@NoThrow fn abort ()
+
+// Use memCopyUnaliased only when the 2 buffers do not overlap
+@Unsafe @NoThrow
+fn memCopyUnaliased (dst: *void, src: *void, n: ISize)
+
+// Use memCopy if the buffers might overlap
+@Unsafe @NoThrow
+fn memCopy (dst: *void, src: *void, n: ISize)
+
+@Unsafe @NoThrow
+fn memCmp (*void, *void, ISize): I32
+
+@Unsafe @NoThrow
+fn memSet (*void, U8, ISize)
+
+// Consumes the value without dropping it
+@NoThrow
+fn leak [A] (var A)
+
+// Consumes the value and puts it on the heap as a *const
+fn toConstPtr [A] (var x: A): *const A unsafe {
+    var ptr = memAlloc(sizeOf[A]) as *A;
+    ptr.* = x;
+    return ptr as *const A;
+}
+
+
+fn _assert (x: Bool)
+fn assert (x: Bool) {
+    _assert(x);
+}
+
+@NoReturn @NoThrow
+fn panic_ ()
+
+@NoReturn @NoThrow
+fn panic (msg: String) unsafe {
+    _panic(msg.getCPtr());
+}
+
+@NoReturn
+fn unreachable () {
+    throw &"Reached unreachable code";
+}
+
+@Unsafe
+fn traceCStr (*CChar)
+fn trace (s: String) unsafe { traceCStr(s.getCPtr()); }
+fn traceI32 (I32)
+fn traceU64Hex (U64)
+fn traceUnformattedByte (U8)
+
+// Unsigned on 32-bit ARM
+alias CChar = I8
+alias CSizeT = U64
+
+@Unsafe @NoReturn @NoThrow
+fn _panic(*CChar)
+
+
+fn readI32(): I32
+fn writeI32(I32)
+fn readF64(): F64
+fn writeF64(F64)
+
+fn min [A] (x: A, y: A): A {
+    return x < y ? x : y;
+}
+
+fn max [A] (x: A, y: A): A {
+    return x > y ? x : y;
+}
+
+fn clamp [A] (x: A, minVal: A, maxVal: A): A {
+    return x > maxVal ? maxVal : x < minVal ? minVal : x;
+}
+
+
+const targetWin32: Bool = false
+const targetLinux: Bool = true
+
+
+fn abs [A] (x: A): A {
+    return x >= 0 ? x : -x;
+}
+
+fn roundUp [A] (i: A, to: A): A {
+    return ((i + to - 1) / to) * to;
+}
+
+// Can be used to tell the compiler that a variable has been initialised
+fn initialised [A] (*A) {}
+
+
+fn initArray [A, n] (x: A): Array[A, n] unsafe {
+    require typeIsCopyable[A];
+    var xs: Array[A, n] = uninitialised;
+    foreach ref y in xs.iter() {
+        (&y).* = x;
+    }
+    return xs;
+}
+
+
+//
+// Start
+//
+
+struct IoStreams {
+    stdIn: File,
+    stdOut: File
+}
+
+@Unsafe fn strlen(*CChar): USize
+
+alias Args = List[OsString]
+
+@Unsafe
+fn _kStart (argc: I32, argv: **CChar): I32 {
+    try {
+        if const parameterCount[start] == 0 {
+            start();
+        }
+        else {
+            var args = Args.new();
+            args.reserve(argc);
+            for (var i: I32 = 0; i < argc; i += 1) {
+                var u = List[U8]{ ptr = argv.(i) as *U8, _length = strlen(argv.(i)) as ISize + 1, capacity=0 };
+                args.push(OsString{ data=u });
+            }
+
+            // Prevent OsStrings being dropped (argv memory is not from malloc)
+            var args = toConstPtr[Args](args);
+
+            var streams = IoStreams{
+                stdIn = File{ f = getStdInPtr() },
+                stdOut = File{ f = getStdOutPtr() }
+            };
+
+            start(args.*, streams);
+        }
+    }
+    catch e {
+        trace("Unhandled exception: " ++ e.*);
+        return 1;
+    }
+    return 0;
+}

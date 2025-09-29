@@ -1,0 +1,172 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/range"
+import "block"
+import "noise"
+
+struct Terrain {
+    blocks: List[BlockType]
+
+    fn generate (seed: F32): Self {
+        var blocks = List[BlockType].new();
+        blocks.reserve(8*32*32);
+        foreach i in range[I32](0, 8*32*32) {
+            blocks.push(.Air);
+        }
+
+        var self = Self{blocks};
+        var noise = makeNoise2(seed);
+
+        var i = 0;
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { self.blocks.at(i) = noise.at(j) > 50 ? .Sand: .Soil; }
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { self.blocks.at(i) = noise.at(j) > 90 ? .Sand : .Water; }
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { if noise.at(j) > 110 {self.blocks.at(i) = .Sand;} }
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { if noise.at(j) > 140 {self.blocks.at(i) = noise.at(j) > 150 ? .Grass : .Sand;} }
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { if noise.at(j) > 160 {self.blocks.at(i) = .Grass;} }
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { if noise.at(j) > 200 {self.blocks.at(i) = .Grass;} }
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { if noise.at(j) > 220 {self.blocks.at(i) = .Grass;} }
+        for (var j=0; j < 32*32; i=i+1, j=j+1) { if noise.at(j) > 250 {self.blocks.at(i) = .Grass;} }
+
+
+        return self;
+    }
+
+    accessor at (self: Self, x: I32, y: I32, z: I32): BlockType {
+        return self.blocks.at(y*32*32 + x*32 + z);
+    }
+}
+
+fn faceVisible (thisBlock: BlockType, otherBlock: BlockType): Bool {
+    return (otherBlock == .Air or otherBlock == .Water) and thisBlock != otherBlock;
+}
+
+alias VPos = Array[I8, 4]
+alias VNorm = Array[I8, 4]
+alias VCol = Array[U8, 4]
+
+// Returns list of positions, list of normals, list of colours
+fn makeTerrainMesh (t: Terrain, waterPass: Bool): (List[VPos], List[VNorm], List[VCol]) {
+    var positions = List[VPos].new();
+    var normals = List[VNorm].new();
+    var colours = List[VCol].new();
+
+    foreach y in range[I8](0, 8) {
+        foreach x in range[I8](0, 32) {
+            foreach z in range[I8](0, 32) {
+                var block = t.at(x, y, z);
+                if block == .Air or (block == .Water) != waterPass { continue; }
+
+                var colour: VCol;
+                match block {
+                    Air {
+                        colour = {0,0,0,0};
+                    }
+                    Stone {
+                        colour = {120,120,120, 255};
+                    }
+                    Soil {
+                        colour = {138, 93, 43, 255};
+                    }
+                    Grass {
+                        colour = {64, 184, 106, 255};
+                    }
+                    Sand {
+                        colour = {235, 234, 176, 255};
+                    }
+                    Water {
+                        colour = {99, 136, 255, 127};
+                    }
+                }
+
+
+                // TOP
+                if y == 7 or faceVisible(block, t.at(x, y+1, z)) {
+                    positions.push({x, y+1, z, 1});
+                    positions.push({x, y+1, z+1, 1});
+                    positions.push({x+1, y+1, z+1, 1});
+                    positions.push({x+1, y+1, z+1, 1});
+                    positions.push({x+1, y+1, z, 1});
+                    positions.push({x, y+1, z, 1});
+                    foreach i in range[I8](0, 6) {
+                        normals.push({0, 1, 0, 0});
+                        colours.push(colour);
+                    }
+                }
+
+                // // BOTTOM
+                // if y == 0 or faceVisible(block, t.at(x, y-1, z)) {
+                //     positions.push({x, y+1, z, 1});
+                //     positions.push({x+1, y+1, z, 1});
+                //     positions.push({x+1, y+1, z+1, 1});
+                //     positions.push({x+1, y+1, z+1, 1});
+                //     positions.push({x, y+1, z+1, 1});
+                //     positions.push({x, y+1, z, 1});
+                //     foreach i in range[I8](0, 6) {
+                //         normals.push({0, -1, 0, 0});
+                //         colours.push(colour);
+                //     }
+                // }
+
+                // RIGHT
+                if x == 31 or faceVisible(block, t.at(x+1, y, z)) {
+                    positions.push({x+1, y, z, 1});
+                    positions.push({x+1, y+1, z, 1});
+                    positions.push({x+1, y+1, z+1, 1});
+                    positions.push({x+1, y+1, z+1, 1});
+                    positions.push({x+1, y, z+1, 1});
+                    positions.push({x+1, y, z, 1});
+                    foreach i in range[I8](0, 6) {
+                        normals.push({1, 0, 0, 0});
+                        colours.push(colour);
+                    }
+                }
+
+                // LEFT
+                if x == 0 or faceVisible(block, t.at(x-1, y, z)) {
+                    positions.push({x, y, z, 1});
+                    positions.push({x, y, z+1, 1});
+                    positions.push({x, y+1, z+1, 1});
+                    positions.push({x, y+1, z+1, 1});
+                    positions.push({x, y+1, z, 1});
+                    positions.push({x, y, z, 1});
+                    foreach i in range[I8](0, 6) {
+                        normals.push({1, 0, 0, 0});
+                        colours.push(colour);
+                    }
+                }
+
+                // +Z
+                if z == 31 or faceVisible(block, t.at(x, y, z+1)) {
+                    positions.push({x, y, z+1, 1});
+                    positions.push({x+1, y, z+1, 1});
+                    positions.push({x+1, y+1, z+1, 1});
+                    positions.push({x+1, y+1, z+1, 1});
+                    positions.push({x, y+1, z+1, 1});
+                    positions.push({x, y, z+1, 1});
+                    foreach i in range[I8](0, 6) {
+                        normals.push({0, 0, 1, 0});
+                        colours.push(colour);
+                    }
+                }
+
+                // -Z
+                if z == 0 or faceVisible(block, t.at(x, y, z-1)) {
+                    positions.push({x, y, z, 1});
+                    positions.push({x, y+1, z, 1});
+                    positions.push({x+1, y+1, z, 1});
+                    positions.push({x+1, y+1, z, 1});
+                    positions.push({x+1, y, z, 1});
+                    positions.push({x, y, z, 1});
+                    foreach i in range[I8](0, 6) {
+                        normals.push({0, 0, -1, 0});
+                        colours.push(colour);
+                    }
+                }
+            }
+        }
+    }
+
+    return (positions, normals, colours);
+}

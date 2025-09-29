@@ -1,0 +1,217 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/os_string"
+import "@stlib/io"
+
+@Unsafe fn fopen (path: *CChar, mode: *CChar): *void
+@Unsafe fn fclose (*void)
+@Unsafe fn fread (buffer: *void, size: USize, count: USize, file: *void): USize
+@Unsafe fn fwrite (buffer: *void, size: USize, count: USize, file: *void): USize
+@Unsafe fn feof (*void): I32
+@Unsafe fn ferror (*void): I32
+@Unsafe fn ftell(*void): I64
+@Unsafe fn fseek(*void, offset: I64, origin: I32): I32
+@Unsafe fn fputc (I32, *void): I32
+
+const _SEEK_SET: I32 = 0
+const _SEEK_CUR: I32 = 1
+const _SEEK_END: I32 = 2
+
+struct File {
+    @Unsafe
+    f: *void
+
+    // TODO Return Maybe[Self]
+    fn open (path: OsString, write: Bool): Self unsafe {
+        var mode = write ? "wb".getCPtr() : "rb".getCPtr();
+        var f = fopen(path.getCPtr(), mode);
+        if f == nullptr { ioError("fopen"); }
+        return Self{f};
+    }
+
+    // TODO Should this take self as var?
+    fn close (ref self: Self) unsafe {
+        fclose(self.f);
+    }
+
+    fn onDrop (ref self: Self) {
+        self.close();
+    }
+
+    fn readByte (ref self: Self): Maybe[U8] unsafe {
+        var x: U8;
+        var n = fread(&x, 1, 1, self.f);
+        if n == 0 {
+            return .None;
+        }
+        else if n == 1 {
+            return .Some(x);
+        }
+        ioError("fread");
+    }
+
+    // Attempts to read n bytes, may read less if EOF is reached
+    fn readByteList (ref self: Self, n: ISize): List[U8] unsafe {
+        if n < 1 { return List[U8].new(); }
+
+        var bytes = List[U8].new();
+        bytes.reserve(n);
+
+        var bytesRead = fread(bytes.ptr, 1, n as USize, self.f) as ISize;
+
+        if bytesRead < 0 {
+            ioError("fread");
+        }
+        if bytesRead == 0 {
+            return List[U8].new();
+        }
+
+        bytes._length = bytesRead;
+        return bytes;
+    }
+
+    iterator readBytes (ref self: Self): U8 {
+        loop {
+            match self.readByte() {
+                Some(c) { yield c; }
+                _ { break; }
+            }
+        }
+    }
+
+    fn isEof (ref self: Self): Bool unsafe {
+        return feof(self.f) != 0;
+    }
+
+    // Attempts to read up to and including the next newline, may read less if EOF is reached
+    fn readLine (ref self: Self): String {
+        var line = String.new();
+        _ = line.utf8Data.pop();
+        loop {
+            // TODO Change this to read 1-4 bytes and call readUtf8CodePoint
+            var c0: U8;
+            match self.readByte() {
+                None { break; }
+                Some(x) { c0 = x; }
+            }
+
+            line.utf8Data.push(c0);
+
+            if c0 >> 7 == 0 {
+                // ASCII
+                continue;
+            }
+
+            var n = 0 as ISize;
+            var min = 0 as U32; // Prevent overlong encodings
+            var c = 0 as U32;
+            if c0 >> 5 == 0b110 {
+                n = 1;
+                min = 0x80;
+                c = c0 & 0b00011111;
+            }
+            else if c0 >> 4 == 0b1110 {
+                n = 2;
+                min = 0x800;
+                c = c0 & 0b00001111;
+            }
+            else if c0 >> 3 == 0b11110 {
+                n = 3;
+                min = 0x10000;
+                c = c0 & 0b00000111;
+            }
+            else {
+                throw &"Invalid UTF8";
+            }
+
+            for (var j: ISize = 0; j < n; j += 1) {
+                var c2 = self.readByte().orThrowMsg(&"EOF in UTF8 code point");
+                if (c2 >> 6) != 0b10 { throw &"Invalid UTF8"; }
+                c = (c << 6) | (c2 & 0b111111);
+                line.utf8Data.push(c2);
+            }
+
+            if c < min or c > 0x10FFFF { throw &"Invalid UTF8"; }
+            if c >= 0xd800 and c <= 0xdfff { throw &"Invalid UTF8"; }
+        }
+        line.utf8Data.push(0);
+        return line;
+    }
+
+    fn writeString (ref self: Self, s: String) {
+        self.writeBytes(s.utf8Data.asSlice().subSlice(0, s.utf8Data.length() - 1));
+    }
+
+    fn writeLine (ref self: Self, s: String) {
+        self.writeString(s);
+        self.writeByte('\n');
+    }
+
+    fn writeByte (ref self: Self, x: U8) unsafe {
+        if fputc(x as I32, self.f) < 0 { ioError("fputc"); }
+    }
+
+    fn writeBytes (ref self: Self, bytes: Slice[U8]) unsafe {
+        if bytes.length() < 1 { return; }
+        var r = fwrite(bytes.asRawSlice().ptr, bytes.length() as USize, 1, self.f);
+        if r != 1 { ioError("fwrite"); }
+    }
+
+    fn writeByteList (ref self: Self, bytes: List[U8]) {
+        self.writeBytes(bytes.asSlice());
+    }
+
+    fn getSize (ref self: Self): I64 unsafe {
+        var p = self.getPosition(); 
+        fseek(self.f, 0, _SEEK_END);
+        var sz = self.getPosition(); 
+        self.setPosition(p);
+        return sz;
+    }
+
+    fn setPosition (ref self: Self, p: I64) unsafe {
+        fseek(self.f, p, _SEEK_SET);
+    }
+
+    // TODO This does not work for file > 2GiB. Use posix API for File instead of cstdlib
+    fn getPosition (ref self: Self): I64 unsafe {
+        return ftell(self.f); 
+    }
+}
+
+fn readTextFile (path: OsString): String unsafe {
+    var f = File.open(path, false);
+    var sz = f.getSize() as I32;
+    var utf8Data = List[U8].new();
+    utf8Data.reserve(sz+1);
+    var bytesRead = fread(utf8Data.ptr, 1, sz as USize, f.f) as ISize;
+    if bytesRead < 0 { ioError("fread"); }
+    if bytesRead != sz { throw &"Incomplete fread (readTextFile)"; }
+    utf8Data._length = bytesRead;
+    utf8Data.push(0);
+    return String{utf8Data};
+}
+
+fn readFile (path: OsString): List[U8] unsafe {
+    var f = File.open(path, false);
+    var sz = f.getSize() as I32;
+    var bytes = List[U8].new();
+    if sz == 0 { return bytes; }
+    bytes.reserve(sz);
+    var bytesRead = fread(bytes.ptr, 1, sz as USize, f.f) as ISize;
+    if bytesRead < 0 { ioError("fread"); }
+    if bytesRead != sz { throw &"Incomplete fread (readFile)"; }
+    bytes._length = bytesRead;
+    return bytes;
+}
+
+@Unsafe
+fn getStdInPtr (): *void
+@Unsafe
+fn getStdOutPtr (): *void
+@Unsafe
+fn getStdErrPtr (): *void
+
+fn getStdErr (): File unsafe { return File { f = getStdErrPtr() }; }

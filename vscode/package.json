@@ -1,0 +1,36 @@
+{
+  "name": "jackdaw-highlighting",
+  "displayName": "Jackdaw Syntax Highlighting",
+  "description": "Syntax highlighting for the Jackdaw language",
+  "publisher": "VoxelMagpie",
+  "version": "0.1.0",
+  "license": "MPL-2.0",
+  "engines": {
+    "vscode": "^1.72.2"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "jackdaw",
+        "aliases": [
+          "jackdaw",
+          "Jackdaw"
+        ],
+        "extensions": [
+          ".jackdaw"
+        ],
+        "configuration": "./language-configuration.jackdaw.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "jackdaw",
+        "scopeName": "source.jackdaw",
+        "path": "./syntaxes/jackdaw.tmLanguage.json"
+      }
+    ]
+  }
+}

@@ -1,0 +1,79 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+enum IsError {
+    Ok,
+    Err
+
+    fn fromIsOk (ok: Bool): Self {
+        return ok ? .Ok : .Err;
+    }
+
+    fn fromIsErr (err: Bool): Self {
+        return err ? .Err : .Ok;
+    }
+
+    fn isOk (self: Self): Bool {
+        return self == .Ok;
+    }
+
+    fn isErr (self: Self): Bool {
+        return self == .Err;
+    }
+
+    fn orThrow (var self: Self) {
+        match self {
+            Ok {}
+            _ { throw &"IsError was Err"; }
+        }
+    }
+
+    fn orThrowMsg (var self: Self, msg: *const String) {
+        match self {
+            Ok {}
+            _ { throw msg; }
+        }
+    }
+}
+
+enum MaybeError [E] {
+    Ok,
+    Err(E)
+
+    fn orThrow (var self: Self) {
+        match var self {
+            Ok {}
+            Err(x) {
+                if const typesEq[E, *const String] {
+                    throw x;
+                }
+                else {
+                    throw &"MaybeError was Err";
+                }
+            }
+        }
+    }
+}
+
+enum Result [A, E] {
+    Ok(A),
+    Err(E)
+
+    fn orThrow (var self: Self): A {
+        match var self {
+            Ok(x) { return x; }
+            Err(x) {
+                if const typesEq[E, *const String] {
+                    throw x;
+                }
+                else {
+                    throw "&Result was Err";
+                }
+            }
+        }
+    }
+}
+
+
+// See also: Maybe

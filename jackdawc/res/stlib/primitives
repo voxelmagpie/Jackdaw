@@ -1,0 +1,283 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+
+import "@stlib/to_string"
+import "@stlib/raw_slice"
+import "@stlib/hash"
+
+#define f(t) \
+	fn +    add (x: Self, y: Self): Self { return _add##t(x, y); } _NL \
+	fn -    sub (x: Self, y: Self): Self { return _sub##t(x, y); } _NL \
+	fn *    mul (x: Self, y: Self): Self { return _mul##t(x, y); } _NL \
+	fn /    div (x: Self, y: Self): Self { return _div##t(x, y); } _NL \
+	fn ==   eq  (x: Self, y: Self): Bool { return _eq##t(x, y); } _NL \
+	fn !=   neq (x: Self, y: Self): Bool { return _neq##t(x, y); } _NL \
+	fn >    gt  (x: Self, y: Self): Bool { return _gt##t(x, y); } _NL \
+	fn >=   gte (x: Self, y: Self): Bool { return _gte##t(x, y); } _NL \
+	fn <    lt  (x: Self, y: Self): Bool { return _lt##t(x, y); } _NL \
+	fn <=   lte (x: Self, y: Self): Bool { return _lte##t(x, y); } _NL \
+	fn -    neg (x: Self): Self { return _neg##t(x); } _NL \
+	fn addToHash (self: Self, ref h: Hash) unsafe { addHashBytes(h, RawSlice[U8]{ ptr = &self as *U8, length = sizeOf[Self] }); }
+
+
+type F32 {
+	f(_f32)
+
+	fn % rem (x: Self, y: Self): Self { return remainderf(x, y); }
+	fn toString (x: Self): String unsafe { return floatToString[Self, snprintf_f32](x); }
+	fn sqrt (x: Self): Self { return sqrtf(x); }
+}
+
+type F64 {
+	f(_f64)
+
+	fn % rem (x: Self, y: Self): Self { return remainder(x, y); }
+	fn toString (x: Self): String unsafe { return floatToString[Self, snprintf_f64](x); }
+	fn sqrt (x: Self): Self { return sqrt(x); }
+}
+
+@NoThrow fn remainderf (F32, F32): F32
+@NoThrow fn remainder (F64, F64): F64
+
+@NoThrow fn sqrtf(F32): F32
+@NoThrow fn sqrt (F64): F64
+
+#undef f
+
+type Bool {
+	fn ! not (x: Self): Self { return _not_bool(x); }
+	fn ~ not_ (x: Self): Self { return _not_bool(x); }
+	fn ==   eq  (x: Self, y: Self): Bool { return _eq_bool(x, y); }
+	fn !=   neq (x: Self, y: Self): Bool { return _neq_bool(x, y); }
+
+	fn & and_ (x: Self, y: Self): Bool { return _and_bool(x, y); }
+	fn | or_ (x: Self, y: Self): Bool { return _or_bool(x, y); }
+	fn ~ xor (x: Self, y: Self): Bool { return _neq_bool(x, y); }
+	fn * mul (x: Self, y: Self): Bool { return _and_bool(x, y); }
+	fn + add (x: Self, y: Self): Bool { return _or_bool(x, y); }
+
+	fn toString (self: Self): String { return self ? "true".clone() : "false".clone(); }
+
+	fn addToHash (self: Self, ref h: Hash) unsafe { 
+		var x: U8 = self ? 1 : 0;
+		addHashBytes(h, RawSlice[U8]{ ptr = &x, length = 1 }); 
+	}
+
+    fn isTruthy (self: Self): Bool {
+        return self;
+    }
+}
+
+#define g(t, name, op) \
+	fn op name (x: Self, y: Self): Self { if const uncheckedArithmetic { return _##name##t(x, y); } else { return _checked_##name##t(x, y); } } _NL
+
+#define f(t) \
+	g(t, add, +) \
+	g(t, sub, -) \
+	g(t, mul, *) \
+	g(t, div, /) \
+	g(t, rem, %) \
+	fn <<   lsh (x: Self, y: I32): Self { return _lsh##t(x, y); } _NL \
+	fn >>   rsh (x: Self, y: I32): Self { return _rsh##t(x, y); } _NL \
+	fn &    bAnd (x: Self, y: Self): Self { return _and##t(x, y); } _NL \
+	fn |    bOr (x: Self, y: Self): Self { return _or##t(x, y); } _NL \
+	fn ~    xor (x: Self, y: Self): Self { return _xor##t(x, y); } _NL \
+	fn ==   eq  (x: Self, y: Self): Bool { return _eq##t(x, y); } _NL \
+	fn !=   neq (x: Self, y: Self): Bool { return _neq##t(x, y); } _NL \
+	fn >    gt  (x: Self, y: Self): Bool { return _gt##t(x, y); } _NL \
+	fn >=   gte (x: Self, y: Self): Bool { return _gte##t(x, y); } _NL \
+	fn <    lt  (x: Self, y: Self): Bool { return _lt##t(x, y); } _NL \
+	fn <=   lte (x: Self, y: Self): Bool { return _lte##t(x, y); } _NL \
+	fn +%   wrappingAdd (x: Self, y: Self): Self { return _wadd##t(x, y); } _NL \
+	fn -%   wrappingSub (x: Self, y: Self): Self { return _wsub##t(x, y); } _NL \
+	fn ~    not (x: Self): Self { return _not##t(x); } _NL \
+	fn safeDiv (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .None; } return .Some(_div##t(x, y)); } _NL \
+	fn safeRem (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .None; } return .Some(_rem##t(x, y)); } _NL \
+	fn toString (x: Self): String { return intToString[Self](x); } _NL \
+	fn addToHash (self: Self, ref h: Hash) unsafe { addHashBytes(h, RawSlice[U8]{ ptr = &self as *U8, length = sizeOf[Self] }); }
+
+#define ineg(t) \
+	fn - neg (x: Self): Self { if const uncheckedArithmetic { return _neg##t(x); } else { return _checked_neg##t(x); } }
+
+#define u_fns(t) \
+	fn - neg (x: Self): Self { return _neg##t(x); } _NL \
+	fn *% wrappingMul (x: Self, y: Self): Self { return _wmul##t(x, y); }
+
+type I8 {
+	f(_i8)
+	ineg(_i8)
+}
+
+type I16 {
+	f(_i16)
+	ineg(_i16)
+}
+
+type I32 {
+	f(_i32)
+	ineg(_i32)
+}
+
+alias ISize = I64
+type I64 {
+	f(_i64)
+	ineg(_i64)
+}
+
+type U8 {
+	f(_u8)
+	u_fns(_u8)
+}
+
+type U16 {
+	f(_u16)
+	u_fns(_u16)
+}
+
+type U32 {
+	f(_u32)
+	u_fns(_u32)
+}
+
+alias USize = U64
+type U64 {
+	f(_u64)
+	u_fns(_u64)
+}
+
+#undef f
+
+#define f(t, T) \
+	@NoThrow fn _add##t (T, T): T _NL \
+	@NoThrow fn _sub##t (T, T): T _NL \
+	@NoThrow fn _mul##t (T, T): T _NL \
+	fn _checked_add##t (T, T): T _NL \
+	fn _checked_sub##t (T, T): T _NL \
+	fn _checked_mul##t (T, T): T _NL \
+	@NoThrow fn _wadd##t (T, T): T _NL \
+	@NoThrow fn _wsub##t (T, T): T _NL \
+	@NoThrow fn _div##t (T, T): T _NL \
+	@NoThrow fn _rem##t (T, T): T _NL \
+	fn _checked_div##t (T, T): T _NL \
+	fn _checked_rem##t (T, T): T _NL \
+	@NoThrow fn _eq##t  (T, T): Bool _NL \
+	@NoThrow fn _neq##t (T, T): Bool _NL \
+	@NoThrow fn _gt##t  (T, T): Bool _NL \
+	@NoThrow fn _gte##t (T, T): Bool _NL \
+	@NoThrow fn _lt##t  (T, T): Bool _NL \
+	@NoThrow fn _lte##t (T, T): Bool _NL \
+	@NoThrow fn _lsh##t (T, I32): T _NL \
+	@NoThrow fn _rsh##t (T, I32): T _NL \
+	@NoThrow fn _and##t (T, T): T _NL \
+	@NoThrow fn _or##t (T, T): T _NL \
+	@NoThrow fn _xor##t (T, T): T _NL \
+	@NoThrow fn _neg##t (T): T _NL \
+	@NoThrow fn _not##t (T): T
+
+f(_i8, I8)
+f(_i16, I16)
+f(_i32, I32)
+f(_i64, I64)
+f(_u8, U8)
+f(_u16, U16)
+f(_u32, U32)
+f(_u64, U64)
+
+#undef f
+
+#define f(t, T) \
+	fn _checked_neg##t (T): T
+
+f(_i8, I8)
+f(_i16, I16)
+f(_i32, I32)
+f(_i64, I64)
+
+#undef f
+
+#define f(t, T) \
+	@NoThrow fn _wmul##t (T, T): T
+
+f(_u8, U8)
+f(_u16, U16)
+f(_u32, U32)
+f(_u64, U64)
+
+#undef f
+
+#define f(t, T) \
+	@NoThrow fn _add##t (T, T): T _NL \
+	@NoThrow fn _sub##t (T, T): T _NL \
+	@NoThrow fn _mul##t (T, T): T _NL \
+	@NoThrow fn _div##t (T, T): T _NL \
+	@NoThrow fn _rem##t (T, T): T _NL \
+	@NoThrow fn _eq##t  (T, T): Bool _NL \
+	@NoThrow fn _neq##t (T, T): Bool _NL \
+	@NoThrow fn _gt##t  (T, T): Bool _NL \
+	@NoThrow fn _gte##t (T, T): Bool _NL \
+	@NoThrow fn _lt##t  (T, T): Bool _NL \
+	@NoThrow fn _lte##t (T, T): Bool _NL \
+	@NoThrow fn _neg##t (T): T
+
+f(_f64, F64)
+f(_f32, F32)
+
+#undef f
+
+@NoThrow fn _not_bool (Bool): Bool
+@NoThrow fn _eq_bool  (Bool, Bool): Bool
+@NoThrow fn _neq_bool (Bool, Bool): Bool
+@NoThrow fn _and_bool (Bool, Bool): Bool
+@NoThrow fn _or_bool (Bool, Bool): Bool
+
+
+type Array [A, n] {
+	accessor at (self: Self, i: ISize): A unsafe {
+		if i < 0 or i >= n { throw &"Array index out of bounds"; }
+		return (&self as *A) + i;
+	}
+
+	accessor iterator iter (self: Self): A {
+		for (var i = 0; i < n; i+=1) {
+			yield self.at(i);
+		}
+	}
+
+	// Takes exclusive reference to guarantee that the ref is passed as a pointer
+	// TODO
+	@Unsafe
+	fn asRawSlice (ref self: Self): RawSlice[A] {
+		return RawSlice[A]{ ptr = &self as *A, length=n };
+	}
+
+	accessor asSlice (self: Self): Slice[A] unsafe {
+		return RawSlice[A]{ ptr = &self as *A, length=n };
+	}
+}
+
+type Slice [A] {
+	@Unsafe
+	fn asRawSlice (self: Self): RawSlice[A]
+
+	accessor at (self: Self, i: ISize): A unsafe {
+		return self.asRawSlice().atPtr(i);
+	}
+
+	fn length (self: Self): ISize unsafe {
+		return self.asRawSlice().length;
+	}
+
+    accessor subSlice (self: Self, i: ISize, n: ISize): Self unsafe {
+		return self.asRawSlice().subSlice(i, n);
+	}
+
+	accessor iterator iter (self: Self): A {
+		var l = self.length();
+		for (var i = 0; i < l; i=i+1) {
+			yield self.at(i);
+		}
+	}
+}
+

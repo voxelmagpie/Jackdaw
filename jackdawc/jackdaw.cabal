@@ -1,0 +1,36 @@
+cabal-version:      3.0
+name:               jackdawc
+-- Also change version in Main.hs
+version:            0.1.0.0
+-- synopsis:
+-- description:
+license:            MPL-2.0
+author:             VoxelMagpie
+-- maintainer:
+-- copyright:
+category:           Language
+build-type:         Simple
+extra-source-files: res/help.txt
+
+
+common warnings
+    ghc-options: -threaded -Wall -rtsopts=all
+
+executable jackdawc
+  import:           warnings
+  main-is:          Main.hs
+  other-modules:
+    Prelude2, Names, SrcLoc, Ast, Hir, Tables, IdTypes, InsOrdMap, HashMultiMap, CmdLine, Timings, Cc, Ex, Help,
+    Tc.Ctx, Tc.State, Tc.Tc, Tc.Names, Tc.TcIr, Tc.Borrow, Tc.TypeAttribs, Tc.TcErr, Tc.Builtins, Tc.Fmt, Tc.Casts, Tc.Error,
+    Tokens, Lexer, ParserHelperCode, Parser, AccessMode, Primitives,
+    Lower, Lir, CTranspiler
+  build-depends:
+    base ^>=4.18.3.0, hashable, text, array, mtl, process, directory, bytestring, hashtables, process-extras,
+    data-default, unordered-containers, newtype-generics, time, async, filepath, file-embed
+  build-tool-depends: alex:alex, happy:happy
+  hs-source-dirs:   app
+  default-language: GHC2021
+  default-extensions: OverloadedStrings, LambdaCase, NoImplicitPrelude,
+      DuplicateRecordFields, NoFieldSelectors, OverloadedRecordDot,
+      DeriveAnyClass, DerivingStrategies, StrictData, FunctionalDependencies,
+      TypeFamilies, RecordWildCards

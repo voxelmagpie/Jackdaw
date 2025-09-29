@@ -1,0 +1,11 @@
+//! # 8\n16
+
+struct X [A] {
+    a: A,
+    b: I32
+}
+
+fn start () {
+    writeI32(sizeOf[X[I32]] as I32);
+    writeI32(sizeOf[X[F64]] as I32);
+}

@@ -54,7 +54,7 @@ struct File {
 
     // Attempts to read n bytes, may read less if EOF is reached
     fn readByteList (ref self: Self, n: ISize): List[U8] unsafe {
-        if n < 1 { return List[U8].new(); }
+        if n < 1 { return .new(); }
 
         var bytes = List[U8].new();
         bytes.reserve(n);
@@ -65,7 +65,7 @@ struct File {
             ioError("fread");
         }
         if bytesRead == 0 {
-            return List[U8].new();
+            return .new();
         }
 
         bytes._length = bytesRead;

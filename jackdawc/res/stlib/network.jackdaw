@@ -64,7 +64,7 @@ struct ListenSocket {
     }
 
     fn accept (ref self: Self): Socket unsafe {
-        return Socket.fromUnbuffered(self.acceptUnbuffered());
+        return .fromUnbuffered(self.acceptUnbuffered());
     }
 
     fn onDrop (ref self: Self) unsafe {
@@ -97,12 +97,12 @@ struct UnbufferedSocket {
         if res.*.family == af_inet6 {
             var a = (res.*.addr as *SockAddrIn6).*.addr;
             freeaddrinfo(res);
-            return Self.connectIpv6(a, port);
+            return .connectIpv6(a, port);
         }
         else if res.*.family == af_inet {
             var a = (res.*.addr as *SockAddrIn).*.addr;
             freeaddrinfo(res);
-            return Self.connectIpv4(a, port);
+            return .connectIpv4(a, port);
         }
         else {
             freeaddrinfo(res);
@@ -131,7 +131,7 @@ struct UnbufferedSocket {
         var addr: Array[U8, 4];
         if inet_pton(af_inet, address.getCPtr(), &addr) != 1 { throw &"Invalid IPv4 address"; }
 
-        return Self.connectIpv4(addr, port);
+        return .connectIpv4(addr, port);
     }
 
     fn connectIpv6 (address: Array[U8, 16], port: U16): Self unsafe {
@@ -155,7 +155,7 @@ struct UnbufferedSocket {
         var addr: Array[U8, 16];
         if inet_pton(af_inet6, address.getCPtr(), &addr) != 1 { throw &"Invalid IPv6 address"; }
 
-        return Self.connectIpv6(addr, port);
+        return .connectIpv6(addr, port);
     }
 
     fn onDrop (ref self: Self) unsafe {
@@ -197,27 +197,27 @@ struct Socket {
     wRing: RingBuffer[U8]
 
     fn fromUnbuffered (var s: UnbufferedSocket): Self {
-        return Self{ s, rRing = RingBuffer[U8].new(2048), wRing = RingBuffer[U8].new(2048) };
+        return Self{ s, rRing = .new(2048), wRing = .new(2048) };
     }
 
     fn connect (host: String, port: U16): Self {
-        return Self.fromUnbuffered(UnbufferedSocket.connect(host, port));
+        return .fromUnbuffered(.connect(host, port));
     }
 
     fn connectIpv4 (address: Array[U8, 4], port: U16): Self {
-        return Self.fromUnbuffered(UnbufferedSocket.connectIpv4(address, port));
+        return .fromUnbuffered(.connectIpv4(address, port));
     }
 
     fn connectIpv4s (address: String, port: U16): Self {
-        return Self.fromUnbuffered(UnbufferedSocket.connectIpv4s(address, port));
+        return .fromUnbuffered(.connectIpv4s(address, port));
     }
 
     fn connectIpv6 (address: Array[U8, 16], port: U16): Self {
-        return Self.fromUnbuffered(UnbufferedSocket.connectIpv6(address, port));
+        return .fromUnbuffered(.connectIpv6(address, port));
     }
 
     fn connectIpv6s (address: String, port: U16): Self {
-        return Self.fromUnbuffered(UnbufferedSocket.connectIpv6s(address, port));
+        return .fromUnbuffered(.connectIpv6s(address, port));
     }
 
     // Returns false if the socket is closed
@@ -259,9 +259,9 @@ struct Socket {
 
     fn readByte (ref self: Self): Maybe[U8] {
         for (; self.rRing.count() < 1;) {
-            if !self.readToRingBuffer() { return Maybe[U8].None; }
+            if !self.readToRingBuffer() { return .None; }
         }
-        return Maybe[U8].Some(self.rRing.pop());
+        return .Some(self.rRing.pop());
     }
 
     fn readByteOrThrow (ref self: Self): U8 {
@@ -270,20 +270,20 @@ struct Socket {
 
     fn peekByte (ref self: Self): Maybe[U8] {
         for (; self.rRing.count() < 1;) {
-            if !self.readToRingBuffer() { return Maybe[U8].None; }
+            if !self.readToRingBuffer() { return .None; }
         }
-        return Maybe[U8].Some(self.rRing.peek());
+        return .Some(self.rRing.peek());
     }
 
     fn readU32 (ref self: Self): Maybe[U32] {
         for (; self.rRing.count() < 4;) {
-            if !self.readToRingBuffer() { return Maybe[U32].None; }
+            if !self.readToRingBuffer() { return .None; }
         }
         var x0 = self.rRing.pop() as U32;
         var x1 = self.rRing.pop() as U32;
         var x2 = self.rRing.pop() as U32;
         var x3 = self.rRing.pop() as U32;
-        return Maybe[U32].Some(x0 | (x1 << 8) | (x2 << 16) | (x3 << 8));
+        return .Some(x0 | (x1 << 8) | (x2 << 16) | (x3 << 8));
     }
 
     fn readU32OrThrow (ref self: Self): U32 {

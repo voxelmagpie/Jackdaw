@@ -224,3 +224,26 @@ fn start(){}
 
 fn f (): Slice[I32] { throw &""; }
 fn start(){}
+
+// --- //
+
+struct X {
+    a: I32
+    fn f (): I32 { return 0; }
+}
+
+fn start() {
+    var x: X = .f();
+}
+
+// --- //
+
+struct X {
+    a: I32
+    fn f [A] (x: A): A { return x; }
+}
+
+fn start() {
+    var x: X = .f[I32](0);
+}
+

@@ -2,8 +2,8 @@
 
 fn start () {
     _ = X{
-        a = List[Y].singleton(Y{ a = readI32() }), 
-        b = List[Y].singleton(Y{ a = readI32() })
+        a = .singleton(Y{ a = readI32() }), 
+        b = .singleton(Y{ a = readI32() })
     };
 }
 

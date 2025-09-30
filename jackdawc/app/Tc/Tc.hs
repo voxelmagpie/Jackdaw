@@ -1355,7 +1355,7 @@ getExpr ctx hint (e, sr) = case e of
       addError ctx.et sr "Unable to deduce pointer type"
       pure (I.LoadConstantExpr I.ConstNullPtr, I.PtrType Nothing, sr)
   A.ANameExpr x -> getNameExpr ctx sr x
-  A.TypeAccessExpr t n -> getTypeAccessExpr ctx sr t n
+  A.TypeAccessExpr t sr' n -> getTypeAccessExpr ctx hint sr t sr' n
   A.MkTupleExpr x -> getMkTupleExpr ctx hint sr x
   A.StructInitExpr typeExpr sr' f -> getStructInitExpr ctx hint sr typeExpr sr' f
   A.ArrayInitExpr es -> getArrayInitExpr ctx hint sr es
@@ -2347,14 +2347,18 @@ getMemberFnsForType tcIn lhsType = do
       _ -> pure Nothing
     _ -> pure Nothing
 
-getTypeAccessExpr :: (MonadTc m) => Ctx -> SrcRange -> A.TypeExpr -> A.NameExpr -> m I.Expr
-getTypeAccessExpr ctx sr astTypeExpr astNameExpr = do
-  t <- getType ctx astTypeExpr
+getTypeAccessExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr' -> SrcRange -> A.NameExpr -> m I.Expr
+getTypeAccessExpr ctx hint sr astTypeExprMaybe sr' astNameExpr = do
+  t <- case astTypeExprMaybe of
+    Just e -> getType ctx (e, sr')
+    Nothing -> case hint of
+      FnReturningHint (TypeHint x) -> pure x
+      _ -> throw ctx.et sr' "Unable to deduce type"
 
   (memberFns, lhsTFqn) <-
     getMemberFnsForType ctx.tcIn t >>= \case
       Just x -> pure x
-      _ -> throw ctx.et (snd astTypeExpr) "Type does not have member functions"
+      _ -> throw ctx.et sr' "Type does not have member functions"
 
   case HM.lookup (fst astNameExpr.name) (fst memberFns) of
     Just fnDef -> do
@@ -2368,6 +2372,16 @@ getTypeAccessExpr ctx sr astTypeExpr astNameExpr = do
         $ throw ctx.et sr "Wrong number of generic arguments to member function"
 
       (id, fnType, _) <- visitVDef ctx typeCtx fnGArgs sr (fqn, A.AFnDef fnDef) ctx.inUnsafeCode
+
+      _ <- case (fnType, hint) of
+        (I.AFnType f, FnReturningHint (TypeHint r))
+          | f.ret == Just t && isJust astTypeExprMaybe && r == t ->
+              pure () -- Could add a hint to use type inference
+        (I.AFnType f, _)
+          | f.ret /= Just t && isNothing astTypeExprMaybe -> do
+              t' <- formatType False t
+              throw ctx.et sr' $ "Member function has wrong return type, expected " <> t'
+        _ -> pure ()
 
       pure (I.LoadConstantExpr $ I.ConstFnPtr id, fnType, sr)
     _ -> throw ctx.et astNameExpr.name $ "Name not found: " <> un (fst astNameExpr.name)

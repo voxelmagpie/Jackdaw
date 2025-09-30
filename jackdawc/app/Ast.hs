@@ -200,7 +200,7 @@ data Expr'
   | CharLitExpr Char
   | NullPtrExpr
   | ANameExpr NameExpr
-  | TypeAccessExpr TypeExpr NameExpr
+  | TypeAccessExpr (Maybe TypeExpr') SrcRange NameExpr
   | TypeDataConsExpr (Maybe TypeExpr') SrcRange TName'
   | MkTupleExpr (List2 Expr)
   | StructInitExpr (Maybe TypeExpr') SrcRange StructFields

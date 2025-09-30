@@ -8,7 +8,7 @@ struct BitList {
     bitsSet: ISize
 
     fn new (): Self {
-        return Self{ words = List[U64].new(), size=0, bitsSet=0 };
+        return Self{ words = .new(), size=0, bitsSet=0 };
     }
 
     fn ones (size: ISize): Self {

@@ -10,7 +10,7 @@ struct String {
     utf8Data: List[U8] // Null terminated
 
     fn new (): Self {
-        return Self{ utf8Data = List[U8].singleton(0) };
+        return Self{ utf8Data = .singleton(0) };
     }
 
     fn hash (self: Self): Hash {

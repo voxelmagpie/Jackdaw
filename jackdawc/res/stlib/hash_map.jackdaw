@@ -16,7 +16,7 @@ struct HashMap [K, V] {
     capacity: ISize
 
     fn new (): Self unsafe {
-        return Self{ occupied = BitList.new(), data = nullptr, capacity=0 };
+        return Self{ occupied = .new(), data = nullptr, capacity=0 };
     }
 
     fn count (self: Self): ISize unsafe {
@@ -32,14 +32,14 @@ struct HashMap [K, V] {
     fn insert_ (ref self: Self, var key: K, h: Hash, var value: V) {
         if self.capacity == 0 {
             self.capacity = 30;
-            self.occupied = BitList.zeros(self.capacity);
+            self.occupied = .zeros(self.capacity);
             self.data = memAlloc(self.capacity * sizeOf[(K, V)]) as *(K, V);
         }
         else if self.count() >= ((self.capacity / 10) * 7) {
             var newCap = self.capacity + (self.capacity / 2);
             var new = Self {
                 capacity = newCap,
-                occupied = BitList.zeros(newCap),
+                occupied = .zeros(newCap),
                 data = memAlloc(newCap * sizeOf[(K, V)]) as *(K, V)
             };
 

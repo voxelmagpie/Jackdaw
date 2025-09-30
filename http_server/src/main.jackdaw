@@ -33,7 +33,7 @@ fn handleConn (fdU64: U64): I32 {
     var s: Socket;
     unsafe {
         var fd = fdU64 as I32;
-        s = Socket.fromUnbuffered(UnbufferedSocket{fd});
+        s = .fromUnbuffered(UnbufferedSocket{fd});
     }
 
     loop {

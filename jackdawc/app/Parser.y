@@ -470,8 +470,10 @@ AtomExp :: {A.Expr}
     | 'nullptr' {A.NullPtrExpr, snd $1}
     | VName GenericArgs {(A.ANameExpr $ A.NameExpr $1 (Just $2), srcRangeOf $1 $2)}
     | VName {(A.ANameExpr $ A.NameExpr $1 Nothing, srcRangeOf $1 $1)}
-    | AtomTypeExpr '.' VName {(A.TypeAccessExpr $1 $ A.NameExpr $3 Nothing, srcRangeOf $1 $3)}
-    | AtomTypeExpr '.' VName GenericArgs {(A.TypeAccessExpr $1 $ A.NameExpr $3 $ Just $4, srcRangeOf $1 $4)}
+    | AtomTypeExpr '.' VName {(A.TypeAccessExpr (Just $ fst $1) (snd $1) $ A.NameExpr $3 Nothing, srcRangeOf $1 $3)}
+    | AtomTypeExpr '.' VName GenericArgs {(A.TypeAccessExpr (Just $ fst $1) (snd $1) $ A.NameExpr $3 $ Just $4, srcRangeOf $1 $4)}
+    | '.' VName {(A.TypeAccessExpr Nothing (snd $1) $ A.NameExpr $2 Nothing, srcRangeOf $1 $2)}
+    | '.' VName GenericArgs {(A.TypeAccessExpr Nothing (snd $1) $ A.NameExpr $2 (Just $3), srcRangeOf $1 $3)}
     | AtomTypeExpr '.' TName {(A.TypeDataConsExpr (Just $ fst $1) (snd $1) $3, srcRangeOf $1 $3)}
     | '.' TName {(A.TypeDataConsExpr Nothing (snd $1) $2, srcRangeOf $1 $2)}
     | 'uninitialised' {(A.UninitExpr, snd $1)}

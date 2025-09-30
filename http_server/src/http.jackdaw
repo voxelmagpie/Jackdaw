@@ -252,7 +252,7 @@ struct HttpHeader {
         else if c == .Some('\r') {
             // Empty headers are not valid HTTP but accept them anyway
             expectNewLine(s)!;
-            return .Ok(Self{ header, value = String.new() });
+            return .Ok(Self{ header, value = .new() });
         }
         else {
             return .Err(&"Invalid HTTP header: missing ':'");

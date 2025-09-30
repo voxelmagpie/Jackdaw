@@ -19,10 +19,9 @@ struct Json {
 
     fn new (): Self {
         return .{
-            // TODO type inference for member function calls
-            objects = Table[JsonObjectId, HashMap[String, JsonValue]].new(),
-            arrays = Table[JsonArrayId, List[JsonValue]].new(), 
-            strings = Table[JsonStringId, String].new()
+            objects = .new(),
+            arrays = .new(), 
+            strings = .new()
         };
     }
 

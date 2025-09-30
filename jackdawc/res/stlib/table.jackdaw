@@ -9,7 +9,7 @@ struct Table [Id, A] {
     nextId: I32
 
     fn new (): Self {
-        return .{ data = HashMap[Id, A].new(), nextId = 0 };
+        return .{ data = .new(), nextId = 0 };
     }
 
     fn insert (ref self: Self, var x: A): Id {

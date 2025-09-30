@@ -231,25 +231,24 @@ processCSUType s (CStruct CStructTag identMaybe (Just decls) _ _) = do
 
   HT.insert s.gotStructDef name True
 
-  handle (\(CException msg) -> addLine s $ "// Skipped struct " <> name <> ": " <> msg) $ do
-    fields <- forM decls $ \case
-      CDecl declSpecs xs _ -> do
-        let typeSpecs = getTypeSpecs declSpecs
+  fields <- forM decls $ \case
+    CDecl declSpecs xs _ -> do
+      let typeSpecs = getTypeSpecs declSpecs
 
-        forM xs $ \case
-          (Just (CDeclr identMaybe' deriv _ _ _), _, _) ->
-            case identMaybe' of
-              Just x -> do
-                t <- processType s Nothing False typeSpecs deriv
-                pure $ "\t" <> toVDefNamingConv x <> ": " <> t
-              _ -> throwIO $ CException "No field name"
-          _ -> showAndThrow "Invalid struct field" xs
-      _ -> pure []
+      forM xs $ \case
+        (Just (CDeclr identMaybe' deriv _ _ _), _, _) ->
+          case identMaybe' of
+            Just x -> do
+              t <- processType s Nothing False typeSpecs deriv
+              pure $ "\t" <> toVDefNamingConv x <> ": " <> t
+            _ -> throwIO $ CException "No field name"
+        _ -> showAndThrow "Invalid struct field" xs
+    _ -> pure []
 
-    -- Add these lines now in case the fields threw an exceptions
-    addLine s $ "@Unsafe\nstruct " <> name <> " {"
-    addLine s $ T.intercalate ",\n" $ concat fields
-    addLine s "}"
+  -- Add these lines now in case the fields threw an exception
+  addLine s $ "@Unsafe\nstruct " <> name <> " {"
+  addLine s $ T.intercalate ",\n" $ concat fields
+  addLine s "}"
 
   pure name
 -- Forward declaration

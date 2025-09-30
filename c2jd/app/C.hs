@@ -100,7 +100,7 @@ translateFile s decls = do
                     _ -> addLine s $ "@Unsafe fn " <> name <> " (" <> T.intercalate ", " params''' <> "): " <> ret
               -- Struct/enum def
               [] ->
-                handle (\(CException _) -> addLine s "// Skipped") $ do
+                handle (\(CException e) -> addLine s $ "// Skipped: " <> e) $ do
                   -- processType will add the struct definition
                   void $ processType s Nothing False typeSpecs []
               -- Extern const
@@ -257,7 +257,10 @@ processCSUType s (CStruct CStructTag (Just ident) Nothing _ _) = do
   x <- HT.lookup s.gotStructDef name
   when (isNothing x) $ HT.insert s.gotStructDef name False
   pure name
-processCSUType _ (CStruct CUnionTag _ _ _ _) = throwIO $ CException "Unions not supported (yet)"
+processCSUType _ (CStruct CUnionTag identMaybe _ _ _) =
+  throwIO $ CException $ "Unions not supported (yet)" <> case identMaybe of
+    Just i -> " (" <> identToText i <> ")"
+    _ -> ""
 processCSUType _ s = showAndThrow "Invalid struct" s
 
 processCEnumType :: State -> Maybe Text -> CEnumeration NodeInfo -> IO Text

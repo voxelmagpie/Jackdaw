@@ -45,14 +45,6 @@ int32_t snprintf_f64(int8_t* buf, size_t n, double x) { return snprintf((const c
 
 
 
-// TODO Implement these in JD
-
-void memCopyUnaliased (void * d, void * s, int64_t n) { if (n > 0) { (void)memcpy(d, s, (size_t)n); } }
-void memCopy (void * d, void * s, int64_t n) { if (n > 0) { (void)memmove(d, s, (size_t)n); } }
-int32_t memCmp (void * l, void * r, int64_t n) { if(n < 0) {return 0;} return memcmp(l, r, (size_t)n); }
-void memSet (void *d, uint8_t x, int64_t n) { if (n > 0) (void)memset(d, x, n); }
-
-
 const AString _assert_msg = {"Assertion error", 16, 0};
 
 void _assert(bool x) {

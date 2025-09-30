@@ -267,19 +267,34 @@ fn memRealloc [T] (old: *T, n: ISize): *T {
 
 @NoThrow fn abort ()
 
+
+@Unsafe @NoThrow fn memcpy (dest: *void, src: *void, n: ISize): *void
+@Unsafe @NoThrow fn memmove (dest: *void, src: *void, n: ISize): *void
+@Unsafe @NoThrow fn memset (s: *void, c: I32, n: ISize): *void
+@Unsafe @NoThrow fn memcmp (s1: *void, s2: *void, n: ISize): I32
+
+
 // Use memCopyUnaliased only when the 2 buffers do not overlap
 @Unsafe @NoThrow
-fn memCopyUnaliased (dst: *void, src: *void, n: ISize)
+fn memCopyUnaliased (dst: *void, src: *void, n: ISize) {
+    memcpy(dst, src, n);
+}
 
 // Use memCopy if the buffers might overlap
 @Unsafe @NoThrow
-fn memCopy (dst: *void, src: *void, n: ISize)
+fn memCopy (dst: *void, src: *void, n: ISize) {
+    memmove(dst, src, n);
+}
 
 @Unsafe @NoThrow
-fn memCmp (*void, *void, ISize): I32
+fn memCmp (dst: *void, src: *void, n: ISize): I32 {
+    return memcmp(dst, src, n);
+}
 
 @Unsafe @NoThrow
-fn memSet (*void, U8, ISize)
+fn memSet (dst: *void, x: U8, n: ISize) {
+    memset(dst, x, n);
+}
 
 // Consumes the value without dropping it
 @NoThrow

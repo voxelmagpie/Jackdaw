@@ -257,6 +257,7 @@ processCSUType s (CStruct CStructTag (Just ident) Nothing _ _) = do
   x <- HT.lookup s.gotStructDef name
   when (isNothing x) $ HT.insert s.gotStructDef name False
   pure name
+processCSUType _ (CStruct CUnionTag _ _ _ _) = throwIO $ CException "Unions not supported (yet)"
 processCSUType _ s = showAndThrow "Invalid struct" s
 
 processCEnumType :: State -> Maybe Text -> CEnumeration NodeInfo -> IO Text

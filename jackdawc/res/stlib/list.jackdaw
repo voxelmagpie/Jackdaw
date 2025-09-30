@@ -25,7 +25,7 @@ struct List [A] {
     }
 
     fn singleton (var x: A): Self unsafe {
-        var ptr = memAlloc(sizeOf[A]) as *A;
+        var ptr = memAlloc[A](1);
         ptr.* = x;
         return Self{ ptr=ptr, _length=1, capacity=1 };
     }
@@ -73,7 +73,7 @@ struct List [A] {
         var newCap = max[ISize](self.capacity + (self.capacity / 2), minCap);
         if newCap <= self.capacity { return; }
 
-        self.ptr = memRealloc(self.ptr, newCap * sizeOf[A]) as *A;
+        self.ptr = memRealloc[A](self.ptr, newCap);
         self.capacity = newCap;
     }
 
@@ -208,7 +208,7 @@ struct List [A] {
     }
 
     fn clone (self: Self): Self unsafe {
-        var p = memAlloc(self._length * sizeOf[A]) as *A;
+        var p = memAlloc[A](self._length);
         if const typeIsCopyable[A] {
             memCopyUnaliased(p, self.ptr, self._length * sizeOf[A]);
         }

@@ -232,13 +232,39 @@ fn notEqual [A] (x: A, y: A): Bool {
     }
 }
 
-
-// TODO Change this to fn memAlloc [T] (ISize): *T
-@Unsafe @NoThrow fn memAlloc (ISize): *void
-@Unsafe @NoThrow fn memAllocZero (ISize): *void
-@Unsafe @NoThrow fn memRealloc (*void, ISize): *void
+@Unsafe @NoThrow fn malloc (ISize): *void
+@Unsafe @NoThrow fn calloc (ISize, ISize): *void
+@Unsafe @NoThrow fn realloc (*void, ISize): *void
 @Unsafe @NoThrow fn free (*void)
-@Unsafe @NoThrow fn memFree (x: *void) { free(x); }
+
+@Unsafe
+fn memAlloc [T] (n: ISize): *T {
+    if n <= 0 { return nullptr; }
+    var p = malloc(n * sizeOf[T]) as *T;
+    if p == nullptr { panic("Out of memory"); }
+    return p;
+}
+
+@Unsafe
+fn memAllocZero [T] (n: ISize): *T {
+    if n <= 0 { return nullptr; }
+    var p = calloc(1, n * sizeOf[T]) as *T;
+    if p == nullptr { panic("Out of memory"); }
+    return p;
+}
+
+@Unsafe
+fn memRealloc [T] (old: *T, n: ISize): *T {
+    if n <= 0 { memFree(old); return nullptr; }
+    var p = realloc(old, n * sizeOf[T]) as *T;
+    if p == nullptr { panic("Out of memory"); }
+    return p;
+}
+
+@Unsafe @NoThrow fn memFree (p: *void) {
+    free(p);
+}
+
 @NoThrow fn abort ()
 
 // Use memCopyUnaliased only when the 2 buffers do not overlap
@@ -261,7 +287,7 @@ fn leak [A] (var A)
 
 // Consumes the value and puts it on the heap as a *const
 fn toConstPtr [A] (var x: A): *const A unsafe {
-    var ptr = memAlloc(sizeOf[A]) as *A;
+    var ptr = memAlloc[A](1);
     ptr.* = x;
     return ptr as *const A;
 }

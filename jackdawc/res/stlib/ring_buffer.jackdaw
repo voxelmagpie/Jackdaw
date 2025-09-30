@@ -11,7 +11,7 @@ struct RingBuffer [A] {
     fn new (var capacity: ISize): Self unsafe {
         if capacity < 0 { capacity = 0; }
         return Self {
-            ptr = capacity == 0 ? nullptr : memAlloc(capacity) as *U8,
+            ptr = capacity == 0 ? nullptr : memAlloc[A](capacity),
             capacity,
             start=0,
             _count=0

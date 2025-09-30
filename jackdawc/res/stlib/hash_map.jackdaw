@@ -33,14 +33,14 @@ struct HashMap [K, V] {
         if self.capacity == 0 {
             self.capacity = 30;
             self.occupied = .zeros(self.capacity);
-            self.data = memAlloc(self.capacity * sizeOf[(K, V)]) as *(K, V);
+            self.data = memAlloc[(K, V)](self.capacity);
         }
         else if self.count() >= ((self.capacity / 10) * 7) {
             var newCap = self.capacity + (self.capacity / 2);
             var new = Self {
                 capacity = newCap,
                 occupied = .zeros(newCap),
-                data = memAlloc(newCap * sizeOf[(K, V)]) as *(K, V)
+                data = memAlloc[(K, V)](newCap)
             };
 
             for (var i: ISize = 0; i < self.capacity; i += 1) {

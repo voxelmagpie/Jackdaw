@@ -53,33 +53,6 @@ int32_t memCmp (void * l, void * r, int64_t n) { if(n < 0) {return 0;} return me
 void memSet (void *d, uint8_t x, int64_t n) { if (n > 0) (void)memset(d, x, n); }
 
 
-void * memAlloc (int64_t n) {
-    if (n < 1) {return NULL;}
-
-    void * x = malloc((size_t)n);
-    if (unlikely(x == NULL)) __panic("Out of memory");
-    return x;
-}
-
-void * memAllocZero (int64_t n) {
-    if (n < 1) {return NULL;}
-
-    void * x = calloc(1, (size_t)n);
-    if (unlikely(x == NULL)) __panic("Out of memory");
-    return x;
-}
-
-void * memRealloc (void * old, int64_t n) {
-    if (n < 1) {
-        free(old);
-        return NULL;
-    }
-
-    void * x = realloc(old, (size_t)n);
-    if (unlikely(x == NULL)) __panic("Out of memory");
-    return x;
-}
-
 const AString _assert_msg = {"Assertion error", 16, 0};
 
 void _assert(bool x) {

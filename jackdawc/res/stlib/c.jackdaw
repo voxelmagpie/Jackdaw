@@ -1,0 +1,17 @@
+@Unsafe @NoThrow fn memcpy (dest: *void, src: *void, n: ISize): *void
+@Unsafe @NoThrow fn memmove (dest: *void, src: *void, n: ISize): *void
+@Unsafe @NoThrow fn memset (s: *void, c: I32, n: ISize): *void
+@Unsafe @NoThrow fn memcmp (s1: *void, s2: *void, n: ISize): I32
+
+@Unsafe @NoThrow fn malloc (ISize): *void
+@Unsafe @NoThrow fn calloc (ISize, ISize): *void
+@Unsafe @NoThrow fn realloc (*void, ISize): *void
+@Unsafe @NoThrow fn free (*void)
+
+
+@Unsafe @NoThrow fn _takeException (): *void
+@Unsafe @NoThrow fn _restoreException (*void)
+
+
+@Unsafe @NoReturn @NoThrow
+fn _panic(*CChar)

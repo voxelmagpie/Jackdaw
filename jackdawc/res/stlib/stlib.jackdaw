@@ -5,6 +5,7 @@
 import "@stlib/fs"
 import "@stlib/os_string"
 import "@/main"
+import "c"
 
 const uncheckedArithmetic: Bool
 
@@ -106,9 +107,6 @@ const typeInfo [A]: TypeMeta
 //
 //
 //
-
-@Unsafe @NoThrow fn _takeException (): *void
-@Unsafe @NoThrow fn _restoreException (*void)
 
 @Unsafe @NoThrow
 fn drop [A] (ref x: A) {
@@ -232,10 +230,6 @@ fn notEqual [A] (x: A, y: A): Bool {
     }
 }
 
-@Unsafe @NoThrow fn malloc (ISize): *void
-@Unsafe @NoThrow fn calloc (ISize, ISize): *void
-@Unsafe @NoThrow fn realloc (*void, ISize): *void
-@Unsafe @NoThrow fn free (*void)
 
 @Unsafe
 fn memAlloc [T] (n: ISize): *T {
@@ -261,17 +255,13 @@ fn memRealloc [T] (old: *T, n: ISize): *T {
     return p;
 }
 
-@Unsafe @NoThrow fn memFree (p: *void) {
+@Unsafe @NoThrow
+fn memFree (p: *void) {
     free(p);
 }
 
 @NoThrow fn abort ()
 
-
-@Unsafe @NoThrow fn memcpy (dest: *void, src: *void, n: ISize): *void
-@Unsafe @NoThrow fn memmove (dest: *void, src: *void, n: ISize): *void
-@Unsafe @NoThrow fn memset (s: *void, c: I32, n: ISize): *void
-@Unsafe @NoThrow fn memcmp (s1: *void, s2: *void, n: ISize): I32
 
 
 // Use memCopyUnaliased only when the 2 buffers do not overlap
@@ -336,9 +326,6 @@ fn traceUnformattedByte (U8)
 // Unsigned on 32-bit ARM
 alias CChar = I8
 alias CSizeT = U64
-
-@Unsafe @NoReturn @NoThrow
-fn _panic(*CChar)
 
 
 fn readI32(): I32

@@ -5,8 +5,8 @@ fn start () {
     var x = X{ a = readI32(), b = readI32() };
     writeI32(x == X{ a=3, b=4 } ? 1 : 0);
 
-    var y = readI32() > 0 ? Y.A(readI32()) : Y.B(readI32());
-    writeI32(y == Y.A(0) ? 1 : 0);
+    var y = readI32() > 0 ? Y.a(readI32()) : Y.b(readI32());
+    writeI32(y == Y.a(0) ? 1 : 0);
 }
 
 struct X {
@@ -15,6 +15,6 @@ struct X {
 }
 
 enum Y {
-    A(I32),
-    B(I32)
+    a(I32),
+    b(I32)
 }

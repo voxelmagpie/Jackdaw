@@ -144,8 +144,8 @@ struct String {
         i = self.findStartOfCodePoint(i);
 
         match readUtf8CodePoint(self.utf8Data.asSlice().subSlice(i, self.utf8Data.length()-1-i)) {
-            None { throw &"Invalid UTF8"; }
-            Some(x) { return x; }
+            .none { throw &"Invalid UTF8"; }
+            .some(x) { return x; }
         }
     }
 }

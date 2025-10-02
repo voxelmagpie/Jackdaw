@@ -8,23 +8,23 @@ import "@stlib/hash_map"
 // TODO Could treat the string as being ASCII, just make sure the json strings are copied exactly..
 
 fn peekChar (s: String, ref i: ISize): Maybe[U32] {
-    if i >= s.sizeInBytes()-1 { return .None; }
-    return .Some(s.codePointAt(i).0);
+    if i >= s.sizeInBytes()-1 { return .none; }
+    return .some(s.codePointAt(i).0);
 }
 
 fn readChar (s: String, ref i: ISize): Maybe[U32] {
-    if i >= s.sizeInBytes()-1 { return .None; }
+    if i >= s.sizeInBytes()-1 { return .none; }
     var (c, n) = s.codePointAt(i);
     i += n;
-    return .Some(c);
+    return .some(c);
 }
 
 
 fn skipWhitespace (s: String, ref i: ISize) {
     loop {
         match peekChar(s, i) {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c == ' ' or c == '\r' or c == '\n' or c == '\t' {
                     _ = readChar(s, i);
                 }
@@ -40,53 +40,53 @@ fn parseJson (s: String, ref i: ISize): JsonResult[(Json, JsonObjectId)] {
     var json = Json.new();
     skipWhitespace(s, i);
     var rootId = parseObject(s, i, json)!;
-    return .Ok((json, rootId));
+    return .ok((json, rootId));
 }
 
 fn parseObject (s: String, ref i: ISize, ref j: Json): JsonResult[JsonObjectId] {
-    if readChar(s, i) != .Some('{') { return .Err(&"Expected '{'"); }
+    if readChar(s, i) != .some('{') { return .err(&"Expected '{'"); }
     skipWhitespace(s, i);
     
     var fields = HashMap[String, JsonValue].new();
 
     loop {
-        if peekChar(s, i) != .Some('"') {
+        if peekChar(s, i) != .some('"') {
             break;
         }
 
         var fieldName = parseString_(s, i)!;
         skipWhitespace(s, i);
-        if readChar(s, i) != .Some(':') { return .Err(&"Expected ':'"); }
+        if readChar(s, i) != .some(':') { return .err(&"Expected ':'"); }
         skipWhitespace(s, i);
         var v = parseValue(s, i, j)!;
         fields.insert(fieldName, v);
 
-        if peekChar(s, i) != .Some(',') {
+        if peekChar(s, i) != .some(',') {
             break;
         }
         _ = readChar(s, i);
         skipWhitespace(s, i);        
     }
 
-    if readChar(s, i) != .Some('}') { return .Err(&"Missing closing '}'"); }
+    if readChar(s, i) != .some('}') { return .err(&"Missing closing '}'"); }
     skipWhitespace(s, i);
 
-    return .Ok(j.objects.insert(fields));
+    return .ok(j.objects.insert(fields));
 }
 
 fn parseString (s: String, ref i: ISize, ref j: Json): JsonResult[JsonStringId] {
-    return .Ok(j.strings.insert(parseString_(s, i)!));
+    return .ok(j.strings.insert(parseString_(s, i)!));
 }
 
 fn parseString_ (s: String, ref i: ISize): JsonResult[String] {
-    if readChar(s, i) != .Some('"') { return .Err(&"Expected '\"'"); }
+    if readChar(s, i) != .some('"') { return .err(&"Expected '\"'"); }
 
     var str = String.new();
     loop {
         var c: U32;
         match readChar(s, i) {
-            None { return .Err(&"Expected '\"'"); }
-            Some(c_) { c=c_; }
+            .none { return .err(&"Expected '\"'"); }
+            .some(c_) { c=c_; }
         }
 
         if c == '"' {
@@ -98,60 +98,60 @@ fn parseString_ (s: String, ref i: ISize): JsonResult[String] {
     }
     skipWhitespace(s, i);
 
-    return .Ok(str);
+    return .ok(str);
 }
 
 fn parseValue (s: String, ref i: ISize, ref j: Json): JsonResult[JsonValue] {
     var c: U32;
     match peekChar(s, i) {
-        None { throw &"Expected JSON value, got EOF"; }
-        Some(c_) { c=c_; }
+        .none { throw &"Expected JSON value, got EOF"; }
+        .some(c_) { c=c_; }
     }
 
     if c == '"' {
-        return .Ok(.String(parseString(s, i, j)!));
+        return .ok(.string(parseString(s, i, j)!));
     }
     else if c == '{' {
-        return .Ok(.Object(parseObject(s, i, j)!));
+        return .ok(.object(parseObject(s, i, j)!));
     }
     else if c == 't' {
         _ = readChar(s, i);
-        if readChar(s, i) != .Some('r') { return .Err(&"Expected 'true'"); }
-        if readChar(s, i) != .Some('u') { return .Err(&"Expected 'true'"); }
-        if readChar(s, i) != .Some('e') { return .Err(&"Expected 'true'"); }
+        if readChar(s, i) != .some('r') { return .err(&"Expected 'true'"); }
+        if readChar(s, i) != .some('u') { return .err(&"Expected 'true'"); }
+        if readChar(s, i) != .some('e') { return .err(&"Expected 'true'"); }
         skipWhitespace(s, i);
-        return .Ok(.Bool(true));
+        return .ok(.bool(true));
     }
     else if c == 'f' {
         _ = readChar(s, i);
-        if readChar(s, i) != .Some('a') { return .Err(&"Expected 'false'"); }
-        if readChar(s, i) != .Some('l') { return .Err(&"Expected 'false'"); }
-        if readChar(s, i) != .Some('s') { return .Err(&"Expected 'false'"); }
-        if readChar(s, i) != .Some('e') { return .Err(&"Expected 'false'"); }
+        if readChar(s, i) != .some('a') { return .err(&"Expected 'false'"); }
+        if readChar(s, i) != .some('l') { return .err(&"Expected 'false'"); }
+        if readChar(s, i) != .some('s') { return .err(&"Expected 'false'"); }
+        if readChar(s, i) != .some('e') { return .err(&"Expected 'false'"); }
         skipWhitespace(s, i);
-        return .Ok(.Bool(true));
+        return .ok(.bool(true));
     }
     else if c == 'n' {
         _ = readChar(s, i);
-        if readChar(s, i) != .Some('u') { return .Err(&"Expected 'null'"); }
-        if readChar(s, i) != .Some('l') { return .Err(&"Expected 'null'"); }
-        if readChar(s, i) != .Some('l') { return .Err(&"Expected 'null'"); }
+        if readChar(s, i) != .some('u') { return .err(&"Expected 'null'"); }
+        if readChar(s, i) != .some('l') { return .err(&"Expected 'null'"); }
+        if readChar(s, i) != .some('l') { return .err(&"Expected 'null'"); }
         skipWhitespace(s, i);
-        return .Ok(.Null);
+        return .ok(.null);
     }
     else if c == '[' {
-        return .Ok(.Array(parseArray(s, i, j)!));
+        return .ok(.array(parseArray(s, i, j)!));
     }
     else if c == '-' or (c >= '0' and c <= '9') {
-        return .Ok(.Number(parseNumber(s, i)!));
+        return .ok(.number(parseNumber(s, i)!));
     }
     else {
-        return .Err(&"TODO");
+        return .err(&"TODO");
     }
 }
 
 fn parseArray (s: String, ref i: ISize, ref j: Json): JsonResult[JsonArrayId] {
-    if readChar(s, i) != .Some('[') { return .Err(&"Expected '['"); }
+    if readChar(s, i) != .some('[') { return .err(&"Expected '['"); }
     skipWhitespace(s, i);
 
     var elements = List[JsonValue].new();
@@ -159,17 +159,17 @@ fn parseArray (s: String, ref i: ISize, ref j: Json): JsonResult[JsonArrayId] {
     loop {
         elements.push(parseValue(s, i, j)!);
 
-        if peekChar(s, i) != .Some(',') {
+        if peekChar(s, i) != .some(',') {
             break;
         }
         _ = readChar(s, i);
         skipWhitespace(s, i);        
     }
 
-    if readChar(s, i) != .Some(']') { return .Err(&"Missing closing ']'"); }
+    if readChar(s, i) != .some(']') { return .err(&"Missing closing ']'"); }
     skipWhitespace(s, i);
 
-    return .Ok(j.arrays.insert(elements));
+    return .ok(j.arrays.insert(elements));
 }
 
 @Unsafe fn strtod (str: *CChar, str_end: **CChar): F64
@@ -178,31 +178,31 @@ fn parseNumber (s: String, ref i: ISize): JsonResult[F64] {
     var startI = i;
 
     match peekChar(s, i) {
-        None { return .Err(&"Expected digit or '-'"); }
-        Some(c) {
+        .none { return .err(&"Expected digit or '-'"); }
+        .some(c) {
             if c == '-' {
                 i += 1;
             }
             else if c >= '0' and c <= '9' {
             }
             else {
-                return .Err(&"Expected digit or '-'");
+                return .err(&"Expected digit or '-'");
             }
         }
     }
 
     parseDigits(s, i)!;
 
-    if peekChar(s, i) == .Some('.') {
+    if peekChar(s, i) == .some('.') {
         i += 1;
         parseDigits(s, i)!;
     }
 
     var c = peekChar(s, i);
-    if c == .Some('e') or c == .Some('E') {
+    if c == .some('e') or c == .some('E') {
         i += 1;
         var c = peekChar(s, i);
-        if c == .Some('+') or c == .Some('-') {
+        if c == .some('+') or c == .some('-') {
             i += 1;
         }
         parseDigits(s, i)!;
@@ -211,24 +211,24 @@ fn parseNumber (s: String, ref i: ISize): JsonResult[F64] {
     skipWhitespace(s, i);
 
     unsafe {
-        return .Ok(strtod(s.utf8Data.ptr as *I8 + startI, nullptr));
+        return .ok(strtod(s.utf8Data.ptr as *I8 + startI, nullptr));
     }
 }
 
 fn parseDigits (s: String, ref i: ISize): JsonMaybeError {
     match readChar(s, i) {
-        None { return .Err(&"Expected digit"); }
-        Some(c) {
+        .none { return .err(&"Expected digit"); }
+        .some(c) {
             if !(c >= '0' and c <= '9') {
-                return .Err(&"Expected digit");
+                return .err(&"Expected digit");
             }
         }
     }
 
     loop {
         match peekChar(s, i) {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c >= '0' and c <= '9' {
                     i += 1;
                 } else {
@@ -238,6 +238,6 @@ fn parseDigits (s: String, ref i: ISize): JsonMaybeError {
         }
     }
 
-    return .Ok;
+    return .ok;
 }
 

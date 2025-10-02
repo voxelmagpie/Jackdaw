@@ -90,50 +90,50 @@ fn start () {f(0);}
 
 // --- //
 
-enum X { A(I32), B(I32) }
+enum X { a(I32), b(I32) }
 
 fn start () {
-    var x = X.A(0);
+    var x = X.a(0);
     match ref x {
-        A(i) { x = X.B(0); }
+        .a(i) { x = X.b(0); }
         _ {}
     }
 }
 
 // --- //
 
-enum X { A(I32), B(I32) fn onDrop (Self) {} }
+enum X { a(I32), b(I32) fn onDrop (Self) {} }
 
 fn start () {
-    var x = X.A(0);
+    var x = X.a(0);
     match var x {
-        A(i) { x = X.B(0); }
+        .a(i) { x = X.b(0); }
         _ {}
     }
 }
 
 // --- //
 
-enum X { A(I32), B(I32) }
+enum X { a(I32), b(I32) }
 
 fn start () {
-    var x = X.A(0);
+    var x = X.a(0);
     var y: I32;
     match var x {
-        A(_) { y = 0; }
+        .a(_) { y = 0; }
         _ {}
     }
 }
 
 // --- //
 
-enum X { A(I32), B(I32) }
+enum X { a(I32), b(I32) }
 
 fn start () {
-    var x = X.A(0);
+    var x = X.a(0);
     var y = "a".clone();
     match x {
-        A(_) { _ = y; }
+        .a(_) { _ = y; }
         _ {}
     }
     trace(y);
@@ -164,4 +164,4 @@ fn start () {
 
 fn start(){}
 accessor f (x: Result[I32, I32]): Result[I32, I32] { _ = g()!; return x; }
-fn g (): Result[I32, I32] { return .Ok(0); }
+fn g (): Result[I32, I32] { return .ok(0); }

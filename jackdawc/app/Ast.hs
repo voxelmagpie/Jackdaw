@@ -19,7 +19,7 @@ data Ast = Ast
   }
   deriving (Show, Generic, Default)
 
-data Import = Import Text SrcRange ImportNames
+data Import = Import {path :: Text, sr :: SrcRange, qual :: Maybe TName', names :: ImportNames}
   deriving (Show, Generic, Eq)
 
 newtype RequireStmnt = RequireStmnt Expr
@@ -58,7 +58,7 @@ data StructDef = StructDef
 
 data EnumDef = EnumDef
   { c :: TypeDefCommon,
-    dataCons :: InsOrdMap TName (SrcRange, Maybe TypeExpr)
+    dataCons :: InsOrdMap VName (SrcRange, Maybe TypeExpr)
   }
   deriving (Show, Generic)
 
@@ -152,7 +152,7 @@ instance IsVDef AnyVDef where
   vDefCommon = \case AConstDef d -> d.c; AFnDef d -> d.c
 
 data TypeExpr'
-  = ANamedType NamedType
+  = NamedType (Maybe TypeExpr) TName' (Maybe [GenericArg])
   | TupleType (List2 TypeExpr)
   | AFnType FnType
   | AnAccessorType AccessorType
@@ -171,9 +171,6 @@ instance HasSrcRange GenericArg where
   startLoc = \case TypeGenericArg x -> startLoc x; ValueGenericArg x -> startLoc x
   endLoc = \case TypeGenericArg x -> endLoc x; ValueGenericArg x -> endLoc x
   filePath = \case TypeGenericArg x -> filePath x; ValueGenericArg x -> filePath x
-
-data NamedType = NamedType {name :: TName', genericArgs :: [GenericArg]}
-  deriving (Show, Generic)
 
 data FnType = FnType
   { params :: [(AccessMode, TypeExpr)],
@@ -199,9 +196,8 @@ data Expr'
   | StringLitExpr Text
   | CharLitExpr Char
   | NullPtrExpr
-  | ANameExpr NameExpr
-  | TypeAccessExpr (Maybe TypeExpr') SrcRange NameExpr
-  | TypeDataConsExpr (Maybe TypeExpr') SrcRange TName'
+  | NameExpr VName' (Maybe [GenericArg])
+  | TypeAccessorExpr (Maybe TypeExpr) VName' (Maybe [GenericArg])
   | MkTupleExpr (List2 Expr)
   | StructInitExpr (Maybe TypeExpr') SrcRange StructFields
   | ArrayInitExpr (List1 Expr)
@@ -223,9 +219,6 @@ type Expr = (Expr', SrcRange)
 type StructFields = InsOrdMap VName (SrcRange, Maybe Expr)
 
 data TypeMetadataExpr = TypeMetadataExpr {typ :: TypeExpr, name :: VName'}
-  deriving (Show, Generic)
-
-data NameExpr = NameExpr {name :: VName', genericArgsMaybe :: Maybe [GenericArg]}
   deriving (Show, Generic)
 
 data InfixOpExpr = InfixOpExpr {op :: OpName', lhs :: Expr, rhs :: Expr}
@@ -289,8 +282,8 @@ data MatchBranch = MatchBranch
 data Pattern'
   = PatternAny
   | PatternName VName'
-  | PatternDataCons0 TName
-  | PatternDataCons1 TName' Pattern
+  | PatternDataCons0 VName
+  | PatternDataCons1 VName' Pattern
   deriving (Show, Generic)
 
 type Pattern = (Pattern', SrcRange)

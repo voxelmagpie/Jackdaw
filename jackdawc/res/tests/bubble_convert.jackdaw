@@ -2,31 +2,31 @@
 
 fn start (args: Args, var streams: IoStreams) unsafe {
 	match f() {
-		Ok {}
-		Err(e) { writeI32(e); }
+		.ok {}
+		.err(e) { writeI32(e); }
 	}
 	match f2() {
-		Ok {}
-		Err { writeI32(0); }
+		.ok {}
+		.err { writeI32(0); }
 	}
 }
 
 
 fn f (): MaybeError[I32] {
 	var x = g()!;
-	return .Ok;
+	return .ok;
 }
 
 fn g (): Result[I32, I32] {
-	return .Err(3);
+	return .err(3);
 }
 
 
 fn f2 (): IsError {
 	var x = g2()!;
-	return .Ok;
+	return .ok;
 }
 
 fn g2 (): Maybe[I32] {
-	return .None;
+	return .none;
 }

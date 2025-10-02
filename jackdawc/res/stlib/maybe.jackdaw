@@ -3,12 +3,12 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 enum Maybe [A] {
-    Some(A),
-    None
+    some(A),
+    none
 
     fn isSome (self: Self): Bool {
         match self {
-            Some(_) { return true; }
+            .some(_) { return true; }
             _ {}
         }
         return false;
@@ -16,7 +16,7 @@ enum Maybe [A] {
 
     fn orElse (var self: Self, var x: A): A {
         match self {
-            Some(y) { return y; }
+            .some(y) { return y; }
             _ {}
         }
         return x;
@@ -24,21 +24,21 @@ enum Maybe [A] {
 
     fn toResult [E] (var self: Self, var e: E): Result[A, E] {
         match self {
-            Some(x) { return .Ok(x); }
-            _ { return .Err(e); }
+            .some(x) { return .ok(x); }
+            _ { return .err(e); }
         }
     }
 
     fn orThrow (var self: Self): A {
         match self {
-            Some(x) { return x; }
+            .some(x) { return x; }
             _ { throw &"Maybe was None"; }
         }
     }
 
     fn orThrowMsg (var self: Self, msg: *const String): A {
         match self {
-            Some(x) { return x; }
+            .some(x) { return x; }
             _ { throw msg; }
         }
     }

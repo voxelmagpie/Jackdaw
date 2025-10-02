@@ -6,13 +6,13 @@ import "@stlib/network"
 import "@stlib/hash_map"
 
 enum HttpRequestType {
-    Get,
-    Head
+    get,
+    head
 
     fn toString (self: Self): String {
         match self {
-            Get { return "GET".clone(); }
-            Head { return "HEAD".clone(); }
+            .get { return "GET".clone(); }
+            .head { return "HEAD".clone(); }
         }
     }
 }
@@ -21,8 +21,8 @@ fn readWord (ref s: Socket): String {
     var str = String.new();
     loop {
         match s.peekByte() {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c == '\n' or c == '\r' or c == ' ' {
                     break;
                 }
@@ -40,8 +40,8 @@ fn readHeaderName (ref s: Socket): String {
     var str = String.new();
     loop {
         match s.peekByte() {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c == '\n' or c == '\r' or c == ' ' or c == ':' {
                     break;
                 }
@@ -59,25 +59,25 @@ fn readHeaderName (ref s: Socket): String {
 alias HttpResult [A] = Result[A, *const String]
 
 fn asciiHexCharToInt (c: U8): HttpResult[I32] {
-    if c >= '0' and c <= '9' { return .Ok(c - '0'); }
-    if c >= 'a' and c <= 'f' { return .Ok(c - 'a' + 0xa); }
-    if c >= 'A' and c <= 'F' { return .Ok(c - 'A' + 0xA); }
+    if c >= '0' and c <= '9' { return .ok(c - '0'); }
+    if c >= 'a' and c <= 'f' { return .ok(c - 'a' + 0xa); }
+    if c >= 'A' and c <= 'F' { return .ok(c - 'A' + 0xA); }
 
-    return .Err(&"Not a hexadecimal character");
+    return .err(&"Not a hexadecimal character");
 }
 
 fn readUri (ref s: Socket): HttpResult[String] {
     var str = String.new();
     loop {
         match s.peekByte() {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c == '\n' or c == '\r' or c == ' ' or c == '\t' {
                     break;
                 }
 
-                if c > 127 { return .Err(&"Non-ASCII character in URI"); }
-                if c < 32  { return .Err(&"Null/control character in URI"); }
+                if c > 127 { return .err(&"Non-ASCII character in URI"); }
+                if c < 32  { return .err(&"Null/control character in URI"); }
 
                 _ = s.readByte();
                 
@@ -88,8 +88,8 @@ fn readUri (ref s: Socket): HttpResult[String] {
                     var hi = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
                     var lo = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
                     var c = (hi << 4) | lo;
-                    if c > 127 { return .Err(&"Non-ASCII % character in URI"); }
-                    if c < 32  { return .Err(&"Null/control % character in URI"); }
+                    if c > 127 { return .err(&"Non-ASCII % character in URI"); }
+                    if c < 32  { return .err(&"Null/control % character in URI"); }
                     str.pushAsciiChar(c as U8);
                 }
                 else {
@@ -98,15 +98,15 @@ fn readUri (ref s: Socket): HttpResult[String] {
             }
         }
     }
-    return .Ok(str);
+    return .ok(str);
 }
 
 fn readHeaderValue (ref s: Socket): String {
     var str = String.new();
     loop {
         match s.peekByte() {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c == '\n' or c == '\r' {
                     break;
                 }
@@ -124,8 +124,8 @@ fn readHeaderValue (ref s: Socket): String {
 fn skipWhitespace (ref s: Socket) {
     loop {
         match s.peekByte() {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c == ' ' {
                     _ = s.readByte();
                 }
@@ -138,15 +138,15 @@ fn skipWhitespace (ref s: Socket) {
 fn skipWhitespaceAndNewlines (ref s: Socket): MaybeError[*const String] {
     loop {
         match s.peekByte() {
-            None { break; }
-            Some(c) {
+            .none { break; }
+            .some(c) {
                 if c == ' ' {
                     _ = s.readByte();
                 }
                 else if c == '\r' {
                     _ = s.readByte();
                     var c = s.readByte();
-                    if c != .Some('\n') { return .Err(&"Malformed newline"); }
+                    if c != .some('\n') { return .err(&"Malformed newline"); }
                 }
                 else {
                     break;
@@ -154,13 +154,13 @@ fn skipWhitespaceAndNewlines (ref s: Socket): MaybeError[*const String] {
             }
         }
     }
-    return .Ok;
+    return .ok;
 }
 
 fn expectNewLine (ref s: Socket): MaybeError[*const String] {
-    if s.readByte() != .Some('\r') { return .Err(&"Expected newline"); }
-    if s.readByte() != .Some('\n') { return .Err(&"Expected newline"); }
-    return .Ok;
+    if s.readByte() != .some('\r') { return .err(&"Expected newline"); }
+    if s.readByte() != .some('\n') { return .err(&"Expected newline"); }
+    return .ok;
 }
 
 struct HttpRequest {
@@ -174,19 +174,19 @@ struct HttpRequest {
         var reqStr = readWord(s);
         var reqType: HttpRequestType;
         if reqStr == "GET" {
-            reqType = HttpRequestType.Get;
+            reqType = HttpRequestType.get;
         }
         else if reqStr == "HEAD" {
-            reqType = HttpRequestType.Head;
+            reqType = HttpRequestType.head;
         }
         else {
-            return .Err(&"Unknown request type");
+            return .err(&"Unknown request type");
         }
 
         skipWhitespace(s);
 
         var uri = readUri(s)!;
-        if uri.length() < 1 { return .Err(&"Expected uri"); }
+        if uri.length() < 1 { return .err(&"Expected uri"); }
 
         skipWhitespace(s);
 
@@ -199,21 +199,21 @@ struct HttpRequest {
             keepAliveDefault = true;
         }
         else {
-            return .Err(&"Unknown protocol version");
+            return .err(&"Unknown protocol version");
         }
 
         expectNewLine(s)!;
 
         
-        return .Ok(Self{ reqType, uri, keepAliveDefault });
+        return .ok(Self{ reqType, uri, keepAliveDefault });
     }
 }
 
 fn skipLine (ref s: Socket): MaybeError[*const String] {
     loop {
         match s.peekByte() {
-            None { return .Err(&"EOF before end of line"); }
-            Some(c) {
+            .none { return .err(&"EOF before end of line"); }
+            .some(c) {
                 if c == '\n' or c == '\r' {
                     break;
                 }
@@ -228,34 +228,34 @@ struct HttpHeader {
     value: String
 
     fn readMaybe (ref s: Socket): HttpResult[Maybe[Self]] {
-        if s.peekByte() == .Some('\r') {
-            return .Ok(.None);
+        if s.peekByte() == .some('\r') {
+            return .ok(.none);
         }
-        return .Ok(.Some(Self.read(s)!));
+        return .ok(.some(Self.read(s)!));
     }
 
     fn read (ref s: Socket): HttpResult[Self] {
         var header = readHeaderName(s);
-        if header.length() < 0 { return .Err(&"Invalid HTTP header"); }
+        if header.length() < 0 { return .err(&"Invalid HTTP header"); }
 
         // TODO make header lowercase
 
         skipWhitespace(s);
 
         var c = s.readByte();
-        if c == .Some(':') {
+        if c == .some(':') {
             skipWhitespace(s);
             var value = readHeaderValue(s);
             expectNewLine(s)!;
-            return .Ok(Self{ header, value });
+            return .ok(Self{ header, value });
         }
-        else if c == .Some('\r') {
+        else if c == .some('\r') {
             // Empty headers are not valid HTTP but accept them anyway
             expectNewLine(s)!;
-            return .Ok(Self{ header, value = .new() });
+            return .ok(Self{ header, value = .new() });
         }
         else {
-            return .Err(&"Invalid HTTP header: missing ':'");
+            return .err(&"Invalid HTTP header: missing ':'");
         }
     }
 }
@@ -266,7 +266,7 @@ fn readHttpHeaders (ref s: Socket): HttpResult[HashMap[String, String]] {
     var map = HashMap[String, String].new();
     loop {
         match HttpHeader.readMaybe(s)! {
-            Some(h) { // TODO Destructuring
+            .some(h) { // TODO Destructuring
                 var .{header, value} = h;
                 map.insert(header, value);
             }
@@ -277,7 +277,7 @@ fn readHttpHeaders (ref s: Socket): HttpResult[HashMap[String, String]] {
         }
     }
     
-    return .Ok(map);
+    return .ok(map);
 }
 
 

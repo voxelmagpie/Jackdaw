@@ -35,12 +35,12 @@ struct Thread [A, R] {
         if pthread_join(self.id, &rPtr as **void) != 0 { throw &"pthread_join error"; }
         self.id = 0;
         if rPtr == nullptr {
-            return .None;
+            return .none;
         }
         else {
             var r = rPtr.*;
             memFree(rPtr);
-            return .Some(r);
+            return .some(r);
         }
     }
 

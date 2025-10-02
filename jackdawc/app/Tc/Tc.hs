@@ -925,6 +925,10 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
               pure t
             --
             A.AnEnumDef enumDef -> do
+              forM_ (toList $ fst enumDef.c.memberFns) $ \(n, f) ->
+                when (n `elem` Ins.keys enumDef.dataCons)
+                  $ addError userCtx.et f.c.name ("Member function " <> un n <> " has same name as data constructor")
+
               let srcLoc = srcRangeToSrcLoc' (snd enumDef.c.c.name)
               ctx <- makeTSDefCtx userCtx outerCtx fqn enumDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
 
@@ -946,13 +950,19 @@ getGenArg :: (MonadTc m) => Ctx -> A.GenericArg -> m I.GenericArg'
 getGenArg ctx (A.TypeGenericArg e@(_, sr)) = getType ctx e <&> \x -> (I.TypeGenericArg x, sr)
 getGenArg ctx (A.ValueGenericArg e@(_, sr)) = getConstLitExpr ctx NoHint e <&> \x -> (I.ValueGenericArg x, sr)
 
+getNamespace :: (MonadTc m) => Ctx -> A.TypeExpr -> m Namespace
+getNamespace ctx (astTypeExpr, sr) = todo
+
 getType :: (MonadTc m) => Ctx -> A.TypeExpr -> m I.Type
 getType ctx (astTypeExpr, sr) = case astTypeExpr of
-  A.ANamedType namedType -> do
-    x <- lookupTypeName ctx namedType.name
+  A.NamedType (Just nsExpr) name gArgsMaybe -> do
+    ns <- getNamespace ctx nsExpr
+    todo
+  A.NamedType Nothing name gArgsMaybe -> do
+    x <- lookupTypeName ctx name
     case x of
       Left (outerCtx, fqn, astTypeDef) -> do
-        args <- forM namedType.genericArgs $ getGenArg ctx
+        args <- forM (fromMaybe [] gArgsMaybe) $ getGenArg ctx
         getTSDefType ctx outerCtx args sr (fqn, astTypeDef)
       Right t ->
         pure t
@@ -1085,16 +1095,16 @@ getConstLitExpr ctx hint (e, sr) = case e of
       _ -> do
         addError ctx.et sr "Unable to deduce pointer type"
         pure (I.ConstNullPtr, I.PtrType Nothing)
-  A.ANameExpr astExpr -> do
-    case findLocalVarByName ctx (fst astExpr.name) of
+  A.NameExpr name gArgsMaybe -> do
+    case findLocalVarByName ctx (fst name) of
       Just v -> case v.uidOrVal of
         Right c -> pure (c, v.typ)
         _ -> throw ctx.et sr "Not a constant value"
       _ -> do
-        fqnOrConst <- lookupVName ctx astExpr.name
+        fqnOrConst <- lookupVName ctx name
         case fqnOrConst of
           Left (ctx', vFqn, astDef) -> do
-            let astGArgs = fromMaybe def astExpr.genericArgsMaybe
+            let astGArgs = fromMaybe def gArgsMaybe
             gArgs <- forM astGArgs $ getGenArg ctx
 
             (id, t, _) <- visitVDef ctx ctx' gArgs sr (vFqn, astDef) ctx.inUnsafeCode
@@ -1126,7 +1136,7 @@ getConstLitExpr ctx hint (e, sr) = case e of
     -- Get field values
     fieldsList <- forM (toList astFields) $ \(name, (sr'', astExMaybe)) -> do
       -- If no value is given then look for a variable/constant with the same name as the field
-      let astEx = fromMaybe (A.ANameExpr $ A.NameExpr (name, sr) Nothing, sr) astExMaybe
+      let astEx = fromMaybe (A.NameExpr (name, sr) Nothing, sr) astExMaybe
       (expectedType, attribs) <- case Ins.lookup name fieldTypes of
         Just x -> pure x
         _ -> throw ctx.et sr'' "No such field"
@@ -1354,8 +1364,8 @@ getExpr ctx hint (e, sr) = case e of
     _ -> do
       addError ctx.et sr "Unable to deduce pointer type"
       pure (I.LoadConstantExpr I.ConstNullPtr, I.PtrType Nothing, sr)
-  A.ANameExpr x -> getNameExpr ctx sr x
-  A.TypeAccessExpr t sr' n -> getTypeAccessExpr ctx hint sr t sr' n
+  A.TypeAccessorExpr x y z -> getTypeAccessExpr ctx hint sr x y z
+  A.NameExpr x y -> getNameExpr ctx sr x y
   A.MkTupleExpr x -> getMkTupleExpr ctx hint sr x
   A.StructInitExpr typeExpr sr' f -> getStructInitExpr ctx hint sr typeExpr sr' f
   A.ArrayInitExpr es -> getArrayInitExpr ctx hint sr es
@@ -1391,7 +1401,6 @@ getExpr ctx hint (e, sr) = case e of
       unless ctx.inUnsafeCode $ addError ctx.et sr "Uninitialised data cannot be used in a safe context"
       pure (I.UninitExpr, t, sr)
     _ -> throw ctx.et sr "Unable to deduce type"
-  A.TypeDataConsExpr astTypeExprMaybe sr' name -> getTypeDataConsExpr ctx hint sr astTypeExprMaybe sr' name
   A.BubbleExpr e' -> getBubbleExpr ctx hint sr e'
 
 getCastExpr :: (MonadTc m) => Ctx -> SrcRange -> A.Expr -> A.TypeExpr -> m I.Expr
@@ -2120,10 +2129,10 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
                         Nothing -> do
                           _ <- getConstLitExpr newCtx NoHint a.value
                           pure newCtx
-                        Just (A.ANameExpr nameExpr) | isNothing nameExpr.genericArgsMaybe -> do
+                        Just (A.NameExpr name gArgsMaybe) | isNothing gArgsMaybe -> do
                           let foundMaybe =
                                 findWithIndex
-                                  (\v -> isRight v.uidOrVal && fst v.name == fst nameExpr.name)
+                                  (\v -> isRight v.uidOrVal && fst v.name == fst name)
                                   newCtx.variables
                           case foundMaybe of
                             Just (va, i) -> do
@@ -2295,7 +2304,7 @@ getStructInitExpr ctx hint fullSrcRange astTypeExprMaybe sr' astFields = do
     (Nothing, _) -> throw ctx.et sr' "Unable to deduce struct type"
   --
   fieldsList <- forM (toList astFields) $ \(name, (sr, astExMaybe)) -> do
-    let astEx = fromMaybe (A.ANameExpr $ A.NameExpr (name, sr) Nothing, sr) astExMaybe
+    let astEx = fromMaybe (A.NameExpr (name, sr) Nothing, sr) astExMaybe
     (expectedType, attribs) <- case Ins.lookup name fieldTypes of
       Just x -> pure x
       _ -> throw ctx.et sr $ "No such field: " <> un name
@@ -2347,63 +2356,118 @@ getMemberFnsForType tcIn lhsType = do
       _ -> pure Nothing
     _ -> pure Nothing
 
-getTypeAccessExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr' -> SrcRange -> A.NameExpr -> m I.Expr
-getTypeAccessExpr ctx hint sr astTypeExprMaybe sr' astNameExpr = do
+getTypeAccessExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr -> VName' -> Maybe [A.GenericArg] -> m I.Expr
+getTypeAccessExpr ctx hint sr astTypeExprMaybe name gArgsMaybe = do
   t <- case astTypeExprMaybe of
-    Just e -> getType ctx (e, sr')
+    Just e -> getType ctx e
     Nothing -> case hint of
+      TypeHint x -> pure x
       FnReturningHint (TypeHint x) -> pure x
-      _ -> throw ctx.et sr' "Unable to deduce type"
+      _ -> throw ctx.et sr "Unable to deduce type"
 
-  (memberFns, lhsTFqn) <-
-    getMemberFnsForType ctx.tcIn t >>= \case
-      Just x -> pure x
-      _ -> throw ctx.et sr' "Type does not have member functions"
+  dataConsMaybe <- do
+    case t of
+      I.ANamedType tDefId -> do
+        checkTDef2 tDefId >>= \case
+          I.AnEnumDef2 enumDef -> do
+            case Ins.lookupWithIndex (fst name) enumDef.dataCons of
+              Just x -> pure $ Just (enumDef, x)
+              _ -> pure Nothing
+          _ -> pure Nothing
+      _ -> pure Nothing
 
-  case HM.lookup (fst astNameExpr.name) (fst memberFns) of
-    Just fnDef -> do
-      let fqn = VFqn $ un lhsTFqn <> "." <> un (fst fnDef.c.name)
+  case dataConsMaybe of
+    Just (enumDef, (consType, consIdx)) -> do
+      case consType of
+        Nothing -> do
+          -- Data constructor does not hold a value so just produce a value of the enum type
+          pure (I.DataConsExpr t consIdx Nothing, t, sr)
+        Just dcType -> do
+          -- Data constructor does hold a value so need to produce a function that returns the enum value
 
-      typeCtx <- getTypeCtx ctx t <&> must -- Type has member functions and therefore has a context
-      let fnAstGArgs = fromMaybe [] astNameExpr.genericArgsMaybe
-      fnGArgs <- forM fnAstGArgs $ getGenArg ctx
+          let fnType = I.AFnType $ I.FnType [(Move, dcType)] False (Just t) False
+          let fqn = VFqn $ un enumDef.e.c.fqn <> ".$" <> un (fst name)
 
-      unless (length fnAstGArgs == length fnDef.c.genericParams)
-        $ throw ctx.et sr "Wrong number of generic arguments to member function"
+          -- Function is cached
+          vDefIdMaybe <- getCachedVDef fqn enumDef.e.c.genericArgs <&> (<&> fst)
+          vDefId <- case vDefIdMaybe of
+            Just x -> pure x
+            Nothing -> do
+              reachableFromStart <- getStartedFromStart
+              let c =
+                    I.VDefCommon
+                      { name = (VName $ "_" <> un (fst name), sr),
+                        fqn = fqn,
+                        genericArgs = enumDef.e.c.genericArgs,
+                        typ = fnType,
+                        reachableFromStart = reachableFromStart,
+                        attributes = []
+                      }
+              let f =
+                    I.FnDef
+                      { c = c,
+                        isAccessor = False,
+                        isIterator = False,
+                        parameters = [(Move, dcType, Just $ VName "x")],
+                        isVarArgs = False,
+                        returnType = Just t
+                      }
+              vDefId <- addVDef $ I.AFnDef f
+              let getArg = Hir.MoveLocalVarExpr (Hir.LocalVarUid 0) (VName "x")
+              let body = Hir.ReturnStmnt (Just (Hir.DataConsExpr t consIdx (Just (getArg, sr)), sr)) []
+              addFnDefBody vDefId (body, sr) True
+              pure vDefId
+          pure (I.LoadConstantExpr (I.ConstFnPtr vDefId), fnType, sr)
+    _ ->
+      getMemberFnsForType ctx.tcIn t >>= \case
+        Nothing ->
+          throw ctx.et name $ "Name not found: " <> un (fst name)
+        Just (memberFns, lhsTFqn) ->
+          case HM.lookup (fst name) (fst memberFns) of
+            Nothing ->
+              throw ctx.et name $ "Name not found: " <> un (fst name)
+            Just fnDef -> do
+              let fqn = VFqn $ un lhsTFqn <> "." <> un (fst fnDef.c.name)
 
-      (id, fnType, _) <- visitVDef ctx typeCtx fnGArgs sr (fqn, A.AFnDef fnDef) ctx.inUnsafeCode
+              typeCtx <- getTypeCtx ctx t <&> must -- Type has member functions and therefore has a context
+              let fnAstGArgs = fromMaybe [] gArgsMaybe
+              fnGArgs <- forM fnAstGArgs $ getGenArg ctx
 
-      _ <- case (fnType, hint) of
-        (I.AFnType f, FnReturningHint (TypeHint r))
-          | f.ret == Just t && isJust astTypeExprMaybe && r == t ->
-              pure () -- Could add a hint to use type inference
-        (I.AFnType f, _)
-          | f.ret /= Just t && isNothing astTypeExprMaybe -> do
-              t' <- formatType False t
-              throw ctx.et sr' $ "Member function has wrong return type, expected " <> t'
-        _ -> pure ()
+              unless (length fnAstGArgs == length fnDef.c.genericParams)
+                $ throw ctx.et sr "Wrong number of generic arguments to member function"
 
-      pure (I.LoadConstantExpr $ I.ConstFnPtr id, fnType, sr)
-    _ -> throw ctx.et astNameExpr.name $ "Name not found: " <> un (fst astNameExpr.name)
+              (id, fnType, _) <- visitVDef ctx typeCtx fnGArgs sr (fqn, A.AFnDef fnDef) ctx.inUnsafeCode
 
-getNameExpr :: (MonadTc m) => Ctx -> SrcRange -> A.NameExpr -> m I.Expr
-getNameExpr ctx sr astExpr =
-  case findLocalVarByName ctx (fst astExpr.name) of
+              _ <- case (fnType, hint) of
+                (I.AFnType f, FnReturningHint (TypeHint r))
+                  | f.ret == Just t && isJust astTypeExprMaybe && r == t ->
+                      pure () -- Could add a hint to use type inference
+                (I.AFnType f, _)
+                  | f.ret /= Just t && isNothing astTypeExprMaybe -> do
+                      t' <- formatType False t
+                      throw ctx.et sr $ "Member function has wrong return type, expected " <> t'
+                _ -> pure ()
+
+              pure (I.LoadConstantExpr $ I.ConstFnPtr id, fnType, sr)
+
+getNameExpr :: (MonadTc m) => Ctx -> SrcRange -> VName' -> Maybe [A.GenericArg] -> m I.Expr
+getNameExpr ctx sr name gArgsMaybe =
+  case findLocalVarByName ctx (fst name) of
     Just x -> do
       -- Local variable
-      unless (null astExpr.genericArgsMaybe) $ throw ctx.et sr "Local variables cannot take generic parameters"
+      unless (null gArgsMaybe) $ throw ctx.et sr "Local variables cannot take generic parameters"
       case x.uidOrVal of
         Left uid -> do
-          let v = I.LocalVarExpr {uid = uid, name = astExpr.name}
+          let v = I.LocalVarExpr {uid = uid, name = name}
           pure (I.ALocalVarExpr v, x.typ, sr)
         Right c -> do
           pure (I.LoadConstantExpr c, x.typ, sr)
     _ -> do
       -- Global value definition
-      fqnOrConst <- lookupVName ctx astExpr.name
+      fqnOrConst <- lookupVName ctx name
       case fqnOrConst of
         Left (ctx', vFqn, astDef) -> do
-          let astGArgs = fromMaybe def astExpr.genericArgsMaybe
+          let astGArgs = fromMaybe def gArgsMaybe
           gArgs <- forM astGArgs $ getGenArg ctx
 
           (id, t, _) <- visitVDef ctx ctx' gArgs sr (vFqn, astDef) ctx.inUnsafeCode
@@ -2415,67 +2479,6 @@ getNameExpr ctx sr astExpr =
             I.AFnDef _ -> do
               pure (I.LoadConstantExpr $ I.ConstFnPtr id, t, sr)
         Right c -> pure (I.LoadConstantExpr $ fst c, snd c, sr)
-
-getTypeDataConsExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr' -> SrcRange -> TName' -> m I.Expr
-getTypeDataConsExpr ctx hint sr astTypeExprMaybe enumSr name = do
-  t <- case (astTypeExprMaybe, hint) of
-    (Just astTypeExpr, _) -> getType ctx (astTypeExpr, enumSr)
-    -- Infer enum type
-    (Nothing, TypeHint t) -> pure t
-    (Nothing, FnReturningHint (TypeHint t)) -> pure t
-    (Nothing, _) -> throw ctx.et enumSr "Unable to deduce enum type"
-
-  enumDef <- case t of
-    I.ANamedType tDefId -> do
-      checkTDef2 tDefId >>= \case
-        I.AnEnumDef2 x -> pure x
-        _ -> throw ctx.et sr "Not an enum"
-    _ -> throw ctx.et sr "Not an enum"
-
-  dc <- case Ins.lookupWithIndex (fst name) enumDef.dataCons of
-    Just x -> pure x
-    _ -> throw ctx.et name $ "No such data constructor: " <> un (fst name)
-
-  case fst dc of
-    Nothing -> do
-      -- Data constructor does not hold a value so just produce a value of the enum type
-      pure (I.DataConsExpr t (snd dc) Nothing, t, sr)
-    Just dcType -> do
-      -- Data constructor does hold a value so need to produce a function that returns the enum value
-
-      let fnType = I.AFnType $ I.FnType [(Move, dcType)] False (Just t) False
-      let fqn = VFqn $ un enumDef.e.c.fqn <> ".$" <> un (fst name)
-
-      -- Function is cached
-      vDefIdMaybe <- getCachedVDef fqn enumDef.e.c.genericArgs <&> (<&> fst)
-      vDefId <- case vDefIdMaybe of
-        Just x -> pure x
-        Nothing -> do
-          reachableFromStart <- getStartedFromStart
-          let c =
-                I.VDefCommon
-                  { name = (VName $ "_" <> un (fst name), sr),
-                    fqn = fqn,
-                    genericArgs = enumDef.e.c.genericArgs,
-                    typ = fnType,
-                    reachableFromStart = reachableFromStart,
-                    attributes = []
-                  }
-          let f =
-                I.FnDef
-                  { c = c,
-                    isAccessor = False,
-                    isIterator = False,
-                    parameters = [(Move, dcType, Just $ VName "x")],
-                    isVarArgs = False,
-                    returnType = Just t
-                  }
-          vDefId <- addVDef $ I.AFnDef f
-          let getArg = Hir.MoveLocalVarExpr (Hir.LocalVarUid 0) (VName "x")
-          let body = Hir.ReturnStmnt (Just (Hir.DataConsExpr t (snd dc) (Just (getArg, sr)), sr)) []
-          addFnDefBody vDefId (body, sr) True
-          pure vDefId
-      pure (I.LoadConstantExpr (I.ConstFnPtr vDefId), fnType, sr)
 
 -- '!' operator, handles Result and Maybe
 getBubbleExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> A.Expr -> m I.Expr

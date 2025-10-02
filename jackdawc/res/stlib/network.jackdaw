@@ -259,9 +259,9 @@ struct Socket {
 
     fn readByte (ref self: Self): Maybe[U8] {
         for (; self.rRing.count() < 1;) {
-            if !self.readToRingBuffer() { return .None; }
+            if !self.readToRingBuffer() { return .none; }
         }
-        return .Some(self.rRing.pop());
+        return .some(self.rRing.pop());
     }
 
     fn readByteOrThrow (ref self: Self): U8 {
@@ -270,20 +270,20 @@ struct Socket {
 
     fn peekByte (ref self: Self): Maybe[U8] {
         for (; self.rRing.count() < 1;) {
-            if !self.readToRingBuffer() { return .None; }
+            if !self.readToRingBuffer() { return .none; }
         }
-        return .Some(self.rRing.peek());
+        return .some(self.rRing.peek());
     }
 
     fn readU32 (ref self: Self): Maybe[U32] {
         for (; self.rRing.count() < 4;) {
-            if !self.readToRingBuffer() { return .None; }
+            if !self.readToRingBuffer() { return .none; }
         }
         var x0 = self.rRing.pop() as U32;
         var x1 = self.rRing.pop() as U32;
         var x2 = self.rRing.pop() as U32;
         var x3 = self.rRing.pop() as U32;
-        return .Some(x0 | (x1 << 8) | (x2 << 16) | (x3 << 8));
+        return .some(x0 | (x1 << 8) | (x2 << 16) | (x3 << 8));
     }
 
     fn readU32OrThrow (ref self: Self): U32 {

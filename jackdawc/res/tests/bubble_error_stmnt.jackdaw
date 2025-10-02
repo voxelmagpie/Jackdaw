@@ -6,19 +6,19 @@
 fn start () {
     writeI32(g(readI32()).isSome() ? 1 : 0);
     match g2(readI32()) {
-        Ok{}
-        Err(x) { writeI32(x); }
+        .ok{}
+        .err(x) { writeI32(x); }
     }
 }
 
 fn g (x: I32): Maybe[I32] {
     var xIsErr = f(x);
     xIsErr!;
-    return x % 2 == 0 ? .Some(x) : .None;
+    return x % 2 == 0 ? .some(x) : .none;
 }
 
 fn f (x: I32): IsError {
-    return x >= 0 ? .Ok : .Err;
+    return x >= 0 ? .ok : .err;
 }
 
 
@@ -26,18 +26,18 @@ fn g2 (x: I32): MaybeError[I32] {
     var xIsErr = f2(x);
     xIsErr!;
     if x % 2 == 0 {
-        return .Ok;
+        return .ok;
     }
     else {
-        return .Err(-2);
+        return .err(-2);
     }
 }
 
 fn f2 (x: I32): MaybeError[I32] {
     if x >= 0 {
-        return .Ok;
+        return .ok;
     }
     else {
-        return .Err(-1);
+        return .err(-1);
     }
 }

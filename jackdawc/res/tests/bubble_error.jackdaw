@@ -5,12 +5,12 @@
 fn start () {
     var r = g(readI32(), readI32());
     match r {
-        Ok(x) { writeI32(x); }
+        .ok(x) { writeI32(x); }
         _ {}
     }
 
     match h(readI32()) {
-        Some(x) { writeI32(x); }
+        .some(x) { writeI32(x); }
         _ {}
     }
 }
@@ -18,12 +18,12 @@ fn start () {
 fn g (x: I32, y: I32): Result[I32, *const String] {
     var x = f(x)!;
     var y = f(y)!;
-    return .Ok(x+y);
+    return .ok(x+y);
 }
 
 fn f (x: I32): Result[I32, *const String] {
-    if x < 0 { return .Err(&"Value too small"); }
-    return .Ok(x*2);
+    if x < 0 { return .err(&"Value too small"); }
+    return .ok(x*2);
 }
 
 
@@ -33,5 +33,5 @@ fn h (var x: I32): Maybe[I32] {
 }
 
 fn hh (x: I32): Maybe[I32] {
-    return x > 0 ? .Some(x) : .None;
+    return x > 0 ? .some(x) : .none;
 }

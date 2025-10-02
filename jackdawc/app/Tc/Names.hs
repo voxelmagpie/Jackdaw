@@ -33,7 +33,7 @@ getImports allAsts ns ast = do
   let nsParts = tail allNsParts
   assertM $ notNull nsParts
 
-  xs <- forM ast.imports $ \(A.Import i sr names) -> do
+  xs <- forM ast.imports $ \(A.Import i sr qual names) -> do
     importNs <-
       if "@" `T.isPrefixOf` i
         then do

@@ -3,48 +3,48 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 enum IsError {
-    Ok,
-    Err
+    ok,
+    err
 
     fn fromIsOk (ok: Bool): Self {
-        return ok ? .Ok : .Err;
+        return ok ? .ok : .err;
     }
 
     fn fromIsErr (err: Bool): Self {
-        return err ? .Err : .Ok;
+        return err ? .err : .ok;
     }
 
     fn isOk (self: Self): Bool {
-        return self == .Ok;
+        return self == .ok;
     }
 
     fn isErr (self: Self): Bool {
-        return self == .Err;
+        return self == .err;
     }
 
     fn orThrow (var self: Self) {
         match self {
-            Ok {}
+            .ok {}
             _ { throw &"IsError was Err"; }
         }
     }
 
     fn orThrowMsg (var self: Self, msg: *const String) {
         match self {
-            Ok {}
+            .ok {}
             _ { throw msg; }
         }
     }
 }
 
 enum MaybeError [E] {
-    Ok,
-    Err(E)
+    ok,
+    err(E)
 
     fn orThrow (var self: Self) {
         match var self {
-            Ok {}
-            Err(x) {
+            .ok {}
+            .err(x) {
                 if const typesEq[E, *const String] {
                     throw x;
                 }
@@ -57,13 +57,13 @@ enum MaybeError [E] {
 }
 
 enum Result [A, E] {
-    Ok(A),
-    Err(E)
+    ok(A),
+    err(E)
 
     fn orThrow (var self: Self): A {
         match var self {
-            Ok(x) { return x; }
-            Err(x) {
+            .ok(x) { return x; }
+            .err(x) {
                 if const typesEq[E, *const String] {
                     throw x;
                 }

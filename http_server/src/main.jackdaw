@@ -92,9 +92,9 @@ fn handleConn (fdU64: U64): I32 {
         s.writeString("\r\n\r\n");
 
         match reqType {
-            Head {
+            .head {
             }
-            Get {
+            .get {
                 unsafe {
                     if fileLength > 0 {
                         var fd = open(filePath.getCPtr(), o_rdonly);
@@ -120,7 +120,7 @@ fn loadGoogle (ref streams: IoStreams) {
     s.writeString(requestGoogle);
     loop {
         match s.readByte() {
-            Some(c) { 
+            .some(c) { 
                 streams.stdOut.writeByte(c);
             }
             _ { break; }

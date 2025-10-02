@@ -189,25 +189,25 @@ fn start () { var .{a, b} = f(); }
 // --- //
 
 fn start(){ _ = f()!; }
-fn f (): Result[I32, I32] { return .Ok(0); }
+fn f (): Result[I32, I32] { return .ok(0); }
 
 // --- //
 
 
 fn start(){}
-fn f (): Result[I32, I32] { return .Ok(0); }
-fn g (): Result[I32, Bool] { return .Ok(f()!); }
+fn f (): Result[I32, I32] { return .ok(0); }
+fn g (): Result[I32, Bool] { return .ok(f()!); }
 
 // --- //
 
 fn start(){}
-fn f (): Result[I32, I32] { return .Ok(0); }
-fn g (): Maybe[I32] { return .Ok(f()!); }
+fn f (): Result[I32, I32] { return .ok(0); }
+fn g (): Maybe[I32] { return .ok(f()!); }
 
 // --- //
 
 fn start(){}
-fn f (): MaybeError[I32] { return .Ok; }
+fn f (): MaybeError[I32] { return .ok; }
 fn g (): IsError { f()!; return .{ x=false }; }
 
 // --- //

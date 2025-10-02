@@ -44,10 +44,10 @@ struct File {
         var x: U8;
         var n = fread(&x, 1, 1, self.f);
         if n == 0 {
-            return .None;
+            return .none;
         }
         else if n == 1 {
-            return .Some(x);
+            return .some(x);
         }
         ioError("fread");
     }
@@ -75,7 +75,7 @@ struct File {
     iterator readBytes (ref self: Self): U8 {
         loop {
             match self.readByte() {
-                Some(c) { yield c; }
+                .some(c) { yield c; }
                 _ { break; }
             }
         }
@@ -93,8 +93,8 @@ struct File {
             // TODO Change this to read 1-4 bytes and call readUtf8CodePoint
             var c0: U8;
             match self.readByte() {
-                None { break; }
-                Some(x) { c0 = x; }
+                .none { break; }
+                .some(x) { c0 = x; }
             }
 
             line.utf8Data.push(c0);

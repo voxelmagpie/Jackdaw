@@ -96,7 +96,7 @@ data EnumDef2 = EnumDef2
   { e :: EnumDef,
     tagType :: Type,
     nonCopyable :: Bool, -- Has onDrop
-    dataCons :: InsOrdMap TName (Maybe Type)
+    dataCons :: InsOrdMap VName (Maybe Type)
   }
   deriving (Show, Generic)
 

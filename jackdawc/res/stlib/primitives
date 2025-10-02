@@ -93,8 +93,8 @@ type Bool {
 	fn +%   wrappingAdd (x: Self, y: Self): Self { return _wadd##t(x, y); } _NL \
 	fn -%   wrappingSub (x: Self, y: Self): Self { return _wsub##t(x, y); } _NL \
 	fn ~    not (x: Self): Self { return _not##t(x); } _NL \
-	fn safeDiv (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .None; } return .Some(_div##t(x, y)); } _NL \
-	fn safeRem (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .None; } return .Some(_rem##t(x, y)); } _NL \
+	fn safeDiv (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .none; } return .some(_div##t(x, y)); } _NL \
+	fn safeRem (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .none; } return .some(_rem##t(x, y)); } _NL \
 	fn toString (x: Self): String { return intToString[Self](x); } _NL \
 	fn addToHash (self: Self, ref h: Hash) unsafe { addHashBytes(h, RawSlice[U8]{ ptr = &self as *U8, length = sizeOf[Self] }); }
 

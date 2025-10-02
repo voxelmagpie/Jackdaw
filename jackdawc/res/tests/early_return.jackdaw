@@ -5,22 +5,22 @@ fn start () {
     var x: X;
     var i = readI32();
     if i > 0 {
-        x = X.A;
+        x = X.a;
     }
     else if i < 0 {
-        x = X.B;
+        x = X.b;
     }
     else {
         throw &"";
     }
 
     match x {
-        A { writeI32(1); }
-        B { writeI32(0); }
+        .a { writeI32(1); }
+        .b { writeI32(0); }
     }
 }
 
 enum X {
-    A,
-    B
+    a,
+    b
 }

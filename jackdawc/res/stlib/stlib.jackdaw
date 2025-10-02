@@ -48,14 +48,14 @@ const typesEq [A, B]: Bool
 
 // Gives field names, tuple/array lengths, parameter count
 enum TypeMeta {
-  Struct(List[String]),
-  Enum(List[String]),
-  Tuple(I32),
-  Fn(I32),
-  Ptr,
-  Array(I32),
-  Number,
-  BoolType
+    struct_(List[String]),
+    enum_(List[String]),
+    tuple(I32),
+    fn_(I32),
+    ptr,
+    array(I32),
+    number,
+    boolType
 }
 
 // TODO

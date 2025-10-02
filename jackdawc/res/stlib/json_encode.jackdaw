@@ -42,22 +42,22 @@ fn encodeArray (ref s: String, j: Json, id: JsonArrayId) {
 
 fn encodeValue (ref s: String, j: Json, value: JsonValue) {
     match value {
-        Object(id) {
+        .object(id) {
             encodeObject(s, j, id);
         }
-        Array(id) {
+        .array(id) {
             encodeArray(s, j, id);
         }
-        String(id) {
+        .string(id) {
             encodeString(s, j, id);
         }
-        Number(x) {
+        .number(x) {
             s ++= x.toString();
         }
-        Bool(x) {
+        .bool(x) {
             if x { s ++= "true"; } else { s ++= "false"; }
         }
-        Null {
+        .null {
             s ++= "null";
         }
     }

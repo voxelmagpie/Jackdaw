@@ -153,9 +153,14 @@ Ast :: {A.Ast}
 
 
 Import :: {A.Import}
-    : 'import' stringlit {A.Import (getStringLit $2) (snd $2) AllNames}
-    | 'import' stringlit '(' List(VNameOrTName, ',') ')' {A.Import (getStringLit $2) (snd $2) $ VisibleNames $4}
-    | 'import' stringlit '~' '(' List(VNameOrTName, ',') ')' {A.Import (getStringLit $2) (snd $2) $ HiddenNames $5}
+    : 'import' stringlit MaybeQual {A.Import (getStringLit $2) (snd $2) $3 AllNames}
+    | 'import' stringlit MaybeQual '(' List(VNameOrTName, ',') ')' {A.Import (getStringLit $2) (snd $2) $3 $ VisibleNames $5}
+    | 'import' stringlit MaybeQual '~' '(' List(VNameOrTName, ',') ')' {A.Import (getStringLit $2) (snd $2) $3 $ HiddenNames $6}
+
+
+MaybeQual :: {Maybe TName'}
+    : {Nothing}
+    | 'as' TName {Just $2}
 
 
 VNameOrTName :: {Text}
@@ -200,14 +205,14 @@ StructField :: {(VName, (SrcRange, A.TypeExpr, [Attribute]))}
 
 
 -- TODO Atributes on data constructors
-EnumFields :: {Ins.InsOrdMap TName (SrcRange, Maybe A.TypeExpr)}
+EnumFields :: {Ins.InsOrdMap VName (SrcRange, Maybe A.TypeExpr)}
     : EnumField { Ins.singleton (fst $1) (snd $1) }
     | EnumFields ',' EnumField {% maybe (throwError $ ("Duplicate field name", fst $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
 
 
-EnumField :: {(TName, (SrcRange, Maybe A.TypeExpr))}
-    : TName { ((fst $1), (snd $1, Nothing)) }
-    | TName '(' TypeExpr ')' { ((fst $1), (snd $1, Just $3)) }
+EnumField :: {(VName, (SrcRange, Maybe A.TypeExpr))}
+    : VName { ((fst $1), (snd $1, Nothing)) }
+    | VName '(' TypeExpr ')' { ((fst $1), (snd $1, Just $3)) }
 
 
 MemberFns :: {A.MemberFns}
@@ -330,13 +335,17 @@ NullableMaybe :: {Maybe SrcRange}
 
 
 AtomTypeExpr :: {A.TypeExpr}
-    : TName GenericArgsMaybe {(A.ANamedType $ A.NamedType $1 $ fromMaybe def $2, snd $1)}
+    : TName GenericArgs {(A.NamedType Nothing $1 (Just $2), srcRangeOf $1 $2)}
+    | TName {(A.NamedType Nothing $1 Nothing, snd $1)}
+    | AtomTypeExpr '.' TName {(A.NamedType (Just $1) $3 Nothing, srcRangeOf $1 $3)}
+    | AtomTypeExpr '.' TName GenericArgs {(A.NamedType (Just $1) $3 (Just $4), srcRangeOf $1 $4)}
     | 'Self' {(A.SelfType, snd $1)}
     | '(' TupleContents ')' { (A.TupleType $2, srcRangeOf $1 $3) }
     | '*' 'void' {(A.PtrType Nothing, srcRangeOf $1 $2)}
     | '*' TypeExpr {(A.PtrType $ Just $2, srcRangeOf $1 $2)}
     | '*' 'const' TypeExpr {(A.ConstPtrType $3, srcRangeOf $1 $3)}
     | 'type' '(' Expr ')' {(A.TypeOf $3, srcRangeOf $1 $2)}
+
 
 
 GenericArgs :: {[A.GenericArg]}
@@ -468,15 +477,14 @@ AtomExp :: {A.Expr}
     | 'true' {(A.BoolLitExpr True, snd $1)}
     | 'false' {(A.BoolLitExpr False, snd $1)}
     | 'nullptr' {A.NullPtrExpr, snd $1}
-    | VName GenericArgs {(A.ANameExpr $ A.NameExpr $1 (Just $2), srcRangeOf $1 $2)}
-    | VName {(A.ANameExpr $ A.NameExpr $1 Nothing, srcRangeOf $1 $1)}
-    | AtomTypeExpr '.' VName {(A.TypeAccessExpr (Just $ fst $1) (snd $1) $ A.NameExpr $3 Nothing, srcRangeOf $1 $3)}
-    | AtomTypeExpr '.' VName GenericArgs {(A.TypeAccessExpr (Just $ fst $1) (snd $1) $ A.NameExpr $3 $ Just $4, srcRangeOf $1 $4)}
-    | '.' VName {(A.TypeAccessExpr Nothing (snd $1) $ A.NameExpr $2 Nothing, srcRangeOf $1 $2)}
-    | '.' VName GenericArgs {(A.TypeAccessExpr Nothing (snd $1) $ A.NameExpr $2 (Just $3), srcRangeOf $1 $3)}
-    | AtomTypeExpr '.' TName {(A.TypeDataConsExpr (Just $ fst $1) (snd $1) $3, srcRangeOf $1 $3)}
-    | '.' TName {(A.TypeDataConsExpr Nothing (snd $1) $2, srcRangeOf $1 $2)}
     | 'uninitialised' {(A.UninitExpr, snd $1)}
+
+    | VName {(A.NameExpr $1 Nothing, snd $1)}
+    | VName GenericArgs {(A.NameExpr $1 (Just $2), srcRangeOf $1 $2)}
+    | '.' VName {(A.TypeAccessorExpr Nothing $2 Nothing, srcRangeOf $1 $2)}
+    | '.' VName GenericArgs {(A.TypeAccessorExpr Nothing $2 (Just $3), srcRangeOf $1 $3)}
+    | AtomTypeExpr '.' VName {(A.TypeAccessorExpr (Just $1) $3 Nothing, srcRangeOf $1 $2)}
+    | AtomTypeExpr '.' VName GenericArgs {(A.TypeAccessorExpr (Just $1) $3 (Just $4), srcRangeOf $1 $2)}
 
 
 StructInitFields :: {Ins.InsOrdMap VName (SrcRange, Maybe A.Expr)}
@@ -524,8 +532,8 @@ MatchBranch :: {A.MatchBranch}
 Pattern :: {A.Pattern}
     : '_' {(A.PatternAny, snd $1)}
     | VName {(A.PatternName $1, snd $1)}
-    | TName {(A.PatternDataCons0 (fst $1), snd $1)}
-    | TName '(' Pattern ')' {(A.PatternDataCons1 $1 $3, srcRangeOf $1 $4)}
+    | '.' VName {(A.PatternDataCons0 (fst $2), srcRangeOf $1 $2)}
+    | '.' VName '(' Pattern ')' {(A.PatternDataCons1 $2 $4, srcRangeOf $1 $5)}
 
 
 ForVar :: {(A.Destructure, A.Expr)}

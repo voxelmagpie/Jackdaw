@@ -1,38 +1,38 @@
-//! -3 # Foo
-//! 0 7 # Bar: 7\n8
-//! 7 7 # Baz\n-7
+//! -3 # foo
+//! 0 7 # bar: 7\n8
+//! 7 7 # baz\n-7
 
 enum Stuff {
-    Foo,
-    Bar(I32),
-    Baz(X)
+    foo,
+    bar(I32),
+    baz(X)
 }
 
 fn start (args: Args, var streams: IoStreams) {
     var i = readI32();
-    var stuff = i < 0 ? Stuff.Foo : i == 0 ? Stuff.Bar(readI32()) : Stuff.Baz(X{ a = -readI32() });
+    var stuff = i < 0 ? Stuff.foo : i == 0 ? Stuff.bar(readI32()) : Stuff.baz(X{ a = -readI32() });
 
     match stuff {
-        Foo {
-            streams.stdOut.writeLine("Foo");
+        .foo {
+            streams.stdOut.writeLine("foo");
         }
-        Bar(j) {
-            streams.stdOut.writeLine("Bar: " ++ j.toString());
+        .bar(j) {
+            streams.stdOut.writeLine("bar: " ++ j.toString());
         }
-        Baz(_) {
-            streams.stdOut.writeLine("Baz");
+        .baz(_) {
+            streams.stdOut.writeLine("baz");
         }
     }
 
     match ref stuff {
-        Bar(i) {
+        .bar(i) {
             i += 1;
         }
         _ {}
     }
 
     match var stuff {
-        Bar(i) {
+        .bar(i) {
             streams.stdOut.writeLine(i.toString());
         }
         _ {}

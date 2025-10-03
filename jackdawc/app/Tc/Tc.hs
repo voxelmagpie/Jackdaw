@@ -232,10 +232,10 @@ getTypeCtx ctx t = do
         I.NumPrimType p ->
           let name = numPrimTypeToText p
               c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName name) & must & A.getTDefCommonMaybe & must
-           in Just <$> makeTSDefCtx outerCtx ctx (TFqn $ "@stlib/primitives:" <> numPrimTypeToText p) [] [] (Just t) (TName $ numPrimTypeToText p) False (srcRangeToSrcLoc' (snd c.c.name))
+           in Just <$> makeTSDefCtx ctx outerCtx (TFqn $ "@stlib/primitives:" <> numPrimTypeToText p) [] [] (Just t) (TName $ numPrimTypeToText p) False (srcRangeToSrcLoc' (snd c.c.name))
         I.BoolType ->
           let c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName "Bool") & must & A.getTDefCommonMaybe & must
-           in Just <$> makeTSDefCtx outerCtx ctx (TFqn "@stlib/primitives:Bool") [] [] (Just t) (TName "Bool") False (srcRangeToSrcLoc' (snd c.c.name))
+           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Bool") [] [] (Just t) (TName "Bool") False (srcRangeToSrcLoc' (snd c.c.name))
         I.ANamedType _ ->
           -- Named type context was made when the type definition (1) was visited
           undefined

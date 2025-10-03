@@ -1,0 +1,14 @@
+//! 4 8 3 # 3 
+
+import "@stlib/errors" as E
+import "@stlib/stlib" as S
+
+fn start () {
+    var x: E.IsError = readI32() > 0 ? E.IsError.ok : .err;
+    match x {
+        .ok {
+            writeI32(S.min[I32](readI32(), readI32()));
+        }
+        _ {}
+    }
+}

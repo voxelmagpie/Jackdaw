@@ -25,7 +25,7 @@ mkTFqn :: Namespace -> TName -> TFqn
 mkTFqn (Namespace n) (TName n') = TFqn $ n <> ":" <> n'
 
 -- Resolves all imports in the source file with the given namespace and AST
-getImports :: (MonadTcError m) => HashMap Namespace A.Ast -> Namespace -> A.Ast -> m [(Namespace, ImportNames)]
+getImports :: (MonadTcError m) => HashMap Namespace A.Ast -> Namespace -> A.Ast -> m [(Namespace, Maybe TName, ImportNames)]
 getImports allAsts ns ast = do
   -- Extract @package_name and file path within the current package
   let allNsParts = T.split (== '/') (un ns)
@@ -60,52 +60,62 @@ getImports allAsts ns ast = do
           let importNs = Namespace $ T.intercalate "/" $ pkg : importParts
           unless (HM.member importNs allAsts) $ throw [] sr $ "Invalid import path: '" <> un importNs <> "'"
           pure importNs
-    pure (importNs, names)
+    pure (importNs, fst <$> qual, names)
 
   let defaultImports =
-        [ (Namespace "@stlib/stlib", AllNames),
-          (Namespace "@stlib/primitives", AllNames),
-          (Namespace "@stlib/string", AllNames),
-          (Namespace "@stlib/list", AllNames),
-          (Namespace "@stlib/maybe", AllNames),
-          (Namespace "@stlib/errors", AllNames)
+        [ (Namespace "@stlib/stlib", Nothing, AllNames),
+          (Namespace "@stlib/primitives", Nothing, AllNames),
+          (Namespace "@stlib/string", Nothing, AllNames),
+          (Namespace "@stlib/list", Nothing, AllNames),
+          (Namespace "@stlib/maybe", Nothing, AllNames),
+          (Namespace "@stlib/errors", Nothing, AllNames)
         ]
   pure $ defaultImports <> xs
 
+data TNameLookupResult = NlType H.Type | NlTypeDef (Ctx, TFqn, A.AnyTSDef) | NlNamespace (Namespace, A.Ast, ImportsList)
+
 -- Returned ctx is the outer context of the type definition (for types this is a file context)
 -- This function returns a Type if the name leads to a generic argument
-lookupTypeName :: (MonadTc m) => Ctx -> TName' -> m (Either (Ctx, TFqn, A.AnyTSDef) H.Type)
+lookupTypeName :: (MonadTc m) => Ctx -> TName' -> m TNameLookupResult
 lookupTypeName ctx (name, sr) = do
   case HM.lookup name ctx.tNameToGp of
     Just x ->
-      pure $ Right x
+      pure $ NlType x
     _ ->
       -- Definitions in the current file are searched before imports
       case HM.lookup name ctx.thisAst.tsDefs of
         Just tsDef ->
-          pure $ Left (mkFileCtx' ctx, mkTFqn ctx.namespace name, tsDef)
+          pure $ NlTypeDef (mkFileCtx' ctx, mkTFqn ctx.namespace name, tsDef)
         _ -> do
-          let found = flip mapMaybe ctx.thisAstImports $ \(importNs, names) ->
-                let doCheck = case names of
+          let found = flip concatMap ctx.thisAstImports $ \(importNs, qualNameMaybe, names) ->
+                let (ast, astImports) = must $ HM.lookup importNs ctx.tcIn.allAsts
+                    qualResult = [(importNs, NlNamespace (importNs, ast, astImports)) | qualNameMaybe == Just name]
+                    doCheck = case names of
                       AllNames -> True
                       VisibleNames ns -> un name `elem` ns
                       HiddenNames ns -> un name `notElem` ns
                  in if not doCheck
                       then
-                        -- The name was not in the names list or was in the hidden names list, no need to search the AST
-                        Nothing
-                      else
-                        let (ast, astImports) = must $ HM.lookup importNs ctx.tcIn.allAsts
-                         in HM.lookup name ast.tsDefs <&> (importNs,ast,astImports,)
+                        -- The name was not in the names list or was in the hidden names list,
+                        -- no need to search the AST
+                        qualResult
+                      else case HM.lookup name ast.tsDefs of
+                        Nothing -> qualResult
+                        Just tsDef ->
+                          let ctx' = mkFileCtx importNs (ast, astImports) ctx.tcIn
+                           in (importNs, NlTypeDef (ctx', mkTFqn importNs name, tsDef)) : qualResult
 
           case found of
             [] -> throw ctx.et sr $ "Name not found: " <> un name
-            ((ns, ast, imports, tsDef) : xs) -> do
-              unless (all ((== ns) . \(n, _, _, _) -> n) xs)
+            ((ns, x) : xs) -> do
+              -- The name may have been imported multiple times from the same namespace
+              -- This is valid but need to check the name isn't both an imported name and a qualified ('as') name
+              let isSame = \case (NlTypeDef _, NlTypeDef _) -> True; (NlNamespace _, NlNamespace _) -> True; _ -> False
+              unless (all (\(ns', y) -> ns == ns' && isSame (x, y)) xs)
                 $ throw ctx.et sr
                 $ "Ambiguous name: "
                 <> un name
-              pure $ Left (mkFileCtx ns (ast, imports) ctx.tcIn, mkTFqn ns name, tsDef)
+              pure x
 
 lookupVName :: (MonadTc m) => Ctx -> VName' -> m (Either (Ctx, VFqn, A.AnyVDef) H.Constant)
 lookupVName ctx (name, sr) = do
@@ -117,7 +127,7 @@ lookupVName ctx (name, sr) = do
         Just vDef ->
           pure $ Left (mkFileCtx' ctx, mkVFqn ctx.namespace name, vDef)
         _ -> do
-          let found = flip mapMaybe ctx.thisAstImports $ \(importNs, names) ->
+          let found = flip mapMaybe ctx.thisAstImports $ \(importNs, _, names) ->
                 let doCheck = case names of
                       AllNames -> True
                       VisibleNames ns -> un name `elem` ns

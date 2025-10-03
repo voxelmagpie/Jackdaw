@@ -11,12 +11,14 @@ import Prelude2
 import SrcLoc (SrcLoc')
 import Tc.TcIr qualified as I
 
+type ImportsList = [(Namespace, Maybe TName, ImportNames)]
+
 data TcInputs = TcInputs
-  { allAsts :: HashMap Namespace (A.Ast, [(Namespace, ImportNames)]),
-    primitivesAst :: (A.Ast, [(Namespace, ImportNames)]),
-    stLibAst :: (A.Ast, [(Namespace, ImportNames)]),
-    hashAst :: (A.Ast, [(Namespace, ImportNames)]),
-    toStringAst :: (A.Ast, [(Namespace, ImportNames)]),
+  { allAsts :: HashMap Namespace (A.Ast, ImportsList),
+    primitivesAst :: (A.Ast, ImportsList),
+    stLibAst :: (A.Ast, ImportsList),
+    hashAst :: (A.Ast, ImportsList),
+    toStringAst :: (A.Ast, ImportsList),
     dropFn :: A.AnyVDef,
     equalFn :: A.AnyVDef,
     notEqualFn :: A.AnyVDef,
@@ -31,7 +33,7 @@ data TcInputs = TcInputs
 data Ctx = Ctx
   { namespace :: Namespace,
     thisAst :: A.Ast,
-    thisAstImports :: [(Namespace, ImportNames)],
+    thisAstImports :: ImportsList,
     tcIn :: TcInputs,
     selfType :: Maybe (TFqn, I.Type),
     tNameToGp :: HashMap TName I.Type,
@@ -47,7 +49,7 @@ data Ctx = Ctx
   }
   deriving (Show)
 
-mkFileCtx :: Namespace -> (A.Ast, [(Namespace, ImportNames)]) -> TcInputs -> Ctx
+mkFileCtx :: Namespace -> (A.Ast, ImportsList) -> TcInputs -> Ctx
 mkFileCtx namespace (thisAst, thisAstImports) tcIn =
   Ctx
     { namespace = namespace,

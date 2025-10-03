@@ -269,6 +269,7 @@ data Statement'
   | UnsafeStmnt Statement
   | ThrowStmnt Expr
   | TryCatchStmnt Statement (Maybe VName, SrcRange) Statement
+  | BorrowStatement AccessMode VName' (Maybe TypeExpr) Expr
   deriving (Show, Generic)
 
 type Statement = (Statement', SrcRange)

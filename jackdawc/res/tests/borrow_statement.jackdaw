@@ -1,0 +1,19 @@
+//! 3 4 # 8
+
+fn start () {
+    var l = List[I32].new();
+    l.push(readI32());
+    l.push(readI32());
+
+    {
+        borrow ref x = l.at(0);
+        x += 1;
+    }
+    var a: I32;
+    {
+        borrow x = l.at(0);
+        borrow y = l.at(1);
+        a = x+y;
+    }
+    writeI32(a);
+}

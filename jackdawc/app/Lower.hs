@@ -311,8 +311,18 @@ visitAccessorExpr ctx (hirExpr, sr) = case hirExpr of
     self <- visitAccessorExpr' ctx e.selfArg
     args <- getFnArgs ctx e.args
 
-    x <- addValInstrLExpr sr retType $ L.ICall e' $ fst <$> (self : (fst2Of3 <$> args))
-    forM_ (reverse $ mapMaybe thd3 args) $ addInstr sr
+    let callInstr = L.ICall e' $ fst <$> (self : (fst2Of3 <$> args))
+    let argsDropFns = reverse $ mapMaybe thd3 args
+    x <- addValInstrLExpr sr retType callInstr
+
+    forM_ e.dropFnsIfMayThrow $ \ds -> do
+      successBlk <- reserveBlockId
+      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, argsDropFns, ds)
+      addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
+      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk argsDropFns ds sr
+      addBlock' successBlk
+
+    forM_ argsDropFns $ addInstr sr
     pure $ first L.ILExpr x
   H.DataConsUnsafeAccessorExpr e i -> do
     (e', t) <- visitAccessorExpr ctx e
@@ -402,16 +412,14 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
     let argsLExprs = fst3 <$> args
     let argsDropFns = reverse $ mapMaybe thd3 args -- For r-values taken as references
     x <- addValInstrLExpr sr retType (L.ICall e' argsLExprs)
-    case e.dropFnsIfMayThrow of
-      Just ds -> do
-        successBlk <- reserveBlockId
-        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, argsDropFns, ds)
-        addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk argsDropFns ds sr
-        addBlock' successBlk
-      _ -> pure ()
-    forM_ argsDropFns $ addInstr sr
+    forM_ e.dropFnsIfMayThrow $ \ds -> do
+      successBlk <- reserveBlockId
+      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, argsDropFns, ds)
+      addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
+      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk argsDropFns ds sr
+      addBlock' successBlk
 
+    forM_ argsDropFns $ addInstr sr
     pure $ first L.ILExpr x
   H.ACondOpExpr e -> do
     (cond, _) <- visitExpr ctx e.condExpr
@@ -1114,6 +1122,12 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
     -- Ok
     addBlock' contBlk
     visitStmnt ctx ss dropVars
+  H.BorrowStatement _ uid name e -> do
+    (e', t) <- visitAccessorExpr ctx e
+    varId <- mkVarId t $ un name
+    addInstr sr $ L.ISetVar varId e'
+    let ctx' = ctx {vars = (uid, Variable {varId = varId, lirType = t, varType = VarRefPtr}) : ctx.vars}
+    visitStmnt ctx' ss dropVars
 visitStmnt ctx [] dropVars = do
   runDropFns ctx def dropVars
   pure False

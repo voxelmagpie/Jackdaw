@@ -122,6 +122,7 @@ data Statement'
   | ThrowStmnt Expr
   | TryCatchStmnt Statement (Maybe (LocalVarUid, VName, Type)) Statement
   | BubbleStmnt Expr
+  | BorrowStatement AccessMode LocalVarUid VName Expr
   deriving (Show, Generic)
 
 type Statement = (Statement', SrcRange)

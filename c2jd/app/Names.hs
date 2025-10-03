@@ -13,7 +13,7 @@ import Prelude2
 import State
 
 jdKeywords :: [Text]
-jdKeywords = ["if", "else", "type", "enum", "struct", "var", "fn", "accessor", "iterator", "const", "alias", "loop", "break", "continue", "ref", "in", "return", "true", "false", "void", "nullptr", "as", "for", "foreach", "and", "or", "yield", "require", "uninitialised", "match", "import", "unsafe", "throw", "try", "catch"]
+jdKeywords = ["if", "else", "type", "enum", "struct", "var", "fn", "accessor", "iterator", "const", "alias", "loop", "break", "continue", "ref", "in", "return", "true", "false", "void", "nullptr", "as", "for", "foreach", "and", "or", "yield", "require", "uninitialised", "match", "import", "unsafe", "throw", "try", "catch", "borrow"]
 
 jdReservedTypes :: [Text]
 jdReservedTypes = ["Self", "I8", "U8", "I16", "U16", "I32", "U32", "I64", "U64", "F32", "F64", "Bool", "Array", "Slice"]

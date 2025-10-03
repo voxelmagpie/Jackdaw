@@ -63,7 +63,7 @@
 				},
 				{
 					"name": "storage.type.jackdaw",
-					"match": "\\b(const|void|var|ref|type|struct|union|enum|interface|alias|newtype)\\b"
+					"match": "\\b(const|void|var|ref|type|struct|union|enum|interface|alias|newtype|borrow)\\b"
 				},
 				{
 					"name": "storage.type.function.jackdaw",

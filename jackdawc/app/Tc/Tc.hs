@@ -2243,6 +2243,18 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
       addError ctx.et sr $ T.concat ["Error types do not match\nExpected ", retErrType', ", got ", errType']
 
     getCodeBlockStmnt ctx astStmnts ((I.BubbleStmnt e'', sr) : hirStmnts)
+  A.BorrowStatement mode name'@(name, _) astTypeExprMaybe e -> do
+    typeMaybe <- forM astTypeExprMaybe $ getType ctx
+    let hint = fromMaybe NoHint $ typeMaybe <&> TypeHint
+    e'@(_, actualType, _) <- getExpr ctx hint e
+    case typeMaybe of
+      Nothing -> pure ()
+      Just expectedType ->
+        unless (actualType == expectedType) $ do
+          (act, ex) <- format2Types actualType expectedType
+          addError ctx.et sr $ T.concat ["Wrong type for borrow statement\nExpected ", ex, ", got ", act]
+    (ctx', uid) <- makeLocalVar ctx actualType name'
+    getCodeBlockStmnt ctx' astStmnts ((I.BorrowStatement mode uid name e', sr) : hirStmnts)
 getCodeBlockStmnt _ [] [] =
   pure (I.CodeBlockStmnt [], def)
 getCodeBlockStmnt _ [] hirStmnts@(s1 : _) =

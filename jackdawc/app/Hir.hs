@@ -361,6 +361,7 @@ data Statement'
   | ThrowStmnt Expr DropFns -- Expr always loads a *const String
   | TryCatchStmnt Statement (Maybe (LocalVarUid, VName, Type)) Statement
   | BubbleStmnt Expr DropFns
+  | BorrowStatement AccessMode LocalVarUid VName AccessorExpr
   deriving (Show, Generic)
 
 type Statement = (Statement', SrcRange)

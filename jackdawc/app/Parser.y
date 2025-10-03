@@ -130,9 +130,10 @@ import InsOrdMap qualified as Ins
     'match'         { (IdentOrKw (VName "match"), _) }
     'import'        { (IdentOrKw (VName "import"), _) }
     'unsafe'        { (IdentOrKw (VName "unsafe"), _) }
-    'throw'        { (IdentOrKw (VName "throw"), _) }
-    'try'        { (IdentOrKw (VName "try"), _) }
-    'catch'        { (IdentOrKw (VName "catch"), _) }
+    'throw'         { (IdentOrKw (VName "throw"), _) }
+    'try'           { (IdentOrKw (VName "try"), _) }
+    'catch'         { (IdentOrKw (VName "catch"), _) }
+    'borrow'        { (IdentOrKw (VName "borrow"), _) }
     
 
     name { (IdentOrKw __, _) }
@@ -518,6 +519,7 @@ Statement :: {A.Statement}
     | 'unsafe' CodeBlockStmnt {(A.UnsafeStmnt $2, srcRangeOf $1 $2)}
     | 'throw' Expr ';' {(A.ThrowStmnt $2, srcRangeOf $1 $2)}
     | 'try' CodeBlockStmnt 'catch' VNameOrUnderscore CodeBlockStmnt {(A.TryCatchStmnt $2 $4 $5, srcRangeOf $1 $5)}
+    | 'borrow' Maybe('ref') VName Maybe(TypeSpecifier) '=' Expr ';' {(A.BorrowStatement (if isJust $2 then Exclusive else Shared) $3 $4 $6, srcRangeOf $1 $7)}
 
 
 VNameOrUnderscore :: {(Maybe VName, SrcRange)}

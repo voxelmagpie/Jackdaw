@@ -503,7 +503,9 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
 borrowCheckCodeBlockStmnt :: (MonadBrwChk m) => Ctx -> [I.Statement] -> m (H.Statement', Terminates)
 borrowCheckCodeBlockStmnt ctx ss = do
   vars <- copyVarsList
+  b <- copyBorrowState
   ss' <- forM ss $ borrowCheckStmnt ctx
+  restoreBorrowState b -- Undo borrows from borrow statements
   vars' <- copyVarsList
 
   let newVars = take (length vars' - length vars) vars'
@@ -834,6 +836,13 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
     vs <- copyVarsList
     let toDrop = mapMaybe getDropFnForVarMaybe vs
     pure (H.BubbleStmnt e' toDrop, False)
+  I.BorrowStatement mode uid name e -> do
+    (e', _) <- borrowCheckExpr ctx mode e
+    e'' <- case e' of
+      Right (x, _) -> pure x
+      Left _ -> throw sr "Expected reference"
+    addVar uid name True Nothing ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
+    pure (H.BorrowStatement mode uid name e'', False)
 
 getThrowDropFns :: (MonadBrwChk m) => Ctx -> m H.DropFns
 getThrowDropFns ctx =

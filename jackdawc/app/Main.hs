@@ -396,7 +396,7 @@ compileToC stLib srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers unch
       printErrs es =
         throwIO
           $ CompileException
-          $ T.concat
+          $ T.intercalate "\n\n"
           $ es
           <&> \(Err _ _ e) -> e
 

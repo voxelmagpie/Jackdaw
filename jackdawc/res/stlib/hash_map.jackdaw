@@ -3,7 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import "@stlib/bits"
-import "hash"
+import "@stlib/memory"
+import "@stlib/hash"
 
 struct HashMap [K, V] {
     @Unsafe
@@ -33,14 +34,14 @@ struct HashMap [K, V] {
         if self.capacity == 0 {
             self.capacity = 30;
             self.occupied = .zeros(self.capacity);
-            self.data = memAlloc[(K, V)](self.capacity);
+            self.data = alloc[(K, V)](self.capacity);
         }
         else if self.count() >= ((self.capacity / 10) * 7) {
             var newCap = self.capacity + (self.capacity / 2);
             var new = Self {
                 capacity = newCap,
                 occupied = .zeros(newCap),
-                data = memAlloc[(K, V)](newCap)
+                data = alloc[(K, V)](newCap)
             };
 
             for (var i: ISize = 0; i < self.capacity; i += 1) {
@@ -174,7 +175,7 @@ struct HashMap [K, V] {
     fn onDrop (ref self: Self) unsafe {
         self.clear();
         if self.capacity > 0 {
-            memFree(self.data);
+            free(self.data);
             self.capacity = 0;
         }
     }

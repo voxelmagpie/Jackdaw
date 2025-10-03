@@ -1,6 +1,7 @@
 //! 7 # 9
 
 import "@stlib/raw_slice"
+import "@stlib/memory"
 
 fn f (ref x: Slice[I32]) {
     if x.length() > 0 {
@@ -13,7 +14,7 @@ fn g (ref x: I32) {
 }
 
 fn start () unsafe {
-    var ptr = memAlloc[I32](1);
+    var ptr = alloc[I32](1);
     ptr.* = readI32();
     var rSl = RawSlice[I32]{ ptr, length=1 };
     f(rSl);

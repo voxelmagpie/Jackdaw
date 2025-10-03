@@ -4,6 +4,7 @@
 
 import "@stlib/raw_slice"
 import "@stlib/range"
+import "@stlib/memory"
 
 struct List [A] {
     // Do not reorder these fields, the compiler relies on the order when generating/using const lists
@@ -25,7 +26,7 @@ struct List [A] {
     }
 
     fn singleton (var x: A): Self unsafe {
-        var ptr = memAlloc[A](1);
+        var ptr = alloc[A](1);
         ptr.* = x;
         return Self{ ptr=ptr, _length=1, capacity=1 };
     }
@@ -73,7 +74,7 @@ struct List [A] {
         var newCap = max[ISize](self.capacity + (self.capacity / 2), minCap);
         if newCap <= self.capacity { return; }
 
-        self.ptr = memRealloc[A](self.ptr, newCap);
+        self.ptr = realloc[A](self.ptr, newCap);
         self.capacity = newCap;
     }
 
@@ -155,7 +156,7 @@ struct List [A] {
 
     fn insertListAt (ref self: Self, i: ISize, var xs: Self) unsafe {
         self.copyRawSliceAt(i, xs.asRawSlice());
-        memFree(xs.ptr);
+        free(xs.ptr);
         leak[Self](xs); // Don't drop as data has been copied
     }
 
@@ -203,12 +204,12 @@ struct List [A] {
 
     fn appendList (ref self: Self, var xs: List[A]) unsafe {
         self.copyRawSliceAt(self._length, xs.asRawSlice());
-        memFree(xs.ptr);
+        free(xs.ptr);
         leak[Self](xs); // Don't drop as data has been copied
     }
 
     fn clone (self: Self): Self unsafe {
-        var p = memAlloc[A](self._length);
+        var p = alloc[A](self._length);
         if const typeIsCopyable[A] {
             memCopyUnaliased(p, self.ptr, self._length * sizeOf[A]);
         }
@@ -233,7 +234,7 @@ struct List [A] {
         for (var i: ISize = 0; i < self._length; i += 1) {
             drop[A](self.ptr.(i));
         }
-        memFree(self.ptr);
+        free(self.ptr);
         self.ptr = nullptr;
         self._length = 0;
         self.capacity = 0;

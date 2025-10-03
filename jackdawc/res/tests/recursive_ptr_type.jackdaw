@@ -1,5 +1,7 @@
 //! 3 # 3
 
+import "@stlib/memory"
+
 @Unsafe
 struct X {
     a: *X,
@@ -7,7 +9,7 @@ struct X {
 }
 
 fn start () unsafe {
-    var p = memAlloc[X](1);
+    var p = alloc[X](1);
     p.* = X{ a=nullptr, b = readI32() };
     p.*.a = p;
     writeI32(p.*.a.*.a.*.a.*.b);

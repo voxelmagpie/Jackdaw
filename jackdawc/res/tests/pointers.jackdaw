@@ -1,15 +1,17 @@
 //! 3 4 1 # 4
 //! 2 2 0 # 3
 
+import "@stlib/memory"
+
 fn start () unsafe {
-    var p = memAlloc[I32](2);
+    var p = alloc[I32](2);
     getI32AndIncPtr(p);
     p -= 1;
     p.(1) = readI32();
     p.(abs[I32](readI32()) % 2) = 1;
     p.(1) = p.(1) + p.(0);
     writeI32(p.(1));
-    memFree(p);
+    free(p);
 }
 
 @Unsafe

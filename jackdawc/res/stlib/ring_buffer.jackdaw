@@ -2,6 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import "@stlib/memory"
+
 struct RingBuffer [A] {
     @Unsafe ptr: *A,
     @Unsafe capacity: ISize,
@@ -11,7 +13,7 @@ struct RingBuffer [A] {
     fn new (var capacity: ISize): Self unsafe {
         if capacity < 0 { capacity = 0; }
         return Self {
-            ptr = capacity == 0 ? nullptr : memAlloc[A](capacity),
+            ptr = capacity == 0 ? nullptr : alloc[A](capacity),
             capacity,
             start=0,
             _count=0
@@ -56,7 +58,7 @@ struct RingBuffer [A] {
 
     fn onDrop (ref self: Self) unsafe {
         if self.ptr != nullptr {
-            memFree(self.ptr);
+            free(self.ptr);
             self.ptr = nullptr;
         }
     }

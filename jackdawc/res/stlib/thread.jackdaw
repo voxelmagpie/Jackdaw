@@ -17,7 +17,7 @@ struct Thread [A, R] {
             _ = pthread_attr_setstacksize(&attr, stackSize as USize);
         }
 
-        var initPtr = memAlloc[ThreadInit[A, R]](1);
+        var initPtr = alloc[ThreadInit[A, R]](1);
         initPtr.* = .{ arg, f };
 
         var id: PThreadId = 0;
@@ -39,7 +39,7 @@ struct Thread [A, R] {
         }
         else {
             var r = rPtr.*;
-            memFree(rPtr);
+            free(rPtr);
             return .some(r);
         }
     }
@@ -72,10 +72,10 @@ struct ThreadInit [A, R] {
 fn runThread [A, R] (var initPtr: *ThreadInit[A, R]): *void {
     try {
         var .{arg, f} = initPtr.*;
-        memFree(initPtr);
+        free(initPtr);
 
         var r = f(arg);
-        var rPtr = memAlloc[R](1);
+        var rPtr = alloc[R](1);
         rPtr.* = r;
         return rPtr;
     }

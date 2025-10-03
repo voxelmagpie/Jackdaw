@@ -6,6 +6,7 @@ import "@stlib/fs"
 import "@stlib/os_string"
 import "@/main"
 import "c"
+import "@stlib/memory"
 
 const uncheckedArithmetic: Bool
 
@@ -231,60 +232,8 @@ fn notEqual [A] (x: A, y: A): Bool {
 }
 
 
-@Unsafe
-fn memAlloc [T] (n: ISize): *T {
-    if n <= 0 { return nullptr; }
-    var p = malloc(n * sizeOf[T]) as *T;
-    if p == nullptr { panic("Out of memory"); }
-    return p;
-}
-
-@Unsafe
-fn memAllocZero [T] (n: ISize): *T {
-    if n <= 0 { return nullptr; }
-    var p = calloc(1, n * sizeOf[T]) as *T;
-    if p == nullptr { panic("Out of memory"); }
-    return p;
-}
-
-@Unsafe
-fn memRealloc [T] (old: *T, n: ISize): *T {
-    if n <= 0 { memFree(old); return nullptr; }
-    var p = realloc(old, n * sizeOf[T]) as *T;
-    if p == nullptr { panic("Out of memory"); }
-    return p;
-}
-
-@Unsafe @NoThrow
-fn memFree (p: *void) {
-    free(p);
-}
 
 @NoThrow fn abort ()
-
-
-
-// Use memCopyUnaliased only when the 2 buffers do not overlap
-@Unsafe @NoThrow
-fn memCopyUnaliased (dst: *void, src: *void, n: ISize) {
-    memcpy(dst, src, n);
-}
-
-// Use memCopy if the buffers might overlap
-@Unsafe @NoThrow
-fn memCopy (dst: *void, src: *void, n: ISize) {
-    memmove(dst, src, n);
-}
-
-@Unsafe @NoThrow
-fn memCmp (dst: *void, src: *void, n: ISize): I32 {
-    return memcmp(dst, src, n);
-}
-
-@Unsafe @NoThrow
-fn memSet (dst: *void, x: U8, n: ISize) {
-    memset(dst, x, n);
-}
 
 // Consumes the value without dropping it
 @NoThrow
@@ -292,7 +241,7 @@ fn leak [A] (var A)
 
 // Consumes the value and puts it on the heap as a *const
 fn toConstPtr [A] (var x: A): *const A unsafe {
-    var ptr = memAlloc[A](1);
+    var ptr = alloc[A](1);
     ptr.* = x;
     return ptr as *const A;
 }

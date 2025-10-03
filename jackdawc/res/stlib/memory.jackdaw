@@ -1,0 +1,54 @@
+import "c" as C ()
+
+@Unsafe
+fn alloc [T] (n: ISize): *T {
+    if n <= 0 { return nullptr; }
+    var p = C.malloc(n * sizeOf[T]) as *T;
+    if p == nullptr { panic("Out of memory"); }
+    return p;
+}
+
+@Unsafe
+fn allocZero [T] (n: ISize): *T {
+    if n <= 0 { return nullptr; }
+    var p = C.calloc(1, n * sizeOf[T]) as *T;
+    if p == nullptr { panic("Out of memory"); }
+    return p;
+}
+
+@Unsafe
+fn realloc [T] (old: *T, n: ISize): *T {
+    if n <= 0 { free(old); return nullptr; }
+    var p = C.realloc(old, n * sizeOf[T]) as *T;
+    if p == nullptr { panic("Out of memory"); }
+    return p;
+}
+
+@Unsafe
+fn free (p: *void) {
+    C.free(p);
+}
+
+
+
+// Use memCopyUnaliased only when the 2 buffers do not overlap
+@Unsafe
+fn memCopyUnaliased (dst: *void, src: *void, n: ISize) {
+    C.memcpy(dst, src, n);
+}
+
+// Use memCopy if the buffers might overlap
+@Unsafe
+fn memCopy (dst: *void, src: *void, n: ISize) {
+    C.memmove(dst, src, n);
+}
+
+@Unsafe
+fn memCmp (dst: *void, src: *void, n: ISize): I32 {
+    return C.memcmp(dst, src, n);
+}
+
+@Unsafe
+fn memSet (dst: *void, x: U8, n: ISize) {
+    C.memset(dst, x, n);
+}

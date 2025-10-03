@@ -29,11 +29,11 @@ fn intToString [A] (var i: A): String {
 	var s = String.new();
     s.utf8Data.reserve((i < 0 ? 1 : 0) + chars.count() + 1);
 
-	if i < 0 {
+	if signFlip < 0 {
 		s ++= "-";
 	}
 
-	for (var i = chars.count()-1; i >= 0; i=i-1) {
+	for (var i = chars.count()-1; i >= 0; i -= 1) {
 		s.pushCodePoint(chars.at(i));
 	}
 

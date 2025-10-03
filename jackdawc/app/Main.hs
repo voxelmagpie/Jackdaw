@@ -33,7 +33,6 @@ import Lower (runLowerer)
 import Names
 import Parser (parseJackdawAst)
 import Prelude2
-import SrcLoc
 import System.Directory (createDirectoryIfMissing, getSymbolicLinkTarget, getTemporaryDirectory, listDirectory, removeDirectoryRecursive, removeFile)
 import System.Environment (getArgs)
 import System.Exit (die)
@@ -305,7 +304,7 @@ parseFile srcPath srcMaybe dumpDir = do
   let srcPath' = T.pack srcPath
   let tokensMaybe = lexJackdaw srcPath src
   !tokens <- case tokensMaybe of
-    (Left e) -> throwIO $ CompileException $ "Lexical error in " <> srcPath' <> ":\n" <> T.pack e
+    (Left e) -> throwIO $ CompileException $ T.pack e <> " in " <> srcPath'
     (Right a) -> pure a
 
   lexingEndTime <- getCurrentTime
@@ -330,8 +329,8 @@ parseFile srcPath srcMaybe dumpDir = do
 
   let astMaybe = runReaderT (parseJackdawAst tokens) srcPath
   !ast <- case astMaybe of
-    (Left (e, SrcRange _ l _)) ->
-      throwIO $ CompileException $ "Parse error at " <> srcPath' <> ":" <> tShow l.line <> ":\n" <> e
+    (Left (e, _)) ->
+      throwIO $ CompileException e
     (Right a) ->
       pure a
 
@@ -394,20 +393,16 @@ compileToC stLib srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers unch
   let name = dropExtension $ takeFileName srcPath
 
   let printErrs :: [Err] -> IO a
-      printErrs es = throwIO
-        $ CompileException
-        $ T.concat
-        $ flip fmap es
-        $ \(Err _ (SrcRange f sl _) e) ->
-          if sl.line == 0
-            then
-              "Error in " <> T.pack f <> ":\n" <> e <> "\n\n"
-            else
-              "Error at " <> T.pack f <> ":" <> T.pack (show sl.line) <> ":\n" <> e <> "\n\n"
+      printErrs es =
+        throwIO
+          $ CompileException
+          $ T.concat
+          $ es
+          <&> \(Err _ _ e) -> e
 
   typeCheckingStartTime <- getCurrentTime
   tcRes <- runTc (convertBwCheckFnTypeIO Bw.runBorrowChecker) (HM.fromList $ files ++ stLib) forceCheckStLib uncheckedArithmetic
-  (partialHir, typeCheckingTime) <- case tcRes of
+  (hir, typeCheckingTime) <- case tcRes of
     Left errs ->
       printErrs errs
     Right hir -> do
@@ -420,7 +415,7 @@ compileToC stLib srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers unch
       pure (hir, diffUTCTime typeCheckingEndTime typeCheckingStartTime)
 
   transpilingStartTime <- getCurrentTime
-  c <- runLowerer partialHir addDbgLineNumbers
+  c <- runLowerer hir addDbgLineNumbers
   transpilingEndTime <- getCurrentTime
   when printStagesDone $ putStrLn "Transpiling done"
   let transpilingTime = diffUTCTime transpilingEndTime transpilingStartTime

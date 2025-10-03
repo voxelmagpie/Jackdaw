@@ -24,17 +24,17 @@ type ParseM = ReaderT FilePath (Either (Text, SrcRange))
 
 parseError :: ([TokenL], [String]) -> ParseM a
 parseError ([], _) = let x = SrcLoc 0 0 in ask >>= \n -> throwError ("Unexpected EOF", SrcRange n x x)
-parseError ((token, r) : _, strings) =
+parseError ((token, r@(SrcRange srcPath' l _)) : _, strings) =
   throwError (msg, r)
   where
-    msg1 = "Parse error at token " <> prettyPrintToken token
+    msg1 = "Parse error at token " <> prettyPrintToken token <> " in " <> T.pack srcPath' <> ":" <> tShow l.line
     msg =
       if null strings
-        then msg1
+        then msg1 <> "\n"
         else
           T.concat
             [ msg1,
-              "\nPossible next tokens: ",
+              ":\nPossible next tokens: ",
               T.intercalate ", " $ T.pack <$> strings
             ]
 

@@ -7,7 +7,7 @@ module Tc.TcErr (throw, addError) where
 
 import Data.Text qualified as T
 import Prelude2
-import SrcLoc (HasSrcRange, SrcLoc (..), SrcLoc' (SrcLoc'))
+import SrcLoc (HasSrcRange (filePath, startLoc), SrcLoc (..), SrcLoc' (SrcLoc'))
 import Tc.Error (MonadTcError)
 import Tc.Error qualified as E
 
@@ -16,6 +16,7 @@ throw et sr msg =
   E.throw E.TypeCheckerError sr
     $ T.intercalate "\n"
     $ msg
+    : ("At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line)
     : (et <&> fmt)
 
 addError :: (MonadTcError m, HasSrcRange r) => [(Text, SrcLoc')] -> r -> Text -> m ()
@@ -26,4 +27,4 @@ addError et sr msg =
     : (et <&> fmt)
 
 fmt :: (Text, SrcLoc') -> Text
-fmt (wh, SrcLoc' fp l) = "> In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line
+fmt (wh, SrcLoc' fp l) = "In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line

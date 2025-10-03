@@ -20,6 +20,7 @@ import Data.Functor ((<&>))
 import Data.Foldable (Foldable (foldl'))
 import Control.Arrow ((<<<), (>>>))
 import Data.Char(ord)
+import Data.List(isPrefixOf)
 }
 
 %wrapper "monad-strict-text"
@@ -93,9 +94,9 @@ tokens :-
   [$lowercase \_] [$alpha $digit \_]* { tok $ IdentOrKw . VName }  
   $CAPS [$alpha $digit \_]* { tok $ TypeName . TName }
   
-  \" ([^\"] | (\\\"))* \" { tok' mkStringTok }
+  \" ([^\"] | (\\\"))* \" { \i@(AlexPn _ row _, _, _, _) l -> tok' (mkStringTok row) i l }
   
-  \' \\ [^\'] \' { tok' mkEscapeCharLit }
+  \' \\ [^\'] \' { \i@(AlexPn _ row _, _, _, _) l -> tok' (mkEscapeCharLit row) i l }
   \' [^\'\\] \' { tok $ CharLiteral . T.head . stripQuotes }
 
 {
@@ -125,7 +126,11 @@ lexJackdaw fileName src =
     run = 
       case runAlex src go of
         Right x -> Right $ x <&> \(t, (a, b)) -> (t, SrcRange fileName a b)
-        Left e -> Left $ 'L' : tail e
+        Left e -> 
+          if "lexical" `isPrefixOf` e then 
+            Left $ 'L' : tail e
+          else
+            Left e
 
 -- Nothing represents EOF, tells go in lexJackdaw to stop
 alexEOF :: Alex (Maybe TokenL')
@@ -176,13 +181,13 @@ stripQuotes :: Text -> Text
 stripQuotes t =  T.tail $ T.take (T.length t - 1) t 
 
 -- TODO \uXXXX and \UXXXXXX
-mkEscapeCharLit :: Text -> Alex Token
-mkEscapeCharLit s = do
+mkEscapeCharLit :: Int -> Text -> Alex Token
+mkEscapeCharLit row s = do
   let c = T.head $ T.drop 2 s 
-  getEscChar c <&> CharLiteral
+  getEscChar row c <&> CharLiteral
 
-getEscChar :: Char -> Alex Char
-getEscChar = \case
+getEscChar :: Int -> Char -> Alex Char
+getEscChar row = \case
   'a' -> pure '\a'
   'b' -> pure '\b'
   'f' -> pure '\f'
@@ -192,15 +197,15 @@ getEscChar = \case
   '"' -> pure '\"'
   '\'' -> pure '\''
   '\\' -> pure '\\'
-  _ -> alexError "Invalid escape character"
+  _ -> alexError $ "Invalid escape character on line " <> show row
 
 -- Strips quotation marks and processes escape characters
-mkStringTok :: Text -> Alex Token
-mkStringTok s = (StringLiteral . T.pack) <$> go (T.unpack $ stripQuotes s)
+mkStringTok :: Int -> Text -> Alex Token
+mkStringTok row s = (StringLiteral . T.pack) <$> go (T.unpack $ stripQuotes s)
   where
     go :: String -> Alex String
     go ('\\' : x : xs) = do
-      c <- getEscChar x
+      c <- getEscChar row x
       (c :) <$> go xs
     go (x : xs) = (x :) <$> go xs
     go [] = pure []

@@ -24,6 +24,7 @@ addError et sr msg =
   E.addError E.TypeCheckerError sr
     $ T.intercalate "\n"
     $ msg
+    : ("At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line)
     : (et <&> fmt)
 
 fmt :: (Text, SrcLoc') -> Text

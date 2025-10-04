@@ -46,10 +46,14 @@ data Ctx = Ctx
   deriving (Show, Generic, Default)
 
 throw :: (MonadBrwChk m, HasSrcRange r) => r -> Text -> m a
-throw = E.throw E.BorrowCheckerError
+throw sr msg = do
+  et <- getEt
+  E.throw E.BorrowCheckerError et sr msg
 
 addError :: (MonadBrwChk m, HasSrcRange r) => r -> Text -> m ()
-addError = E.addError E.BorrowCheckerError
+addError sr msg = do
+  et <- getEt
+  E.addError E.BorrowCheckerError et sr msg
 
 -- Tracks what a reference is pointing to
 data AccessorTo = AccRawPtr | AccStatic | AccLocalVar H.LocalVarUid

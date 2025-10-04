@@ -6,6 +6,7 @@ module Tc.Error where
 
 import Control.Exception (Exception)
 import Control.Monad (when)
+import Data.Text qualified as T
 import Prelude2
 import SrcLoc
 
@@ -24,17 +25,19 @@ class (Monad m) => MonadTcError m where
   consErr :: Err -> m ()
   throwTcException :: TcException -> m a
 
-  throw :: (HasSrcRange r) => ErrorOrigin -> r -> Text -> m a
-  throw o sr msg = do
-    addError o sr msg
+  throw :: (HasSrcRange r) => ErrorOrigin -> [(Text, SrcLoc')] -> r -> Text -> m a
+  throw o et sr msg = do
+    addError o et sr msg
     e <- getErrsListRev
     throwTcException $ TcException $ reverse e
 
-  throw' :: ErrorOrigin -> Text -> m a
-  throw' o = throw o (def :: SrcRange)
-
-  addError :: (HasSrcRange r) => ErrorOrigin -> r -> Text -> m ()
-  addError o sr msg = do
+  addError :: (HasSrcRange r) => ErrorOrigin -> [(Text, SrcLoc')] -> r -> Text -> m ()
+  addError o et sr msg' = do
+    let msg =
+          T.intercalate "\n"
+            $ msg'
+            : ("At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line)
+            : (et <&> \(wh, SrcLoc' fp l) -> "In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line)
     consErr $ Err o (srcRangeOf sr sr) msg
 
     e <- getErrsListRev

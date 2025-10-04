@@ -47,7 +47,7 @@ data TypeHint = NoHint | TypeHint I.Type | FnReturningHint TypeHint
   deriving (Show, Eq)
 
 -- If the error list is non-empty then the HIR is incomplete and should only be used for writing to a file for debugging
-runTc :: BwCheckFnType TcM -> HashMap Namespace A.Ast -> Bool -> Bool -> IO (Either [E.Err] Hir.Ir)
+runTc :: BwCheckFnType' TcM -> HashMap Namespace A.Ast -> Bool -> Bool -> IO (Either [E.Err] Hir.Ir)
 runTc f asts forceCheckStLib uncheckedArithmetic = do
   state <- newTcState f typeIsCopyable
   res <- try @E.TcException $ runReaderT (typeCheck asts forceCheckStLib uncheckedArithmetic >> E.checkErrs) state
@@ -590,7 +590,7 @@ visitVDef userCtx outerCtx gArgs userSr (fqn, astDef) allowUnsafe = do
                   pure Nothing
 
             bwCheckFn <- getBwCheckFn -- Breaks Haskell module dependency cycle
-            (s'', terminates) <- bwCheckFn s' (zip3 p' newVars dropFns) (snd fnDef.c.name) fnDef.isAccessor
+            (s'', terminates) <- bwCheckFn ctx.et s' (zip3 p' newVars dropFns) (snd fnDef.c.name) fnDef.isAccessor
             unless (isNothing retType || fnDef.isIterator || terminates)
               $ throw ctx'.et fnDef.c.name "Control reaches end of non-void function"
 

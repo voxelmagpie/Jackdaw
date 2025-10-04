@@ -18,7 +18,7 @@ import GHC.Stack (HasCallStack)
 import Hir qualified as H
 import Names
 import Prelude2
-import SrcLoc (SrcRange)
+import SrcLoc (SrcLoc', SrcRange)
 import Tables
 import Tc.Ctx (Ctx)
 import Tc.Error
@@ -41,19 +41,23 @@ data TDef2State
   | Td2Visited I.AnyTDef2
 
 -- This is for breaking the cyclic module dependency between the type checker and borrow checker
-type BwCheckFnType m = (I.Statement -> [((AccessMode, I.Type), (Maybe VName', I.LocalVarUid), Maybe I.DropFn)] -> SrcRange -> Bool -> m (H.Statement, Bool))
+type BwCheckFnType m =
+  I.Statement ->
+  [((AccessMode, I.Type), (Maybe VName', I.LocalVarUid), Maybe I.DropFn)] ->
+  SrcRange ->
+  Bool ->
+  m (H.Statement, Bool)
 
-convertBwCheckFnTypeIO :: BwCheckFnType BcM -> BwCheckFnType TcM
-convertBwCheckFnTypeIO f a0 a1 a2 a3 = bcmToTcm $ f a0 a1 a2 a3
+type BwCheckFnType' m = [(Text, SrcLoc')] -> BwCheckFnType m
 
-bcmToTcm :: BcM a -> TcM a
-bcmToTcm x = do
+convertBwCheckFnTypeIO :: BwCheckFnType BcM -> BwCheckFnType' TcM
+convertBwCheckFnTypeIO f et a0 a1 a2 a3 = do
   s <- ask
-  s' <- liftIO $ newBcState s
-  liftIO $ runReaderT x s'
+  s' <- liftIO $ newBcState s et
+  liftIO $ runReaderT (f a0 a1 a2 a3) s'
 
 data TcState = TcState
-  { bwCheckFn :: BwCheckFnType TcM,
+  { bwCheckFn :: BwCheckFnType' TcM,
     isCopyFn :: I.Type -> TcM Bool,
     hir :: H.Ir,
     hirVDefCache :: HashTable (VFqn, [H.GenericArg]) (H.VDefId, H.AnyVDef),
@@ -73,7 +77,7 @@ data TcState = TcState
   }
   deriving (Generic)
 
-newTcState :: BwCheckFnType TcM -> (I.Type -> TcM Bool) -> IO TcState
+newTcState :: BwCheckFnType' TcM -> (I.Type -> TcM Bool) -> IO TcState
 newTcState f cf =
   TcState f cf
     <$> H.emptyHir
@@ -94,29 +98,19 @@ type TcM = ReaderT TcState IO
 
 data BcState = BcState
   { tcState :: TcState,
+    et :: [(Text, SrcLoc')],
     borrows :: IORef Borrows,
     vars :: IORef [Var],
     refVarsList :: IORef [H.LocalVarUid]
   }
   deriving (Generic)
 
-newBcState :: TcState -> IO BcState
-newBcState s =
-  BcState s
+newBcState :: TcState -> [(Text, SrcLoc')] -> IO BcState
+newBcState s et =
+  BcState s et
     <$> newIORef def
     <*> newIORef def
     <*> newIORef def
-
-newBcState' :: TcM BcState
-newBcState' = do
-  s <- ask
-  liftIO $ newBcState s
-
--- tcmToBcm :: TcM a -> BcM a
--- tcmToBcm x = do
---   s <- ask
---   s' <- liftIO $ newBcState s
---   liftIO $ runReaderT x s'
 
 type BcM = ReaderT BcState IO
 
@@ -130,7 +124,7 @@ class (Monad m) => MonadHirRead' m where
   loopOverTSDefs :: (H.TDefId -> m ()) -> m ()
 
 class (MonadHirRead' m, MonadTcError m) => MonadTc m where
-  getBwCheckFn :: m (BwCheckFnType m)
+  getBwCheckFn :: m (BwCheckFnType' m)
 
   addVDef :: H.AnyVDef -> m H.VDefId
   getCachedVDef :: VFqn -> [I.GenericArg] -> m (Maybe (H.VDefId, H.AnyVDef))
@@ -212,6 +206,8 @@ class (MonadTcError m, MonadHirRead' m) => MonadBrwChk m where
 
   -- This is needed to break the module dependency cycle between the type checker and borrow checker
   getTypeIsCopyableFn :: m (I.Type -> m Bool)
+
+  getEt :: m [(Text, SrcLoc')]
 
 instance MonadHirRead' TcM where
   getVDef id = ask >>= \s -> liftIO $ tblGet id s.hir.vDefs
@@ -360,3 +356,4 @@ instance MonadBrwChk BcM where
   getTypeIsCopyableFn = do
     s <- ask
     pure $ \t -> liftIO $ runReaderT (s.tcState.isCopyFn t) s.tcState
+  getEt = asks (.et)

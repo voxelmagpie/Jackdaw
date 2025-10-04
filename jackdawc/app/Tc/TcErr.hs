@@ -5,27 +5,15 @@
 -- Alternative versions of the error functions that take the error trace list
 module Tc.TcErr (throw, addError) where
 
-import Data.Text qualified as T
 import Prelude2
-import SrcLoc (HasSrcRange (filePath, startLoc), SrcLoc (..), SrcLoc' (SrcLoc'))
+import SrcLoc (HasSrcRange, SrcLoc')
 import Tc.Error (MonadTcError)
 import Tc.Error qualified as E
 
 throw :: (MonadTcError m, HasSrcRange r) => [(Text, SrcLoc')] -> r -> Text -> m a
-throw et sr msg =
-  E.throw E.TypeCheckerError sr
-    $ T.intercalate "\n"
-    $ msg
-    : ("At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line)
-    : (et <&> fmt)
+throw =
+  E.throw E.TypeCheckerError
 
 addError :: (MonadTcError m, HasSrcRange r) => [(Text, SrcLoc')] -> r -> Text -> m ()
-addError et sr msg =
-  E.addError E.TypeCheckerError sr
-    $ T.intercalate "\n"
-    $ msg
-    : ("At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line)
-    : (et <&> fmt)
-
-fmt :: (Text, SrcLoc') -> Text
-fmt (wh, SrcLoc' fp l) = "In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line
+addError =
+  E.addError E.TypeCheckerError

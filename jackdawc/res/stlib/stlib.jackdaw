@@ -111,6 +111,8 @@ const typeInfo [A]: TypeMeta
 
 @Unsafe @NoThrow
 fn drop [A] (ref x: A) {
+    // Drop functions must never alter the exception state as drop functions 
+    // may be run before the exception state is checked
     var ex = _takeException();
 
     if const hasMemberFn[A, "onDrop"] {

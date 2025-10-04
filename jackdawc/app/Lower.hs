@@ -314,15 +314,15 @@ visitAccessorExpr ctx (hirExpr, sr) = case hirExpr of
     let callInstr = L.ICall e' $ fst <$> (self : (fst2Of3 <$> args))
     let argsDropFns = reverse $ mapMaybe thd3 args
     x <- addValInstrLExpr sr retType callInstr
+    forM_ argsDropFns $ addInstr sr
 
     forM_ e.dropFnsIfMayThrow $ \ds -> do
       successBlk <- reserveBlockId
-      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, argsDropFns, ds)
+      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
       addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk argsDropFns ds sr
+      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
       addBlock' successBlk
 
-    forM_ argsDropFns $ addInstr sr
     pure $ first L.ILExpr x
   H.DataConsUnsafeAccessorExpr e i -> do
     (e', t) <- visitAccessorExpr ctx e
@@ -412,14 +412,15 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
     let argsLExprs = fst3 <$> args
     let argsDropFns = reverse $ mapMaybe thd3 args -- For r-values taken as references
     x <- addValInstrLExpr sr retType (L.ICall e' argsLExprs)
+    forM_ argsDropFns $ addInstr sr
+
     forM_ e.dropFnsIfMayThrow $ \ds -> do
       successBlk <- reserveBlockId
-      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, argsDropFns, ds)
+      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
       addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk argsDropFns ds sr
+      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
       addBlock' successBlk
 
-    forM_ argsDropFns $ addInstr sr
     pure $ first L.ILExpr x
   H.ACondOpExpr e -> do
     (cond, _) <- visitExpr ctx e.condExpr
@@ -660,15 +661,14 @@ getFnArgs ctx args =
           pure (ptr', ptrType, Nothing)
 
 -- Creates a code block to calls destructors and bubble the exception up to the caller
-mkOnThrowBlk :: (MonadLo m) => Ctx -> L.BlockId -> [L.Instr'] -> [(H.LocalVarUid, H.VDefId)] -> SrcRange -> m ()
-mkOnThrowBlk ctx throwBlk dropInstrs ds sr = do
+mkOnThrowBlk :: (MonadLo m) => Ctx -> L.BlockId -> [(H.LocalVarUid, H.VDefId)] -> SrcRange -> m ()
+mkOnThrowBlk ctx throwBlk ds sr = do
   addBlock' throwBlk
-  addOnThrowBlock (ctx.inNoThrowFn, ctx.catchBlock, dropInstrs, ds) throwBlk
+  addOnThrowBlock (ctx.inNoThrowFn, ctx.catchBlock, ds) throwBlk
   if ctx.inNoThrowFn && isNothing ctx.catchBlock
     then do
       addInstr sr $ L.ICallVoid' $ L.ICallVoid (L.ConstName (L.CName "_panicExInNoThrow")) [] True
     else do
-      forM_ dropInstrs $ addInstr sr
       runDropFns ctx sr ds
       case ctx.catchBlock of
         Just blk -> addInstr sr $ L.IGoTo blk
@@ -809,16 +809,16 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
     let argsLExprs = fst3 <$> args
     let argsDropFns = reverse $ mapMaybe thd3 args -- For r-values taken as references
     _ <- addInstr sr $ L.ICallVoid' $ L.ICallVoid e' argsLExprs isNoReturn
+    forM_ argsDropFns $ addInstr sr
 
     case e.dropFnsIfMayThrow of
       Just ds -> do
         successBlk <- reserveBlockId
-        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, argsDropFns, ds)
+        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
         addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk argsDropFns ds sr
+        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
         addBlock' successBlk
       _ -> pure ()
-    forM_ argsDropFns $ addInstr sr
 
     visitStmnt ctx ss dropVars
   H.ExprStmnt e destructor -> do
@@ -962,9 +962,9 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
     case x.onIterThrowDropFns of
       Just ds -> do
         successBlk <- reserveBlockId
-        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, [], ds)
+        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
         addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk [] ds sr
+        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
         addBlock' successBlk
       _ ->
         -- Iterator is @NoThrow
@@ -1297,7 +1297,7 @@ data LowererState = LowererState
   }
   deriving (Generic)
 
-type OnThrowBlockCacheKey = (Bool, Maybe L.BlockId, [L.Instr'], H.DropFns)
+type OnThrowBlockCacheKey = (Bool, Maybe L.BlockId, H.DropFns)
 
 type FnCacheData = ([(L.Type, VarType, Maybe VName)], L.FnName, L.FnType)
 

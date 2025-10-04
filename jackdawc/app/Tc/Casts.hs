@@ -13,7 +13,7 @@ import Prelude2
 import Primitives
 import SrcLoc (SrcRange)
 import Tc.Ctx
-import Tc.State (MonadHirRead' (getTDef), MonadTc)
+import Tc.State (MonadHirRead', MonadTc)
 import Tc.TcErr
 import Tc.TcIr qualified as I
 
@@ -41,13 +41,6 @@ iCast :: (MonadHirRead' m) => I.Type -> I.Expr -> m I.Expr
 iCast toType (I.LoadConstantExpr c, fromType, sr) = do
   (c', t) <- iCastConstant toType (c, fromType)
   pure (I.LoadConstantExpr c', t, sr)
-iCast toType@(I.SliceType t) expr@(_, I.ANamedType id, sr) = do
-  c <- getTDef id <&> I.tDefCommon
-  if un c.fqn == "@stlib/raw_slice:RawSlice" && c.genericArgs !! 0 == I.TypeGenericArg t
-    then do
-      pure (I.RawSliceToSliceExpr expr, toType, sr)
-    else
-      pure expr
 iCast toType expr@(_, fromType, sr) =
   iCastNeeded fromType toType
     <&> \case True -> (I.BitCast expr, toType, sr); False -> expr

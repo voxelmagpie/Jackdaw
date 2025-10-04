@@ -651,25 +651,20 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
     borrowCheckCodeBlockStmnt ctx ss
   -- isAccRawRet is True if this is an accessor function and a raw pointer is being
   -- returned that will be implicitly casted to a reference
-  I.ReturnStmnt e isAccRawRet -> do
+  I.ReturnStmnt e -> do
     b <- copyBorrowState
     case e of
       Just e'@(_, _, sr') -> do
-        let mode = if ctx.inAccessorFn && not isAccRawRet then Shared else Move
+        let mode = if ctx.inAccessorFn then Shared else Move
         -- Set loopDepth to -1 to allow moving and returning any local variable, regardless of whether the
         -- variable or return statement are in the same loop or not
         expOrAcc <- borrowCheckExpr ctx {loopDepth = -1} mode e'
         toDrop <- copyVarsList <&> mapMaybe getDropFnForVarMaybe
         if ctx.inAccessorFn
-          then case (fst expOrAcc, isAccRawRet) of
-            (Left e'', True) ->
-              -- Return the raw pointer
-              pure (H.ReturnStmnt (Just e'') toDrop, True)
-            (Right _, True) ->
-              throw sr' "Expected rvalue"
-            (Left _, False) ->
+          then case fst expOrAcc of
+            Left _ ->
               throw sr' "Expected reference"
-            (Right (a, accTo), False) -> do
+            Right (a, accTo) -> do
               unless (accTo == AccRawPtr || accTo == AccLocalVar (H.LocalVarUid 0))
                 $ addError sr' "Accessor functions must return a reference to the first parameter"
               restoreBorrowState b

@@ -114,7 +114,7 @@ data Statement'
   | BreakStmnt
   | ContinueStmnt
   | CodeBlockStmnt [Statement]
-  | ReturnStmnt (Maybe Expr) IsAccRawRet
+  | ReturnStmnt (Maybe Expr)
   | YieldStmnt Expr
   | AForEachLoopStmnt ForEachLoopStmnt
   | ForLoopStmnt [(Destructure, Expr)] Expr [(AssignmentStmnt, SrcRange)] Statement
@@ -126,9 +126,6 @@ data Statement'
   deriving (Show, Generic)
 
 type Statement = (Statement', SrcRange)
-
--- True if the value needs casting from a raw ptr/slice
-type IsAccRawRet = Bool
 
 data MatchBranch = MatchBranch
   { pattern :: Pattern,

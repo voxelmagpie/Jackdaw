@@ -1664,7 +1664,7 @@ getCallExpr ctx fnSr sr fnExpr@(_, fnType, _) selfArgMaybe astArgExprs expectIte
       Just ((_, ex), _) ->
         unless (act == ex) $ do
           (act', ex') <- format2Types act ex
-          addError ctx.et argSr $ T.concat ["Incorrect type for function argument\nExpected ", ex', ", got ", act']
+          addError ctx.et argSr $ T.concat ["Incorrect type for function self argument\nExpected ", ex', ", got ", act']
       _ ->
         throw ctx.et argSr $ T.concat ["Member function takes no parameters"]
 
@@ -1678,10 +1678,20 @@ getCallExpr ctx fnSr sr fnExpr@(_, fnType, _) selfArgMaybe astArgExprs expectIte
       unless (length astArgExprs == length expectedArgs) $ addError ctx.et sr "Wrong number of arguments to function"
 
   -- Get argument expressions
-  args1 <- forM (zip astArgExprs expectedArgs) $ \(astArgExpr, (_, expectedType)) -> do
-    e@(_, t, sr') <- getExpr ctx (TypeHint expectedType) astArgExpr >>= iCast expectedType
+  args1 <- forM (zip astArgExprs expectedArgs) $ \(astArgExpr, (mode, expectedType)) -> do
+    e@(_, t', _) <- getExpr ctx (TypeHint expectedType) astArgExpr
+    rawSliceToSlice <- case (t', expectedType) of
+      (I.ANamedType id, I.SliceType elType) -> do
+        c <- getTDef id <&> I.tDefCommon
+        pure $ c.fqn == TFqn "@stlib/raw_slice:RawSlice" && (c.genericArgs !! 0) == I.TypeGenericArg elType
+      _ -> pure False
+    e'@(_, t, sr') <-
+      if rawSliceToSlice
+        then pure (I.RawSliceToSliceExpr e, expectedType, thd3 e)
+        else
+          if mode == Exclusive then pure e else iCast expectedType e
     d <- getDropFn ctx.tcIn t sr'
-    pure (e, d)
+    pure (e', d)
 
   -- Varargs expressions (if any)
   args2 <- forM (drop (length expectedArgs) astArgExprs) $ \astArgExpr -> do
@@ -1948,37 +1958,34 @@ getReturnStmnt ctx sr e = do
   case e of
     Just e' -> do
       when ctx.inIterator $ addError ctx.et sr "Iterators must return void; use yield to produce a value"
-      -- isAccRawRet is true if this is an accessor function and the return value is a raw pointer
-      -- which is to be implicitly casted into a reference
-      (e'', isAccRawRet) <- case ctx.returnType of
+
+      e'' <- case ctx.returnType of
         Just r -> do
-          e''@(_, actualType, _) <- getExpr ctx (TypeHint r) e' >>= iCast r
+          e''@(_, actualType, _) <- getExpr ctx (TypeHint r) e' >>= if ctx.inAccessor then pure else iCast r
 
-          isAccRawRet <-
-            if actualType == r
-              then
-                pure False
-              else do
-                let isAccRawPtr = ctx.inAccessor && actualType == I.PtrType (Just r)
-                -- Check if the function return type is Slice[A] and the returned value is RawSlice[A]
-                isAccRawSlice <- case (ctx.inAccessor, r, actualType) of
-                  (True, I.SliceType t, I.ANamedType id) -> do
-                    c <- getTDef id <&> I.tDefCommon
-                    pure $ c.fqn == TFqn "@stlib/raw_slice:RawSlice" && (c.genericArgs !! 0) == I.TypeGenericArg t
-                  _ -> pure False
+          if actualType == r || not ctx.inAccessor
+            then
+              pure e''
+            else do
+              let isAccRawPtr = actualType == I.PtrType (Just r)
+              -- Check if the function return type is Slice[A] and the returned value is RawSlice[A]
+              isAccRawSlice <- case (r, actualType) of
+                (I.SliceType t, I.ANamedType id) -> do
+                  c <- getTDef id <&> I.tDefCommon
+                  pure $ c.fqn == TFqn "@stlib/raw_slice:RawSlice" && (c.genericArgs !! 0) == I.TypeGenericArg t
+                _ -> pure False
 
-                unless (isAccRawPtr || isAccRawSlice)
-                  $ addError ctx.et e' "Expression type does not match function return type"
-                pure True
+              unless (isAccRawPtr || isAccRawSlice)
+                $ addError ctx.et e' "Expression type does not match function return type"
 
-          pure (e'', isAccRawRet)
+              pure $ if isAccRawPtr then (I.PtrDerefExpr e'', r, sr) else (I.RawSliceToSliceExpr e'', r, sr)
         _ -> do
           addError ctx.et e' "Returning expression in function that returns void"
-          getExpr ctx NoHint e' <&> (,False)
-      pure (I.ReturnStmnt (Just e'') isAccRawRet, sr)
+          getExpr ctx NoHint e'
+      pure (I.ReturnStmnt (Just e''), sr)
     _ -> do
       unless (isNothing ctx.returnType || ctx.inIterator) $ addError ctx.et sr "Expected an expression"
-      pure (I.ReturnStmnt Nothing False, sr)
+      pure (I.ReturnStmnt Nothing, sr)
 
 fnIsNoThrow :: (MonadHirRead' m) => I.VDefId -> m Bool
 fnIsNoThrow id = do

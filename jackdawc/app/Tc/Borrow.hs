@@ -10,7 +10,7 @@ import AccessMode
 import Control.Monad (forM, forM_, unless, when)
 import Data.Foldable (find)
 import Data.Functor (($>))
-import Data.Maybe (catMaybes, isNothing, mapMaybe, maybeToList)
+import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, mapMaybe, maybeToList)
 import Data.Text qualified as T
 import Hir qualified as H
 import Names (Attribute (Attribute), VName (VName))
@@ -23,7 +23,8 @@ import Tc.TcIr qualified as I
 runBorrowChecker :: (MonadBrwChk m) => BwCheckFnType m
 runBorrowChecker s' params sr fnIsAcc = do
   forM_ params $ \((mode, _), (nameMaybe, uid), dropFn) -> do
-    addVar uid (maybe (VName "_") fst nameMaybe) (mode /= Move) dropFn 0 0 0
+    let ref = if mode == Move then Nothing else Just (AccLocalVar uid)
+    addVar uid (maybe (VName "_") fst nameMaybe) ref dropFn 0 0 0
     when (mode == Shared)
       $ markBorrowed (uid, SharedBorrow, sr)
 
@@ -54,10 +55,6 @@ addError :: (MonadBrwChk m, HasSrcRange r) => r -> Text -> m ()
 addError sr msg = do
   et <- getEt
   E.addError E.BorrowCheckerError et sr msg
-
--- Tracks what a reference is pointing to
-data AccessorTo = AccRawPtr | AccStatic | AccLocalVar H.LocalVarUid
-  deriving (Show, Eq)
 
 type ExprOrAccExpr = Either H.Expr (H.AccessorExpr, AccessorTo)
 
@@ -171,14 +168,14 @@ applyArgsBorrows newBorrows =
     case (bwType, b) of
       (ExclusiveBorrow, Nothing) -> do
         markBorrowed (uid, ExclusiveBorrow, sr)
-      (ExclusiveBorrow, Just (_, _, _sr')) ->
-        throw sr "Invalid (exclusive) borrow in function arguments"
+      (ExclusiveBorrow, Just (_, _, SrcRange _ sr0' _)) ->
+        throw sr $ "Invalid (exclusive) borrow in function arguments, already borrowed on line " <> tShow sr0'.line
       (SharedBorrow, Nothing) -> do
         markBorrowed (uid, SharedBorrow, sr)
       (SharedBorrow, Just (_, SharedBorrow, _)) -> do
         markBorrowed (uid, SharedBorrow, sr)
-      (SharedBorrow, Just (_, ExclusiveBorrow, _sr')) ->
-        throw sr "Invalid (shared) borrow in function arguments"
+      (SharedBorrow, Just (_, ExclusiveBorrow, SrcRange _ sr0' _)) ->
+        throw sr $ "Invalid (shared) borrow in function arguments, already borrowed on line " <> tShow sr0'.line
 
 borrowCheckFnCall :: (MonadBrwChk m) => Ctx -> I.FnCallExpr -> m (H.FnCallExpr, Maybe H.Type)
 borrowCheckFnCall ctx e = do
@@ -254,12 +251,11 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
     b <- getBorrow e.uid
 
     v <- getVar e.uid
-    unless v.isReference $ do
+    unless (isJust v.refToMaybe) $ do
       unless v.initialised $ throw sr "Cannot access uninitialised variable"
       when v.moved $ throw sr "Cannot access moved variable"
 
     let accExpr = H.ALocalVarAccessorExpr $ H.LocalVarAccessorExpr {uid = e.uid, name = fst e.name}
-    let accExpr' = (Right (accExpr, AccLocalVar e.uid), t)
 
     case mode of
       Move -> do
@@ -268,7 +264,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
           then
             pure (Left $ H.DerefAccessorExpr (accExpr, sr), t)
           else do
-            when v.isReference $ addError e.name "Cannot move reference"
+            when (isJust v.refToMaybe) $ addError e.name "Cannot move reference"
             when (v.vTryCatchCtr /= ctx.tryCatchCtr)
               $ addError e.name "Cannot move value from outside the current try/catch block"
             case b of
@@ -285,36 +281,37 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
                   <> problemType
                   <> " on line "
                   <> tShow sr0'.line
-                pure accExpr'
               Nothing -> do
                 markVarMoved e.uid
                 unless (v.loop >= ctx.loopDepth) $ throw sr "Cannot move value from outside loop"
-                pure (Left $ H.MoveLocalVarExpr e.uid (fst e.name), t)
-      _ -> case (mode, b) of
-        (Shared, Just (_, ExclusiveBorrow, SrcRange _ sr0' _)) -> do
-          addError e.name
-            $ "Cannot borrow (shared) "
-            <> un (fst e.name)
-            <> " as it is already borrowed (exclusive) on line "
-            <> tShow sr0'.line
-          pure accExpr'
-        (Shared, _) -> do
-          markBorrowed (e.uid, SharedBorrow, sr)
-          pure accExpr'
-        (Exclusive, Nothing) -> do
-          markBorrowed (e.uid, ExclusiveBorrow, sr)
-          pure accExpr'
-        (Exclusive, Just (_, b', SrcRange _ sr0' _)) -> do
-          let borrowType = case b' of SharedBorrow -> "(shared)"; ExclusiveBorrow -> "(exclusive)"
-          addError e.name
-            $ "Cannot borrow (exclusive) "
-            <> un (fst e.name)
-            <> " as it is already borrowed "
-            <> borrowType
-            <> " on line "
-            <> tShow sr0'.line
-          markBorrowed (e.uid, ExclusiveBorrow, sr)
-          pure accExpr'
+            pure (Left $ H.MoveLocalVarExpr e.uid (fst e.name), t)
+      _ -> do
+        let accExpr' = (Right (accExpr, fromMaybe (AccLocalVar e.uid) v.refToMaybe), t)
+        case (mode, b) of
+          (Shared, Just (_, ExclusiveBorrow, SrcRange _ sr0' _)) -> do
+            addError e.name
+              $ "Cannot borrow (shared) "
+              <> un (fst e.name)
+              <> " as it is already borrowed (exclusive) on line "
+              <> tShow sr0'.line
+            pure accExpr'
+          (Shared, _) -> do
+            markBorrowed (e.uid, SharedBorrow, sr)
+            pure accExpr'
+          (Exclusive, Nothing) -> do
+            markBorrowed (e.uid, ExclusiveBorrow, sr)
+            pure accExpr'
+          (Exclusive, Just (_, b', SrcRange _ sr0' _)) -> do
+            let borrowType = case b' of SharedBorrow -> "(shared)"; ExclusiveBorrow -> "(exclusive)"
+            addError e.name
+              $ "Cannot borrow (exclusive) "
+              <> un (fst e.name)
+              <> " as it is already borrowed "
+              <> borrowType
+              <> " on line "
+              <> tShow sr0'.line
+            markBorrowed (e.uid, ExclusiveBorrow, sr)
+            pure accExpr'
   I.AFieldAccessorExpr e -> do
     fieldCopyable <- getTypeIsCopyableFn >>= \f -> f t
     (lhsExpr, lhsType) <- borrowCheckExpr ctx (if fieldCopyable && mode == Move then Shared else mode) e.expr
@@ -524,7 +521,7 @@ borrowCheckCodeBlockStmnt ctx ss = do
 borrowCheckDestructure :: (MonadBrwChk m) => Ctx -> I.Destructure -> m H.DropFns
 borrowCheckDestructure ctx = \case
   I.NameDes uid name dropFn -> do
-    addVar uid (fst name) False dropFn ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
+    addVar uid (fst name) Nothing dropFn ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
     pure $ maybeToList $ (uid,) <$> dropFn
   I.IgnoreDes _ -> pure []
   I.TupleDes xs -> concat <$> forM xs (borrowCheckDestructure ctx)
@@ -557,7 +554,7 @@ borrowCheckAssignmentStmnt ctx s = do
       noDrop <- case fst3 lhs' of
         I.ALocalVarExpr varExpr -> do
           v <- getVar varExpr.uid
-          if v.isReference || v.initialised
+          if isJust v.refToMaybe || v.initialised
             then pure False
             else do
               unless (v.loop == ctx.loopDepth) $ throw lhs' "Cannot initialise value outside loop"
@@ -717,7 +714,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
         let mode' = if selfParamMode == Exclusive then Exclusive else s.varMode
 
         selfExpOrAcc <- borrowCheckExpr ctx mode' $ fst $ s.args !! 0
-        let (selfExpr, _) = case fst selfExpOrAcc of
+        let (selfExpr, to) = case fst selfExpOrAcc of
               Left _ -> error "First argument to iterator function is not a reference"
               Right x -> x
 
@@ -730,7 +727,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
         let newBorrows = concat $ selfNewBorrows : (snd <$> otherArgsAndNewBorrows)
         applyArgsBorrows newBorrows
 
-        addDestructureRefs ctx (s.varMode == Shared) s.var
+        addDestructureRefs ctx to (s.varMode == Shared) s.var
 
         pure (Right (selfParamMode, selfExpr, fst <$> otherArgsAndNewBorrows), s.varMode, [])
       _ -> error "Not an iterator function type"
@@ -767,7 +764,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
     b <- copyBorrowState
     innerStmnt' <- fst <$> borrowCheckStmnt ctx' innerStmnt
     restoreBorrowState b
-    as' <- forM as $ \(a, sr') -> borrowCheckAssignmentStmnt ctx' a <&> (,sr')
+    as' <- forM as $ \a -> borrowCheckStmnt ctx' a <&> fst
     restoreBorrowState b
 
     dropVars $ length newVars
@@ -783,7 +780,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
     codeAndVarsAndDropFns <- forM (toList branches) $ \br -> do
       dropFns' <- case e' of
         Left _ -> addMatchPatternVars ctx br.pattern
-        Right _ -> addMatchPatternRefs ctx (mode == Shared) br.pattern $> []
+        Right (_, to) -> addMatchPatternRefs ctx to (mode == Shared) br.pattern $> []
       s <- borrowCheckStmnt ctx br.code
       varsAfter <- copyVarsList
       let dropFns = flip filter dropFns' $ \(uid, _) ->
@@ -822,7 +819,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
     restoreBorrowState b
 
     forM_ varMaybe $ \(uid, name, _) ->
-      addVar uid name False Nothing ctx.loopDepth ctx.tryCtr (ctx.tryCatchCtr + 1)
+      addVar uid name Nothing Nothing ctx.loopDepth ctx.tryCtr (ctx.tryCatchCtr + 1)
 
     (catchStmnt', _) <- borrowCheckStmnt ctx {tryCatchCtr = ctx.tryCatchCtr + 1} catchStmnt
     restoreVarsList varsBefore
@@ -837,10 +834,12 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
     pure (H.BubbleStmnt e' toDrop, False)
   I.BorrowStatement mode uid name e -> do
     (e', _) <- borrowCheckExpr ctx mode e
-    e'' <- case e' of
-      Right (x, _) -> pure x
+    (e'', to) <- case e' of
+      Right x -> pure x
       Left _ -> throw sr "Expected reference"
-    addVar uid name True Nothing ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
+    addVar uid name (Just to) Nothing ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
+    when (mode == Shared)
+      $ markBorrowed (uid, SharedBorrow, sr)
     pure (H.BorrowStatement mode uid name e'', False)
 
 getThrowDropFns :: (MonadBrwChk m) => Ctx -> m H.DropFns
@@ -851,26 +850,26 @@ addMatchPatternVars :: (MonadBrwChk m) => Ctx -> I.Pattern -> m H.DropFns
 addMatchPatternVars ctx = \case
   I.PatternAny _ -> pure []
   I.PatternName uid name dropFn -> do
-    addVar uid (fst name) False dropFn ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
+    addVar uid (fst name) Nothing dropFn ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
     pure $ maybeToList $ (uid,) <$> dropFn
   I.PatternDataCons0 _ -> pure []
   I.PatternDataCons1 _ p -> addMatchPatternVars ctx p
 
-addMatchPatternRefs :: (MonadBrwChk m) => Ctx -> Bool -> I.Pattern -> m ()
-addMatchPatternRefs ctx markShared = \case
+addMatchPatternRefs :: (MonadBrwChk m) => Ctx -> AccessorTo -> Bool -> I.Pattern -> m ()
+addMatchPatternRefs ctx to markShared = \case
   I.PatternAny _ -> pure ()
   I.PatternName uid name _ -> do
-    addVar uid (fst name) True Nothing ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
+    addVar uid (fst name) (Just to) Nothing ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
     when markShared $ markBorrowed (uid, SharedBorrow, snd name)
   I.PatternDataCons0 _ -> pure ()
-  I.PatternDataCons1 _ p -> addMatchPatternRefs ctx markShared p
+  I.PatternDataCons1 _ p -> addMatchPatternRefs ctx to markShared p
 
-addDestructureRefs :: (MonadBrwChk m) => Ctx -> Bool -> I.Destructure -> m ()
-addDestructureRefs ctx markShared = \case
+addDestructureRefs :: (MonadBrwChk m) => Ctx -> AccessorTo -> Bool -> I.Destructure -> m ()
+addDestructureRefs ctx to markShared = \case
   I.NameDes uid name _ -> do
-    addVar uid (fst name) True Nothing ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
+    addVar uid (fst name) (Just to) Nothing ctx.loopDepth ctx.tryCtr ctx.tryCatchCtr
     when markShared $ markBorrowed (uid, SharedBorrow, snd name)
   I.IgnoreDes _ -> pure ()
-  I.TupleDes xs -> forM_ xs $ addDestructureRefs ctx markShared
-  I.ArrayDes xs -> forM_ xs $ addDestructureRefs ctx markShared
-  I.AStructDes ds -> forM_ (fst <$> ds) $ addDestructureRefs ctx markShared
+  I.TupleDes xs -> forM_ xs $ addDestructureRefs ctx to markShared
+  I.ArrayDes xs -> forM_ xs $ addDestructureRefs ctx to markShared
+  I.AStructDes ds -> forM_ (fst <$> ds) $ addDestructureRefs ctx to markShared

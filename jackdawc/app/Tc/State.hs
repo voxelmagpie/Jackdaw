@@ -176,7 +176,7 @@ data BorrowType = SharedBorrow | ExclusiveBorrow
 data Var = Var
   { uid :: H.LocalVarUid,
     name :: VName,
-    isReference :: Bool,
+    refToMaybe :: Maybe AccessorTo,
     dropFn :: Maybe H.DropFn,
     moved :: Bool,
     loop :: LoopCounter,
@@ -184,6 +184,10 @@ data Var = Var
     vTryCatchCtr :: TryCatchCounter,
     initialised :: Bool
   }
+  deriving (Show, Eq)
+
+-- Tracks what a reference is pointing to
+data AccessorTo = AccRawPtr | AccStatic | AccLocalVar H.LocalVarUid
   deriving (Show, Eq)
 
 class (MonadTcError m, MonadHirRead' m) => MonadBrwChk m where
@@ -194,7 +198,7 @@ class (MonadTcError m, MonadHirRead' m) => MonadBrwChk m where
   restoreBorrowState :: Borrows -> m ()
 
   -- Does not do checks, only updates state
-  addVar :: H.LocalVarUid -> VName -> Bool -> Maybe H.VDefId -> LoopCounter -> TryCounter -> TryCatchCounter -> m ()
+  addVar :: H.LocalVarUid -> VName -> Maybe AccessorTo -> Maybe H.VDefId -> LoopCounter -> TryCounter -> TryCatchCounter -> m ()
   addUninitVar :: H.LocalVarUid -> VName -> Maybe H.VDefId -> LoopCounter -> TryCounter -> TryCatchCounter -> m ()
   getVar :: (HasCallStack) => H.LocalVarUid -> m Var
   markVarMoved :: (HasCallStack) => H.LocalVarUid -> m ()
@@ -334,8 +338,8 @@ instance MonadBrwChk BcM where
   copyBorrowState = ask >>= \s -> liftIO $ readIORef s.borrows
   restoreBorrowState b = ask >>= \s -> liftIO $ writeIORef s.borrows b
 
-  addVar uid name isRef d l tc tc' = ask >>= \s -> liftIO $ modifyIORef' s.vars (Var uid name isRef d False l tc tc' True :)
-  addUninitVar uid name d l tc tc' = ask >>= \s -> liftIO $ modifyIORef' s.vars (Var uid name False d False l tc tc' False :)
+  addVar uid name refToMaybe d l tc tc' = ask >>= \s -> liftIO $ modifyIORef' s.vars (Var uid name refToMaybe d False l tc tc' True :)
+  addUninitVar uid name d l tc tc' = ask >>= \s -> liftIO $ modifyIORef' s.vars (Var uid name Nothing d False l tc tc' False :)
   getVar uid = ask >>= \s -> liftIO $ readIORef s.vars <&> \x -> x & must' (show uid <> "\n" <> show x) . find (\v -> v.uid == uid)
   markVarMoved uid = do
     s <- ask

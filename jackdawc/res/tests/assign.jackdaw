@@ -1,0 +1,14 @@
+//! 3 # 3\n-2
+
+fn start () {
+    var x = List[I32].singleton(readI32());
+    f(x) += 1;
+    writeI32(x.at(0));
+}
+
+accessor f (ref x: List[I32]): I32 {
+    borrow ref x = x.at(0);
+    writeI32(x);
+    x *= -1;
+    return x;
+}

@@ -1898,18 +1898,16 @@ getVarStmnt ctx astDes astExpr = do
   (d, ctx') <- makeDestructure ctx t astDes
   pure ((d, e), ctx')
 
-getAstAssignmentStmnt :: (MonadTcError m) => Ctx -> A.Statement -> m A.AssignmentStmnt
-getAstAssignmentStmnt ctx (s, sr) = case s of
+-- Changes `x += 1` to `x = x + 1`
+-- This is only valid if the lhs is pure (e.g. accessing a field)
+rewriteAstAssignmentStmnt :: (MonadTcError m) => Ctx -> A.Statement -> m A.AssignmentStmnt
+rewriteAstAssignmentStmnt ctx (s, sr) = case s of
   A.AnAssignmentStmnt x -> pure x
-  A.CompoundAssignmentOpStmnt o -> pure $ compoundIntoAssignmentStmnt sr o
+  A.CompoundAssignmentOpStmnt o -> do
+    let op = first (\(OpName n) -> OpName $ T.take (length n - 1) n) o.op -- Remove '=' from end
+    let rhs = (A.AnInfixOpExpr $ A.InfixOpExpr op o.lhs o.rhs, sr)
+    pure $ A.AssignmentStmnt (Just $ fst o.lhs) (snd o.lhs) rhs
   _ -> throw ctx.et sr "Expected assignment"
-
-compoundIntoAssignmentStmnt :: SrcRange -> A.InfixOpExpr -> A.AssignmentStmnt
-compoundIntoAssignmentStmnt sr o = a
-  where
-    op = first (\(OpName n) -> OpName $ T.take (length n - 1) n) o.op -- Remove '=' from end
-    rhs = (A.AnInfixOpExpr $ A.InfixOpExpr op o.lhs o.rhs, sr)
-    a = A.AssignmentStmnt (Just $ fst o.lhs) (snd o.lhs) rhs
 
 getAssignmentStmnt :: (MonadTc m) => Ctx -> A.AssignmentStmnt -> m I.AssignmentStmnt
 getAssignmentStmnt ctx x = case x.lhs of
@@ -2011,12 +2009,15 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
     getCodeBlockStmnt ctx astStmnts ((I.AnAssignmentStmnt s', sr) : hirStmnts)
   A.CompoundAssignmentOpStmnt o -> do
     let basic = do
-          -- If there isn't a definition for the compound assignment then the assignment is transformed into
-          -- lhsExpr = lhsExpr op rhsExpr
-          -- If the lhs expression has side effects then this is not ideal
-          -- TODO borrow ref r = f(x()) { r = r + y; }
-          s' <- getAssignmentStmnt ctx $ compoundIntoAssignmentStmnt sr o
-          getCodeBlockStmnt ctx astStmnts ((I.AnAssignmentStmnt s', sr) : hirStmnts)
+          -- If there isn't a definition for the compound assignment then the assignment is transformed into:
+          -- { borrow ref r = f(x()); r = r + y; }
+          let op = first (\(OpName n) -> OpName $ T.take (length n - 1) n) o.op -- Remove '=' from end
+          let r = A.NameExpr (VName "r", sr) Nothing
+          let rhs = (A.AnInfixOpExpr $ A.InfixOpExpr op (r, sr) o.rhs, sr)
+          let asStmnt = A.AnAssignmentStmnt $ A.AssignmentStmnt (Just r) sr rhs
+          let bwStmnt = A.BorrowStatement Exclusive (VName "r", sr) Nothing o.lhs
+          s' <- getCodeBlockStmnt ctx [(bwStmnt, sr), (asStmnt, sr)] []
+          getCodeBlockStmnt ctx astStmnts (s' : hirStmnts)
 
     -- TODO This code is very similar to the regular infix op code, can it be merged or something?
     lhs@(_, lhsType, _) <- getExpr ctx NoHint o.lhs
@@ -2119,9 +2120,8 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
     let ctx'' = ctx' {inLoop = True}
     condExpr <- getExpr ctx'' (TypeHint bool) cond
 
-    as' <- forM as $ \a@(_, sr') -> do
-      s' <- getAstAssignmentStmnt ctx a
-      getAssignmentStmnt ctx'' s' <&> (,sr')
+    as' <- forM as $ \a ->
+      getCodeBlockStmnt ctx'' [a] []
 
     innerStmnt' <- getCodeBlockStmnt ctx'' [innerStmnt] []
 
@@ -2156,7 +2156,8 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
               ctx''' <-
                 foldM
                   ( \newCtx a' -> do
-                      a <- getAstAssignmentStmnt ctx a'
+                      -- Rewriting the assignment statement is valid because everything is pure when doing const eval
+                      a <- rewriteAstAssignmentStmnt ctx a'
                       case a.lhs of
                         Nothing -> do
                           _ <- getConstLitExpr newCtx NoHint a.value

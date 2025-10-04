@@ -117,7 +117,7 @@ data Statement'
   | ReturnStmnt (Maybe Expr)
   | YieldStmnt Expr
   | AForEachLoopStmnt ForEachLoopStmnt
-  | ForLoopStmnt [(Destructure, Expr)] Expr [(AssignmentStmnt, SrcRange)] Statement
+  | ForLoopStmnt [(Destructure, Expr)] Expr [Statement] Statement
   | MatchStmnt AccessMode Expr (List1 MatchBranch)
   | ThrowStmnt Expr
   | TryCatchStmnt Statement (Maybe (LocalVarUid, VName, Type)) Statement

@@ -247,3 +247,29 @@ fn start() {
     var x: X = .f[I32](0);
 }
 
+// --- //
+
+import "@stlib/json" as Json
+
+fn start () {
+    var x = Json.new();
+}
+
+// --- //
+
+import "@stlib/json"
+import "@stlib/json" as Json ()
+
+fn start () {
+    var x = Json.new();
+}
+
+
+// --- //
+
+import "@stlib/list" as Json ()
+import "@stlib/json" as Json ()
+
+fn start () {
+    var x = Json.new();
+}

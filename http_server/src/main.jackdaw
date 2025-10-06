@@ -20,21 +20,23 @@ fn start (Args, var streams: IoStreams) unsafe {
     
     
     loop {
-        var s = server.acceptUnbuffered();
         unsafe {
-            Process.new(handleConn, s.fd as U64);
-            // The child process now has a copy of the file descriptor
-            // so this (parent) process's file descriptor is closed
+            var s = server.acceptUnbuffered();
+            match Process.fork() {
+                .parent(_) {
+                    // The child process now has a copy of the socket so this (parent) process's copy of 
+                    // the socket is closed
+                }
+                .child {
+                    handleConn(s);
+                }
+            }
         }
     }
 }
 
-fn handleConn (fdU64: U64): I32 {
-    var s: Socket;
-    unsafe {
-        var fd = fdU64 as I32;
-        s = .fromUnbuffered(UnbufferedSocket{fd});
-    }
+fn handleConn (var unbuf: UnbufferedSocket): I32 {
+    var s = Socket.fromUnbuffered(unbuf);
 
     loop {
         if !s.peekByte().isSome() { return 0; }

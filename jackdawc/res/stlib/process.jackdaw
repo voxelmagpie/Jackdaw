@@ -3,41 +3,44 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import "io"
-import "posix"
+import "posix" as Posix
+
+enum ForkResult {
+    // This is the original parent process
+    // The Process value hold the pid of the child
+    parent(Process),
+
+    // This is the child process
+    child
+}
 
 struct Process {
     @Unsafe
     pid: I32
 
-    // Function return value is process exit code, parameter can be anything
-    // Child process inherits all memory (copy-on-write) and files/sockets
-    // If a file/socket handle is to be sent from the parent process to the child then
-    // it needs to be closed in the parent after forking.
-    fn new (f: fn (USize): I32, arg: USize): Self unsafe {
-        var x = fork();
+    fn fork (): ForkResult unsafe {
+        var x = Posix.fork();
         if x == -1 {
             ioError("fork");
         }
         else if x == 0 {
-            // Child process
-            exit(f(arg));
+            return .child;
         }
         else {
-            // Parent process
-            return Self{ pid=x };
+            return .parent(Self{ pid=x });
         }
     }
 
     fn join (var self: Self) unsafe {
-        if waitpid(self.pid, nullptr, 0) == -1 { trace("waitpid returned -1"); }
+        if Posix.waitpid(self.pid, nullptr, 0) == -1 { trace("waitpid returned -1"); }
     }
 
     fn cancel (var self: Self) unsafe {
-        kill(self.pid, sigTerm);
+        Posix.kill(self.pid, sigTerm);
     }
 
     fn kill (var self: Self) unsafe {
-        kill(self.pid, sigKill);
+        Posix.kill(self.pid, sigKill);
     }
 
     fn onDrop (ref Self) {}

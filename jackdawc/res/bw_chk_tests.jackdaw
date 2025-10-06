@@ -165,3 +165,25 @@ fn start () {
 fn start(){}
 accessor f (x: Result[I32, I32]): Result[I32, I32] { _ = g()!; return x; }
 fn g (): Result[I32, I32] { return .ok(0); }
+
+// --- //
+
+struct X { a: I32 fn onDrop (ref self: Self){} }
+
+fn start () {
+    var x = List[X].singleton(X{a=3});
+    borrow y = x.at(0);
+    x.push(X{a=0});
+}
+
+
+// --- //
+
+struct X { a: I32 fn onDrop (ref self: Self){} }
+
+fn start () {
+    var x = List[X].singleton(X{a=3});
+    borrow ref y = x.at(0);
+    _ = x.length();
+}
+

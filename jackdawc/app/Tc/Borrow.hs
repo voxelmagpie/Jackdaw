@@ -169,13 +169,13 @@ applyArgsBorrows newBorrows =
       (ExclusiveBorrow, Nothing) -> do
         markBorrowed (uid, ExclusiveBorrow, sr)
       (ExclusiveBorrow, Just (_, _, SrcRange _ sr0' _)) ->
-        throw sr $ "Invalid (exclusive) borrow in function arguments, already borrowed on line " <> tShow sr0'.line
+        throw sr $ "Invalid (exclusive) borrow in function arguments, due to borrow on line " <> tShow sr0'.line
       (SharedBorrow, Nothing) -> do
         markBorrowed (uid, SharedBorrow, sr)
       (SharedBorrow, Just (_, SharedBorrow, _)) -> do
         markBorrowed (uid, SharedBorrow, sr)
       (SharedBorrow, Just (_, ExclusiveBorrow, SrcRange _ sr0' _)) ->
-        throw sr $ "Invalid (shared) borrow in function arguments, already borrowed on line " <> tShow sr0'.line
+        throw sr $ "Invalid (shared) borrow in function arguments, due to borrow on line " <> tShow sr0'.line
 
 borrowCheckFnCall :: (MonadBrwChk m) => Ctx -> I.FnCallExpr -> m (H.FnCallExpr, Maybe H.Type)
 borrowCheckFnCall ctx e = do
@@ -390,7 +390,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
         -- Apply borrows for the other args
         let newBorrows = concat $ selfNewBorrows : (snd <$> otherArgsAndNewBorrows)
         applyArgsBorrows newBorrows
-        restoreBorrowState b
+        restoreBorrowState b'
 
         -- Get drop functions in case the accessor function throws
         toDrop <- if e.fnIsNoThrow then pure Nothing else getThrowDropFns ctx <&> Just

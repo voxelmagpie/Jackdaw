@@ -171,8 +171,8 @@ VNameOrTName :: {Text}
 
 Ast_ :: {A.Ast}
     : { def }
-    | Ast_ ConstDef  {% hmTryInsert (snd $ fst $2) (fst $ fst $2) (snd $2) ($1).vDefs <&> \x -> $1 { A.vDefs = x } }
-    | Ast_ FnDef     {% hmTryInsert (snd $ fst $2) (fst $ fst $2) (A.AFnDef $ snd $2) ($1).vDefs <&> \x -> $1 { A.vDefs = x } }
+    | Ast_ ConstDef  {% addVDef ($1).astVDefs $2 <&> \x -> $1 { A.astVDefs = x } }
+    | Ast_ FnDef  {% addVDef ($1).astVDefs $2 <&> \x -> $1 { A.astVDefs = x } }
     | Ast_ TSDef     {% hmTryInsert (snd $ fst $2) (fst $ fst $2) (snd $2) ($1).tsDefs <&> \x -> $1 { A.tsDefs = x } }
     | Ast_ RequireStmnt { $1 { A.requireStmntsRev = (fst $2) : ($1).requireStmntsRev } }
 
@@ -186,9 +186,9 @@ RequireStmnt :: {(A.RequireStmnt, SrcRange)}
 
 
 TSDef :: {(TName', A.AnyTSDef)}
-    : Many(Attribute) 'type' Empty TName GPsMaybe '{' Many(RequireStmnt) MemberFns '}' { ($4, A.ATypeDef $ A.TypeDef $ A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $8 ($7 <&> fst)) }
-    | Many(Attribute) 'struct' Empty TName GPsMaybe '{' Many(RequireStmnt) StructFields MemberFns '}' { ($4, A.AStructDef $ A.StructDef (A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $9 ($7 <&> fst)) $8) }
-    | Many(Attribute) 'enum' Empty TName GPsMaybe '{' Many(RequireStmnt) EnumFields MemberFns '}' { ($4, A.AnEnumDef $ A.EnumDef (A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $9 ($7 <&> fst)) $8) }
+    : Many(Attribute) 'type' Empty TName GPsMaybe '{' Many(RequireStmnt) VDefs '}' { ($4, A.ATypeDef $ A.TypeDef $ A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $8 ($7 <&> fst)) }
+    | Many(Attribute) 'struct' Empty TName GPsMaybe '{' Many(RequireStmnt) StructFields VDefs '}' { ($4, A.AStructDef $ A.StructDef (A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $9 ($7 <&> fst)) $8) }
+    | Many(Attribute) 'enum' Empty TName GPsMaybe '{' Many(RequireStmnt) EnumFields VDefs '}' { ($4, A.AnEnumDef $ A.EnumDef (A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $9 ($7 <&> fst)) $8) }
     | Many(Attribute) 'alias' TName GPsMaybe Maybe(AliasTypeExpr) { ($3, A.ATypeAlias $ A.TypeAlias (A.TSDefCommon $3 $4 $1) $5) }
 
 
@@ -216,9 +216,10 @@ EnumField :: {(VName, (SrcRange, Maybe A.TypeExpr))}
     | VName '(' TypeExpr ')' { ((fst $1), (snd $1, Just $3)) }
 
 
-MemberFns :: {A.MemberFns}
+VDefs :: {A.VDefs}
     : {def}
-    | MemberFns FnDef {% addMemberFnDef $1 $2 }
+    | VDefs FnDef {% addVDef $1 $2 }
+    | VDefs ConstDef {% addVDef $1 $2 }
 
 
 Empty :: {()}
@@ -226,13 +227,13 @@ Empty :: {()}
 
 
 ConstDef :: {(VName', A.AnyVDef)}
-    : Many(Attribute) 'const' VName GPsMaybe ':' TypeExpr '=' Expr { ($3, A.AConstDef $ A.ConstDef (A.VDefCommon $3 $4) $6 (Just $8) $1) }
-    | Many(Attribute) 'const' VName GPsMaybe ':' TypeExpr { ($3, A.AConstDef $ A.ConstDef (A.VDefCommon $3 $4) $6 Nothing $1) }
+    : Many(Attribute) 'const' Maybe(AnyOp) VName GPsMaybe ':' TypeExpr '=' Expr { ($4, A.AConstDef $ A.ConstDef (A.VDefCommon $4 $5 $3 $1) $7 (Just $9)) }
+    | Many(Attribute) 'const' Maybe(AnyOp) VName GPsMaybe ':' TypeExpr { ($4, A.AConstDef $ A.ConstDef (A.VDefCommon $4 $5 $3 $1) $7 Nothing) }
 
 
-FnDef :: {(VName', A.FnDef)}
-    : Many(Attribute) 'fn' Maybe(AnyOp) VName GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($4, A.FnDef (A.VDefCommon $4 $5) $3 False False (fst $7) (snd $7) $9 $1 $10) }
-    | Many(Attribute) AccOrIterOrBoth VName GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($3, A.FnDef (A.VDefCommon $3 $4) Nothing (fst $2) (snd $2) (fst $6) (snd $6) $8 $1 $9) }
+FnDef :: {(VName', A.AnyVDef)}
+    : Many(Attribute) 'fn' Maybe(AnyOp) VName GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($4, A.AFnDef $ A.FnDef (A.VDefCommon $4 $5 $3 $1) False False (fst $7) (snd $7) $9 $10) }
+    | Many(Attribute) AccOrIterOrBoth Maybe(AnyOp) VName GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($4, A.AFnDef $ A.FnDef (A.VDefCommon $4 $5 $3 $1) (fst $2) (snd $2) (fst $7) (snd $7) $9 $10) }
 
 
 FnDefCodeBlockStmnt :: {Maybe A.Statement}

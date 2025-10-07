@@ -123,7 +123,7 @@ lookupVName ctx (name, sr) = do
     Just x ->
       pure $ Right x
     _ ->
-      case HM.lookup name ctx.thisAst.vDefs of
+      case HM.lookup name ctx.thisAst.astVDefs.defs of
         Just vDef ->
           pure $ Left (mkFileCtx' ctx, mkVFqn ctx.namespace name, vDef)
         _ -> do
@@ -136,7 +136,7 @@ lookupVName ctx (name, sr) = do
                       then Nothing
                       else
                         let (ast, i) = must $ HM.lookup importNs ctx.tcIn.allAsts
-                            defMaybe = HM.lookup name ast.vDefs
+                            defMaybe = HM.lookup name ast.astVDefs.defs
                          in case defMaybe of Just x -> Just (importNs, ast, i, x); _ -> Nothing
 
           case found of

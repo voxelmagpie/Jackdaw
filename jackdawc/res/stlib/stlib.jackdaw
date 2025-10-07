@@ -20,7 +20,7 @@ const uncheckedArithmetic: Bool
 const sizeOf [T]: I32
 
 // This does not include auto-generated functions such as eq, hash, etc. unless they are implemented manually
-const hasMemberFn [T, name]: Bool
+const hasMember [T, name]: Bool
 
 const typeName [T]: String
 
@@ -115,7 +115,7 @@ fn drop [A] (ref x: A) {
     // may be run before the exception state is checked
     var ex = _takeException();
 
-    if const hasMemberFn[A, "onDrop"] {
+    if const hasMember[A, "onDrop"] {
         x.onDrop();
     }
 
@@ -149,7 +149,7 @@ fn drop [A] (ref x: A) {
 
 
 fn clone [A] (self: A): A unsafe {
-    if const hasMemberFn[A, "clone"] {
+    if const hasMember[A, "clone"] {
         return self.clone();
     }
     else if const typeIsCopyable[A] {
@@ -193,7 +193,7 @@ fn clone [A] (self: A): A unsafe {
 
 
 fn equal [A] (x: A, y: A): Bool {
-    if const hasMemberFn[A, "eq"] {
+    if const hasMember[A, "eq"] {
         return x.eq(y);
     } else {
         // Struct/tuple
@@ -225,7 +225,7 @@ fn equal [A] (x: A, y: A): Bool {
 }
 
 fn notEqual [A] (x: A, y: A): Bool {
-    if const hasMemberFn[A, "neq"] {
+    if const hasMember[A, "neq"] {
         return x.neq(y);
     }
     else {

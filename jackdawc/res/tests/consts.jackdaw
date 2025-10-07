@@ -1,0 +1,24 @@
+//! 2 # 6\n2
+
+const a: I32 = 1
+
+struct X {
+    a: I32
+
+    const b: I32 = 2
+    const c [T]: T = 3
+
+    const f: fn(Self): I32 = g
+}
+
+const d: I32 = a + X.b + X.c[I32]
+
+fn g (x: X): I32 {
+    return x.a;
+}
+
+fn start () {
+    writeI32(d);
+    var x = X{ a = readI32() };
+    writeI32(x.f());
+}

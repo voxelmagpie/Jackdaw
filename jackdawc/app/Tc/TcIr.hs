@@ -59,7 +59,7 @@ data Expr'
   | PtrNEqExpr Expr Expr
   | AddressOfExpr Expr
   | UninitExpr
-  | DataConsExpr Type Int (Maybe Expr)
+  | DataConsExpr Type Int Expr
   | ActiveDataConsExpr Expr
   | RawSliceToSliceExpr Expr
   | BubbleExpr Expr

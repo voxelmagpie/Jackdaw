@@ -12,7 +12,7 @@ module Tc.Tc (runTc, typeIsCopyable) where
 import AccessMode
 import Ast qualified as A
 import Control.Exception (try)
-import Control.Monad (foldM, forM, forM_, unless, void, when)
+import Control.Monad (filterM, foldM, forM, forM_, unless, void, when)
 import Control.Monad.Reader (ReaderT (runReaderT))
 import Data.Bits (Bits (complement, xor), (.&.), (.|.))
 import Data.ByteString qualified as BS
@@ -64,13 +64,13 @@ typeCheck allAsts forceCheckStLib uncheckedArithmetic = do
   let stLibAst = must $ HM.lookup (Namespace "@stlib/stlib") allAsts'
   let hashAst = must $ HM.lookup (Namespace "@stlib/hash") allAsts'
   let toStringAst = must $ HM.lookup (Namespace "@stlib/to_string") allAsts'
-  let dropFnAst = must $ HM.lookup (VName "drop") (fst stLibAst).vDefs
-  let equalFn = must $ HM.lookup (VName "equal") (fst stLibAst).vDefs
-  let notEqualFn = must $ HM.lookup (VName "notEqual") (fst stLibAst).vDefs
-  let cloneFn = must $ HM.lookup (VName "clone") (fst stLibAst).vDefs
-  let hashFn = must $ HM.lookup (VName "hash") (fst hashAst).vDefs
-  let addToHashFn = must $ HM.lookup (VName "addToHash") (fst hashAst).vDefs
-  let toStringFn = must $ HM.lookup (VName "toString") (fst toStringAst).vDefs
+  let dropFnAst = must $ HM.lookup (VName "drop") (fst stLibAst).astVDefs.defs
+  let equalFn = must $ HM.lookup (VName "equal") (fst stLibAst).astVDefs.defs
+  let notEqualFn = must $ HM.lookup (VName "notEqual") (fst stLibAst).astVDefs.defs
+  let cloneFn = must $ HM.lookup (VName "clone") (fst stLibAst).astVDefs.defs
+  let hashFn = must $ HM.lookup (VName "hash") (fst hashAst).astVDefs.defs
+  let addToHashFn = must $ HM.lookup (VName "addToHash") (fst hashAst).astVDefs.defs
+  let toStringFn = must $ HM.lookup (VName "toString") (fst toStringAst).astVDefs.defs
   let tcIn = TcInputs allAsts' primitivesAst stLibAst hashAst toStringAst dropFnAst equalFn notEqualFn cloneFn hashFn addToHashFn toStringFn uncheckedArithmetic
 
   -- Functions reachable from _kStart
@@ -79,7 +79,7 @@ typeCheck allAsts forceCheckStLib uncheckedArithmetic = do
     let ast = stLibAst
     let namespace = Namespace "@stlib/stlib"
     let rootCtx = mkFileCtx namespace ast tcIn
-    let d = must $ HM.lookup (VName "_kStart") (fst ast).vDefs
+    let d = must $ HM.lookup (VName "_kStart") (fst ast).astVDefs.defs
     _ <- visitVDef rootCtx rootCtx [] def (mkVFqn namespace (VName "start"), d) True
     setStartedFromStart False
 
@@ -91,7 +91,7 @@ typeCheck allAsts forceCheckStLib uncheckedArithmetic = do
 
       forM_ (reverse rootAst.requireStmntsRev) $ checkRequireStmnt rootCtx
 
-      forM_ (toList rootAst.vDefs) $ \(name, d) ->
+      forM_ (toList rootAst.astVDefs.defs) $ \(name, d) ->
         when (null (A.vDefCommon d).genericParams)
           $ void
           $ visitVDef rootCtx rootCtx def (snd (A.vDefCommon d).name) (mkVFqn namespace name, d) True
@@ -108,18 +108,19 @@ typeCheck allAsts forceCheckStLib uncheckedArithmetic = do
           -- might not be intended to be used for that given instantiation of the generic type and hence
           -- might not type check
           unless isAlias $ do
-            x <- getMemberFnsForType tcIn lhsType
+            x <- getVDefsInType tcIn lhsType
             forM_ x $ \(memberFns, lhsTFqn) -> do
-              typeCtx <- getTypeCtx rootCtx lhsType <&> must -- Type has member functions and therefore has a context
-              forM_ (HM.toList $ fst memberFns) $ \(fnName, fnDef) -> do
-                when (null fnDef.c.genericParams)
+              typeCtx <- getTypeCtx rootCtx lhsType <&> must -- Type has value defs and therefore has a context
+              forM_ (HM.toList memberFns.defs) $ \(name', def') -> do
+                let c = A.vDefCommon def'
+                when (null c.genericParams)
                   $ void
                   $ visitVDef
                     rootCtx
                     typeCtx
                     []
-                    (snd fnDef.c.name)
-                    (VFqn $ un lhsTFqn <> "." <> un fnName, A.AFnDef fnDef)
+                    (snd c.name)
+                    (VFqn $ un lhsTFqn <> "." <> un name', def')
                     True
 
   -- Type definitions that haven't been fully checked
@@ -285,7 +286,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
               "@stlib/stlib:typeName" -> do
                 typeName <- formatType False (typeGArg 0)
                 makeConstStringLit ctx NoHint typeName <&> Just
-              "@stlib/stlib:hasMemberFn" -> do
+              "@stlib/stlib:hasMember" -> do
                 fnName <- case valGArg 1 of
                   (I.ConstStructOrTuple cs1, t'') -> do
                     stringType <- getBuiltinType ctx (Namespace "@stlib/string") $ TName "String"
@@ -304,7 +305,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
 
                 exists <-
                   getAstTDefCommonFromType ctx.tcIn (typeGArg 0) <&> \case
-                    Just c -> HM.member (VName fnName) $ fst c.memberFns
+                    Just c -> HM.member (VName fnName) c.vDefs.defs
                     _ -> False
 
                 pure $ Just (Hir.ConstBool exists, bool)
@@ -424,14 +425,14 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                             typ = t,
                             genericArgs = ctx.genericParams,
                             reachableFromStart = reachableFromStart,
-                            attributes = constDef.attributes
+                            attributes = constDef.c.attributes
                           },
                       value = e <&> fst
                     }
           id <- addVDef c
           pure (id, t, c)
         A.AFnDef fnDef -> do
-          when (isJust fnDef.retType && Attribute "NoReturn" `elem` fnDef.attributes)
+          when (isJust fnDef.retType && Attribute "NoReturn" `elem` fnDef.c.attributes)
             $ addError ctx.et fnDef.c.name "Functions which return a value cannot be @NoReturn"
 
           unless (length ctx.genericParams == length fnDef.c.genericParams + length outerCtx.genericParams)
@@ -441,7 +442,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
 
           checkTemplateArgs ctx fnDef.c.genericParams gArgs
 
-          when (fnDef.isVarArgs && Attribute "Unsafe" `notElem` fnDef.attributes)
+          when (fnDef.isVarArgs && Attribute "Unsafe" `notElem` fnDef.c.attributes)
             $ addError ctx.et fnDef.c.name "Var-args requires @Unsafe"
 
           when (fnDef.isVarArgs && isJust fnDef.code)
@@ -500,7 +501,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                             typ = fnType,
                             genericArgs = ctx.genericParams,
                             reachableFromStart = reachableFromStart,
-                            attributes = fnDef.attributes
+                            attributes = fnDef.c.attributes
                           },
                       isAccessor = fnDef.isAccessor,
                       isIterator = fnDef.isIterator,
@@ -518,8 +519,8 @@ visitVDef ::
 visitVDef userCtx outerCtx gArgs userSr (fqn, astDef) allowUnsafe = do
   let (astGp, isIterator, isAccessor, defSr, defName, isUnsafe) =
         case astDef of
-          A.AConstDef x -> (x.c.genericParams, False, False, snd x.c.name, fst x.c.name, Attribute "Unsafe" `elem` x.attributes)
-          A.AFnDef x -> (x.c.genericParams, x.isIterator, x.isAccessor, snd x.c.name, fst x.c.name, Attribute "Unsafe" `elem` x.attributes)
+          A.AConstDef x -> (x.c.genericParams, False, False, snd x.c.name, fst x.c.name, Attribute "Unsafe" `elem` x.c.attributes)
+          A.AFnDef x -> (x.c.genericParams, x.isIterator, x.isAccessor, snd x.c.name, fst x.c.name, Attribute "Unsafe" `elem` x.c.attributes)
   ctx <- makeVDefCtx userCtx outerCtx (fst <$> gArgs) astGp isIterator isAccessor (defName, defSr) isUnsafe (srcRangeToSrcLoc' defSr)
   (vDefId, t, hirDef) <- getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef)
 
@@ -556,7 +557,7 @@ visitVDef userCtx outerCtx gArgs userSr (fqn, astDef) allowUnsafe = do
                   ctx
                     { variables = reverse $ catMaybes newNamedTypedVars,
                       returnType = retType,
-                      inUnsafeCode = Attribute "Unsafe" `elem` fnDef.attributes
+                      inUnsafeCode = Attribute "Unsafe" `elem` fnDef.c.attributes
                     }
 
             -- Store current function's state
@@ -738,7 +739,7 @@ checkTDef2 id = do
             A.ATypeAlias _ -> undefined
       let typeIsUnsafe' = Attribute "Unsafe" `elem` (A.tsDefCommon astDef).attributes
 
-      let hasOnDrop = HM.member (VName "onDrop") (fst c.memberFns)
+      let hasOnDrop = HM.member (VName "onDrop") c.vDefs.defs
       case astDef of
         A.ATypeAlias _ -> undefined
         A.ATypeDef _ -> undefined -- No fields so not queued by getTSDefType
@@ -909,9 +910,9 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
               pure x
             --
             A.AStructDef structDef -> do
-              forM_ (toList $ fst structDef.c.memberFns) $ \(n, f) ->
+              forM_ (toList structDef.c.vDefs.defs) $ \(n, d) ->
                 when (n `elem` Ins.keys structDef.fields)
-                  $ addError userCtx.et f.c.name ("Member function " <> un n <> " has same name as field")
+                  $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as field")
 
               let srcLoc = srcRangeToSrcLoc' (snd structDef.c.c.name)
               ctx <- makeTSDefCtx userCtx outerCtx fqn structDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
@@ -925,9 +926,9 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
               pure t
             --
             A.AnEnumDef enumDef -> do
-              forM_ (toList $ fst enumDef.c.memberFns) $ \(n, f) ->
+              forM_ (toList enumDef.c.vDefs.defs) $ \(n, d) ->
                 when (n `elem` Ins.keys enumDef.dataCons)
-                  $ addError userCtx.et f.c.name ("Member function " <> un n <> " has same name as data constructor")
+                  $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
 
               let srcLoc = srcRangeToSrcLoc' (snd enumDef.c.c.name)
               ctx <- makeTSDefCtx userCtx outerCtx fqn enumDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
@@ -1298,6 +1299,8 @@ getConstLitExpr ctx hint (e, sr) = case e of
 
         pure (if isString then I.ConstStructOrTuple [list] else fst list, lhsType)
       _ -> throw ctx.et sr "Invalid/unknown constant operator"
+  A.TypeAccessorExpr astTypeExprMaybe name gArgsMaybe -> do
+    getTypeAccessExprConst ctx hint sr astTypeExprMaybe name gArgsMaybe
   A.AnAccessorExpr x -> do
     (lhs, lhsType) <- getConstLitExpr ctx NoHint x.expr
     let invalid = "Accessor not valid for type"
@@ -1536,21 +1539,43 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
           unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
           pure $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
         _ -> throw ctx.et sr "No such member function is defined for const pointers"
-    -- Member functions for types with a in-code definitions
+    -- Member functions for types with an in-code definition
     _ -> do
       -- Get list of member functions
-      ((memberFns, memberFnOps), lhsTFqn) <-
-        getMemberFnsForType ctx.tcIn lhsType >>= \case
-          Just x -> pure x
-          _ -> pure (def, undefined)
+      (memberFns, memberFnOps, lhsTFqn) <-
+        getVDefsInType ctx.tcIn lhsType >>= \case
+          Just (x, y) -> pure (x.defs, x.operators, y)
+          _ -> pure (def, def, undefined)
+
+      let visitVDef' d = do
+            let c = A.vDefCommon d
+            let fqn = VFqn $ un lhsTFqn <> "." <> un (fst c.name)
+
+            typeCtx <- getTypeCtx ctx lhsType <&> must -- Type has value defs and therefore has a context
+            fnGArgs <- forM fnAstGArgs $ getGenArg ctx
+
+            unless (length fnAstGArgs == length c.genericParams)
+              $ throw ctx.et sr "Wrong number of generic arguments"
+
+            visitVDef ctx typeCtx fnGArgs sr (fqn, d) ctx.inUnsafeCode
 
       -- Find the function
-      let (fnDefMaybe, vOrOpName') = case vOrOpName of
-            Left n -> (maybeToList $ HM.lookup n memberFns, un n)
-            -- Potential operator functions are filtered by length to allow
-            -- overloading between prefix and unary operators
-            -- TODO Filter by second arg type for operators
-            Right n -> (filter (\f -> length f.parameters == length argsExprs + 1) $ HMM.lookup n memberFnOps, un n)
+      (fnDefMaybe, vOrOpName') <- case vOrOpName of
+        Left n -> pure (maybeToList $ HM.lookup n memberFns, un n)
+        -- Potential operator functions are filtered by length to allow
+        -- overloading between prefix and unary operators
+        -- TODO Filter by second arg type for operators
+        Right n -> do
+          x <- flip filterM (HMM.lookup n memberFnOps) $ \d -> do
+            (_, t, _) <- visitVDef' d
+            let paramsCount = case t of
+                  I.AFnType f -> length f.params
+                  I.AnAccessorType f -> length f.params
+                  I.AnIteratorType f -> length f.params
+                  I.AnAccessorIteratorType f -> length f.params
+                  _ -> 0
+            pure $ paramsCount == length argsExprs + 1
+          pure (x, un n)
 
       fnDefOrAutoGenFn <- case fnDefMaybe of
         [] | null fnAstGArgs -> do
@@ -1580,20 +1605,19 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
         _ -> throw ctx.et nameSr $ "Operator is ambiguous: " <> vOrOpName'
 
       case fnDefOrAutoGenFn of
-        Left fnDef -> do
-          let fqn = VFqn $ un lhsTFqn <> "." <> un (fst fnDef.c.name)
+        Left d -> do
+          (id, t, vDef) <- visitVDef' d
 
-          typeCtx <- getTypeCtx ctx lhsType <&> must -- Type has member functions and therefore has a context
-          fnGArgs <- forM fnAstGArgs $ getGenArg ctx
+          let isAccessor = case t of
+                I.AnAccessorType _ -> True
+                I.AnAccessorIteratorType _ -> True
+                _ -> False
 
-          unless (length fnAstGArgs == length fnDef.c.genericParams)
-            $ throw ctx.et sr "Wrong number of generic arguments to member function"
+          let callee = case vDef of
+                I.AConstDef cd -> (I.LoadConstantExpr $ case cd.value of Just x -> x; _ -> I.ConstExtern id, t, sr)
+                _ -> (I.LoadConstantExpr $ I.ConstFnPtr id, t, sr)
 
-          (id, fnType, _) <- visitVDef ctx typeCtx fnGArgs sr (fqn, A.AFnDef fnDef) ctx.inUnsafeCode
-
-          let fnExpr = (I.LoadConstantExpr $ I.ConstFnPtr id, fnType, sr)
-
-          getCallExpr ctx nameSr sr fnExpr (Just lhs) argsExprs expectIterator <&> \(ce, r) -> case (r, fnDef.isAccessor) of
+          getCallExpr ctx nameSr sr callee (Just lhs) argsExprs expectIterator <&> \(ce, r) -> case (r, isAccessor) of
             (Just retType, _) -> Left (I.AFnCallExpr ce, retType, sr)
             (Nothing, True) -> error "Accessor returns void"
             (Nothing, False) -> Right (I.FnCallStmnt ce, sr)
@@ -2019,32 +2043,39 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
           s' <- getCodeBlockStmnt ctx [(bwStmnt, sr), (asStmnt, sr)] []
           getCodeBlockStmnt ctx astStmnts (s' : hirStmnts)
 
-    -- TODO This code is very similar to the regular infix op code, can it be merged or something?
     lhs@(_, lhsType, _) <- getExpr ctx NoHint o.lhs
-    getMemberFnsForType ctx.tcIn lhsType >>= \case
+    getVDefsInType ctx.tcIn lhsType >>= \case
       Nothing -> basic
       Just (memberFns, lhsTFqn) -> do
-        let fnDefMaybe = filter (\f -> length f.parameters == 2) $ HMM.lookup (fst o.op) $ snd memberFns
-        case fnDefMaybe of
+        let defMaybe = HMM.lookup (fst o.op) memberFns.operators
+        case defMaybe of
           [] ->
             basic
-          [fnDef] -> do
-            let fqn = VFqn $ un lhsTFqn <> "." <> un (fst fnDef.c.name)
-            typeCtx <- getTypeCtx ctx lhsType <&> must -- Type has member functions and therefore has a context
-            unless (null fnDef.c.genericParams)
+          [d] -> do
+            let c = A.vDefCommon d
+            let fqn = VFqn $ un lhsTFqn <> "." <> un (fst c.name)
+            typeCtx <- getTypeCtx ctx lhsType <&> must -- Type has value defs and therefore has a context
+            unless (null c.genericParams)
               $ throw ctx.et sr "Operators cannot take generic arguments" -- TODO type inference?
-            (id, fnType, _) <- visitVDef ctx typeCtx [] sr (fqn, A.AFnDef fnDef) ctx.inUnsafeCode
+            (id, t, vDef) <- visitVDef ctx typeCtx [] sr (fqn, d) ctx.inUnsafeCode
 
-            let fnExpr = (I.LoadConstantExpr $ I.ConstFnPtr id, fnType, def)
+            let isAccessor = case t of
+                  I.AnAccessorType _ -> True
+                  I.AnAccessorIteratorType _ -> True
+                  _ -> False
+
+            let callee = case vDef of
+                  I.AConstDef cd -> (I.LoadConstantExpr $ case cd.value of Just x -> x; _ -> I.ConstExtern id, t, sr)
+                  _ -> (I.LoadConstantExpr $ I.ConstFnPtr id, t, sr)
 
             s' <-
-              getCallExpr ctx (snd o.op) sr fnExpr (Just lhs) [o.rhs] False >>= \(ce, r) ->
-                case (r, fnDef.isAccessor) of
+              getCallExpr ctx (snd o.op) sr callee (Just lhs) [o.rhs] False >>= \(ce, r) ->
+                case (r, isAccessor) of
                   (Just _, _) -> throw ctx.et sr "Compound assignment operator functions must return void"
                   (Nothing, True) -> throw ctx.et sr "Compound assignment operator functions cannot be accessors"
                   (Nothing, False) -> pure $ I.FnCallStmnt ce
             getCodeBlockStmnt ctx astStmnts ((s', sr) : hirStmnts)
-          -- TODO Use type hint to choose an operator function?
+          -- TODO Use type hint from arg to choose an operator function
           _ -> throw ctx.et o.op $ "Operator is ambiguous: " <> un (fst o.op)
   A.FnCallStmnt (x, _) -> do
     s' <- getFnCallStmnt ctx x sr
@@ -2377,32 +2408,32 @@ getStructInitExpr ctx hint fullSrcRange astTypeExprMaybe sr' astFields = do
       fullSrcRange
     )
 
-getMemberFnsForType ::
+getVDefsInType ::
   (MonadTc m) =>
   TcInputs ->
   I.Type ->
-  m (Maybe (A.MemberFns, TFqn))
-getMemberFnsForType tcIn lhsType = do
+  m (Maybe (A.VDefs, TFqn))
+getVDefsInType tcIn lhsType = do
   getAstTDefCommonFromType tcIn lhsType >>= \case
     Just c -> case lhsType of
       I.ANamedType tdId -> do
         lhsTypeDef <- getTDef tdId
         let lhsTDCommon = I.tDefCommon lhsTypeDef
-        pure $ Just (c.memberFns, lhsTDCommon.fqn)
+        pure $ Just (c.vDefs, lhsTDCommon.fqn)
       I.ArrayType _ _ ->
-        pure $ Just (c.memberFns, TFqn "@stlib/primitives:Array")
+        pure $ Just (c.vDefs, TFqn "@stlib/primitives:Array")
       I.SliceType _ ->
-        pure $ Just (c.memberFns, TFqn "@stlib/primitives:Slice")
+        pure $ Just (c.vDefs, TFqn "@stlib/primitives:Slice")
       I.BoolType -> do
-        pure $ Just (c.memberFns, TFqn "@stlib/primitives:Bool")
+        pure $ Just (c.vDefs, TFqn "@stlib/primitives:Bool")
       I.NumPrimType numTyp -> do
         let name = numPrimTypeToText numTyp
-        pure $ Just (c.memberFns, TFqn $ "@stlib/primitives:" <> name)
+        pure $ Just (c.vDefs, TFqn $ "@stlib/primitives:" <> name)
       _ -> pure Nothing
     _ -> pure Nothing
 
-getTypeAccessExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr -> VName' -> Maybe [A.GenericArg] -> m I.Expr
-getTypeAccessExpr ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = do
+getTypeAccessExprConst :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr -> VName' -> Maybe [A.GenericArg] -> m I.Constant
+getTypeAccessExprConst ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = do
   typeOrNs <- case astTypeExprMaybe of
     Just e -> getNamespaceOrType ctx e
     Nothing -> case hint of
@@ -2422,11 +2453,11 @@ getTypeAccessExpr ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = do
       _ -> pure Nothing
 
   case (dataConsMaybe, typeOrNs) of
-    (Just (enumDef, (consType, consIdx)), Right t) -> do
+    (Just (enumDef, (consType, consIdx)), Right t) ->
       case consType of
         Nothing -> do
           -- Data constructor does not hold a value so just produce a value of the enum type
-          pure (I.DataConsExpr t consIdx Nothing, t, sr)
+          pure (I.ConstEnum consIdx, t)
         Just dcType -> do
           -- Data constructor does hold a value so need to produce a function that returns the enum value
 
@@ -2459,50 +2490,64 @@ getTypeAccessExpr ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = do
                       }
               vDefId <- addVDef $ I.AFnDef f
               let getArg = Hir.MoveLocalVarExpr (Hir.LocalVarUid 0) (VName "x")
-              let body = Hir.ReturnStmnt (Just (Hir.DataConsExpr t consIdx (Just (getArg, sr)), sr)) []
+              let body = Hir.ReturnStmnt (Just (Hir.DataConsExpr t consIdx (getArg, sr), sr)) []
               addFnDefBody vDefId (body, sr) True
               pure vDefId
-          pure (I.LoadConstantExpr (I.ConstFnPtr vDefId), fnType, sr)
+          pure (I.ConstFnPtr vDefId, fnType)
     (Nothing, Left (ns, ast, astImports)) -> do
-      case HM.lookup name ast.vDefs of
+      case HM.lookup name ast.astVDefs.defs of
         Nothing -> throw ctx.et sr $ "No such definition: " <> un name
         Just astVDef -> do
           let outerCtx = mkFileCtx ns (ast, astImports) ctx.tcIn
           let fqn = mkVFqn ns name
           args <- forM (fromMaybe [] gArgsMaybe) $ getGenArg ctx
-          visitVDef ctx outerCtx args sr (fqn, astVDef) ctx.inUnsafeCode <&> getVDefExpr sr
+          (id, t, vDef) <- visitVDef ctx outerCtx args sr (fqn, astVDef) ctx.inUnsafeCode
+          pure $ case vDef of
+            I.AConstDef c -> case c.value of
+              Just v -> (v, t)
+              _ -> (I.ConstExtern id, t)
+            I.AFnDef _ ->
+              (I.ConstFnPtr id, t)
     (Nothing, Right t) ->
-      getMemberFnsForType ctx.tcIn t >>= \case
+      getVDefsInType ctx.tcIn t >>= \case
         Nothing ->
           throw ctx.et nameSr $ "Name not found: " <> un name
-        Just (memberFns, lhsTFqn) ->
-          case HM.lookup name (fst memberFns) of
+        Just (vDefs, lhsTFqn) ->
+          case HM.lookup name vDefs.defs of
             Nothing ->
               throw ctx.et nameSr $ "Name not found: " <> un name
-            Just fnDef -> do
-              let fqn = VFqn $ un lhsTFqn <> "." <> un (fst fnDef.c.name)
+            Just d -> do
+              let c = A.vDefCommon d
+              let fqn = VFqn $ un lhsTFqn <> "." <> un (fst c.name)
 
-              typeCtx <- getTypeCtx ctx t <&> must -- Type has member functions and therefore has a context
+              typeCtx <- getTypeCtx ctx t <&> must -- Type has value defs and therefore has a context
               let fnAstGArgs = fromMaybe [] gArgsMaybe
               fnGArgs <- forM fnAstGArgs $ getGenArg ctx
 
-              unless (length fnAstGArgs == length fnDef.c.genericParams)
-                $ throw ctx.et sr "Wrong number of generic arguments to member function"
+              unless (length fnAstGArgs == length c.genericParams)
+                $ throw ctx.et sr "Wrong number of generic arguments"
 
-              (id, fnType, _) <- visitVDef ctx typeCtx fnGArgs sr (fqn, A.AFnDef fnDef) ctx.inUnsafeCode
+              (id, t', vDef) <- visitVDef ctx typeCtx fnGArgs sr (fqn, d) ctx.inUnsafeCode
 
-              _ <- case (fnType, hint) of
+              _ <- case (t', hint) of
                 (I.AFnType f, FnReturningHint (TypeHint r))
                   | f.ret == Just t && isJust astTypeExprMaybe && r == t ->
                       pure () -- Could add a hint to use type inference
-                (I.AFnType f, _)
+                (I.AFnType f, FnReturningHint _)
                   | f.ret /= Just t && isNothing astTypeExprMaybe -> do
-                      t' <- formatType False t
-                      throw ctx.et sr $ "Member function has wrong return type, expected " <> t'
+                      t'' <- formatType False t
+                      throw ctx.et sr $ "Member function has wrong return type, expected " <> t''
                 _ -> pure ()
 
-              pure (I.LoadConstantExpr $ I.ConstFnPtr id, fnType, sr)
+              pure $ case vDef of
+                I.AConstDef cd -> (case cd.value of Just x -> x; _ -> I.ConstExtern id, t')
+                I.AFnDef _ -> (I.ConstFnPtr id, t')
     _ -> undefined
+
+getTypeAccessExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr -> VName' -> Maybe [A.GenericArg] -> m I.Expr
+getTypeAccessExpr ctx hint sr astTypeExprMaybe name gArgsMaybe = do
+  (c, t) <- getTypeAccessExprConst ctx hint sr astTypeExprMaybe name gArgsMaybe
+  pure (I.LoadConstantExpr c, t, sr)
 
 getNameExpr :: (MonadTc m) => Ctx -> SrcRange -> VName' -> Maybe [A.GenericArg] -> m I.Expr
 getNameExpr ctx sr name gArgsMaybe =

@@ -210,6 +210,7 @@ data Constant'
   | ConstExtern VDefId
   | ConstAddrOf Constant
   | ConstAddrOfArray0 Constant -- Address of first element in constant array
+  | ConstEnum Int -- Only for data constructors without a value
   deriving (Show, Eq, Generic, Hashable)
 
 type Constant = (Constant', Type)
@@ -240,7 +241,7 @@ data Expr'
   | PtrNEqExpr Expr Expr
   | AddressOfExpr AccessorExpr
   | UninitExpr Type
-  | DataConsExpr Type Int (Maybe Expr)
+  | DataConsExpr Type Int Expr
   | ActiveDataConsExpr (Either Expr AccessorExpr)
   | DataConsUnsafeAddrOfExpr Expr Int
   | SliceAsRawExpr AccessorExpr

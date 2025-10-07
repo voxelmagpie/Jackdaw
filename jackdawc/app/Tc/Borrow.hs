@@ -10,7 +10,7 @@ import AccessMode
 import Control.Monad (forM, forM_, unless, when)
 import Data.Foldable (find)
 import Data.Functor (($>))
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, mapMaybe, maybeToList)
+import Data.Maybe (catMaybes, fromMaybe, isJust, mapMaybe, maybeToList)
 import Data.Text qualified as T
 import Hir qualified as H
 import Names (Attribute (Attribute), VName (VName))
@@ -222,7 +222,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
           H.ConstExtern _ -> False
           H.ConstAddrOf _ -> True
           H.ConstAddrOfArray0 _ -> True
-
+          H.ConstEnum _ -> True -- Only for data constructors with no value
     pure
       $ if not isSmallType
         then
@@ -476,10 +476,9 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
             pure (Left $ H.AddressOfExpr accExpr, t')
   I.UninitExpr ->
     pure (Left $ H.UninitExpr t, t)
-  I.DataConsExpr enumType idx exprMaybe -> do
+  I.DataConsExpr {} ->
     -- Functions for data constructors with values are generated in Tc.hs
-    assertM $ isNothing exprMaybe
-    pure (Left $ H.DataConsExpr enumType idx Nothing, t)
+    undefined
   I.ActiveDataConsExpr e -> do
     (e', t') <- borrowCheckExpr ctx Shared e
     case e' of

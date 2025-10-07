@@ -77,13 +77,13 @@ liftExprMaybe :: (Maybe A.Expr', SrcRange) -> Maybe A.Expr
 liftExprMaybe (Just e, r) = Just (e, r)
 liftExprMaybe (Nothing, _) = Nothing
 
-addMemberFnDef :: A.MemberFns -> (VName', A.FnDef) -> ParseM A.MemberFns
-addMemberFnDef (vDefs, opVDefs) ((n, sr), f) = do
-  m <- hmTryInsert sr n f vDefs
-  let opVDefs' = case f.opMaybe of
-        Just o -> HMM.insert (fst o) f opVDefs
-        _ -> opVDefs
-  pure (m, opVDefs')
+addVDef :: A.VDefs -> (VName', A.AnyVDef) -> ParseM A.VDefs
+addVDef vDefs ((n, sr), d) = do
+  m <- hmTryInsert sr n d vDefs.defs
+  let opVDefs = case (A.vDefCommon d).opMaybe of
+        Just o -> HMM.insert (fst o) d vDefs.operators
+        _ -> vDefs.operators
+  pure $ A.VDefs m opVDefs
 
 hmTryInsert :: (Hashable k, Eq k) => SrcRange -> k -> v -> HashMap k v -> ParseM (HashMap k v)
 hmTryInsert sr key !val m = do

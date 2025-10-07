@@ -24,7 +24,7 @@ fn addHashBytes (ref hash: Hash, bytes: Slice[U8]) {
 }
 
 fn hash [A] (x: A): Hash {
-    if const hasMemberFn[A, "hash"] {
+    if const hasMember[A, "hash"] {
         return x.hash();
     }
     else {
@@ -35,10 +35,10 @@ fn hash [A] (x: A): Hash {
 }
 
 fn addToHash [A] (self: A, ref h: Hash) {
-    if const hasMemberFn[A, "addToHash"] {
+    if const hasMember[A, "addToHash"] {
         x.addToHash(h);
     }
-    else if const hasMemberFn[A, "hash"] {
+    else if const hasMember[A, "hash"] {
         self.hash().addToHash(h);
     }
     else {

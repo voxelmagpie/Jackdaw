@@ -13,7 +13,7 @@ import SrcLoc
 
 data Ast = Ast
   { imports :: [Import],
-    vDefs :: HashMap VName AnyVDef,
+    astVDefs :: VDefs,
     tsDefs :: HashMap TName AnyTSDef,
     requireStmntsRev :: [RequireStmnt]
   }
@@ -29,7 +29,11 @@ newtype RequireStmnt = RequireStmnt Expr
 data AnyTSDef = ATypeDef TypeDef | AStructDef StructDef | AnEnumDef EnumDef | ATypeAlias TypeAlias
   deriving (Show, Generic)
 
-type MemberFns = (HashMap VName FnDef, HashMultiMap OpName FnDef)
+data VDefs = VDefs
+  { defs :: HashMap VName AnyVDef,
+    operators :: HashMultiMap OpName AnyVDef
+  }
+  deriving (Show, Generic, Default)
 
 data TSDefCommon = TSDefCommon
   { name :: TName',
@@ -40,7 +44,7 @@ data TSDefCommon = TSDefCommon
 
 data TypeDefCommon = TypeDefCommon
   { c :: TSDefCommon,
-    memberFns :: MemberFns,
+    vDefs :: VDefs,
     requireStmnts :: [RequireStmnt]
   }
   deriving (Show, Generic)
@@ -109,27 +113,26 @@ data GenericParameter
 
 data VDefCommon = VDefCommon
   { name :: VName',
-    genericParams :: [GenericParameter]
+    genericParams :: [GenericParameter],
+    opMaybe :: Maybe OpName',
+    attributes :: [Attribute]
   }
   deriving (Show, Generic)
 
 data ConstDef = ConstDef
   { c :: VDefCommon,
     typeExpr :: TypeExpr,
-    expr :: Maybe Expr,
-    attributes :: [Attribute]
+    expr :: Maybe Expr
   }
   deriving (Show, Generic)
 
 data FnDef = FnDef
   { c :: VDefCommon,
-    opMaybe :: Maybe OpName',
     isAccessor :: Bool,
     isIterator :: Bool,
     parameters :: [(Maybe VName', AccessMode, TypeExpr)],
     isVarArgs :: Bool,
     retType :: Maybe TypeExpr, -- Nothing == void
-    attributes :: [Attribute],
     code :: Maybe Statement
   }
   deriving (Show, Generic)

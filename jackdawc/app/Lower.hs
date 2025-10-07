@@ -223,6 +223,9 @@ convertConstant' (c, t) = do
       id <- convertConstant' target >>= addConstant
       let l = L.ConstNameAddrOf $ L.CName $ "c" <> tShow (idToInt id)
       pure (L.ConstCastLit l cType, cType)
+    H.ConstEnum idx -> do
+      let tagType = case cType of L.UnionType (List1 x _) -> x; _ -> undefined
+      pure (L.ConstStruct [(L.ConstLit $ L.IntLit $ fromIntegral idx, tagType)], cType)
 
 -- Adds a constant to the LIR and returns the name
 -- unless the constant is a literal value in which case an LExpr is returned
@@ -531,24 +534,20 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
     id <- newTmpId
     addInstr sr $ L.IAddUninitTmp id t'
     pure (L.ILExpr $ L.LTmp id, t')
-  H.DataConsExpr enumType idx exprMaybe -> do
+  H.DataConsExpr enumType idx expr -> do
     enumType' <- convertType enumType
-    e <- forM exprMaybe $ visitExpr' ctx
+    (e, exprType) <- visitExpr' ctx expr
 
     id <- newTmpId
     addInstr sr $ L.IAddUninitTmp id enumType'
 
-    case e of
-      Just (e', exprType) -> do
-        tagTypeHir <- case enumType of
-          H.ANamedType n -> H.getTDef2 n <&> \case H.AnEnumDef2 ed -> ed.tagType; _ -> undefined
-          _ -> undefined
-        tagType <- convertType tagTypeHir
-        let xt = L.StructType $ List1 tagType [exprType]
-        let (x, _) = (L.IInitStruct (List1 (L.IntLit $ fromIntegral idx) [e']) xt, xt)
-        addInstr sr $ L.ISetUnion (L.LTmp id) (idx + 1) x
-      _ -> do
-        addInstr sr $ L.ISetUnion (L.LTmp id) 0 (L.ILExpr $ L.IntLit $ fromIntegral idx)
+    tagTypeHir <- case enumType of
+      H.ANamedType n -> H.getTDef2 n <&> \case H.AnEnumDef2 ed -> ed.tagType; _ -> undefined
+      _ -> undefined
+    tagType <- convertType tagTypeHir
+    let xt = L.StructType $ List1 tagType [exprType]
+    let (x, _) = (L.IInitStruct (List1 (L.IntLit $ fromIntegral idx) [e]) xt, xt)
+    addInstr sr $ L.ISetUnion (L.LTmp id) (idx + 1) x
 
     pure (L.ILExpr $ L.LTmp id, enumType')
   H.ActiveDataConsExpr e -> do

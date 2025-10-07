@@ -41,7 +41,7 @@ fn intToString [A] (var i: A): String {
 }
 
 fn toString [A] (x: A): String {
-	if const hasMemberFn[A, "toString"] {
+	if const hasMember[A, "toString"] {
         return x.toString();
     }
 	else {

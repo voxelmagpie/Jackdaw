@@ -57,7 +57,7 @@ typeSizeEstimate = \case
 data Constant'
   = ConstLit LExpr
   | ConstCastLit LExpr Type -- Adds an explicit cast
-  | ConstStruct [Constant]
+  | ConstStruct [Constant] -- TODO Rename ConstStructUnion
   | -- TODO Is there a more efficient way of storing array constants?
     ConstArray (List1 Constant') Type -- Type is the type of the elements
   | ConstSizeof Type

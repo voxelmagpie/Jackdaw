@@ -17,7 +17,7 @@ import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.Char (isSpace)
 import Data.HashMap.Strict qualified as HM
-import Data.List (isSuffixOf, sort, uncons)
+import Data.List (find, isSuffixOf, sort, uncons)
 import Data.Maybe (fromMaybe)
 import Data.String (IsString (..))
 import Data.Text qualified as T
@@ -167,7 +167,7 @@ runTests cfg stLibDir = do
   createDirectoryIfMissing False "tests_output"
 
   stLibStartTime <- getCurrentTime
-  (stLib, stLibTimings) <- catch (getStLib stLibDir) $ \(CompileException e) -> die $ T.unpack e
+  (stLib, stLibTimings) <- catch (getPackageAsts "stlib" stLibDir) $ \(CompileException e) -> die $ T.unpack e
   stLibEndTme <- getCurrentTime
   TIO.putStrLn $ "Stlib parsed in " <> tShow (diffUTCTime stLibEndTme stLibStartTime) <> " seconds"
 
@@ -374,12 +374,11 @@ findSrcFiles dir pkg dumpDir = do
 
   pure (fst2Of3 <$> xs, mconcat $ thd3 <$> xs)
 
-getStLib :: FilePath -> IO ([(Namespace, A.Ast)], Timings)
-getStLib stLibDir = catch (findSrcFiles stLibDir "stlib" "stlib_asts")
-  $ \(CompileException e) -> error $ "Error parsing stlib:\n" <> T.unpack e
+getPackageAsts :: String -> FilePath -> IO ([(Namespace, A.Ast)], Timings)
+getPackageAsts name path = findSrcFiles path (T.pack name) (name <> "_asts")
 
 compileToC :: [(Namespace, A.Ast)] -> FilePath -> Maybe Text -> FilePath -> Bool -> Bool -> Bool -> IO (Text, Timings)
-compileToC stLib srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers uncheckedArithmetic = do
+compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers uncheckedArithmetic = do
   startTime <- getCurrentTime
 
   (files, tt) <-
@@ -401,7 +400,7 @@ compileToC stLib srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers unch
           <&> \(Err _ _ e) -> e
 
   typeCheckingStartTime <- getCurrentTime
-  tcRes <- runTc (convertBwCheckFnTypeIO Bw.runBorrowChecker) (HM.fromList $ files ++ stLib) forceCheckStLib uncheckedArithmetic
+  tcRes <- runTc (convertBwCheckFnTypeIO Bw.runBorrowChecker) (HM.fromList $ files ++ depsAsts) forceCheckStLib uncheckedArithmetic
   (hir, typeCheckingTime) <- case tcRes of
     Left errs ->
       printErrs errs
@@ -436,8 +435,9 @@ compileToC stLib srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers unch
         }
     )
 
-compile :: Config -> FilePath -> FilePath -> Maybe FilePath -> Bool -> IO ()
-compile cfg stLibDir srcPath exePathMaybe outputTimings = do
+compile :: Config -> FilePath -> Maybe FilePath -> Bool -> [(String, FilePath)] -> IO ()
+compile cfg srcPath exePathMaybe outputTimings packages = do
+  let stLibDir = find (fst >>> (== "stlib")) packages & must & snd
   let addDbgLineNumbers = cfg.buildMode == BuildDebug && not cfg.noCppLine
 
   let srcPathIsFile = takeExtension srcPath == ".jackdaw"
@@ -450,10 +450,13 @@ compile cfg stLibDir srcPath exePathMaybe outputTimings = do
         else
           pure $ takeDirectory srcPath <> "exe"
 
-  (stLib, stLibTimings) <- getStLib stLibDir
+  packages' <- forM packages $ \(pkg, path) -> do
+    (a, t) <- getPackageAsts pkg path
+    pure (T.pack pkg, a, t)
+
   let outputDir = takeDirectory exePath
   startTime <- getCurrentTime
-  (c, timings1) <- compileToC stLib srcPath Nothing outputDir False addDbgLineNumbers cfg.uncheckedArithmetic
+  (c, timings1) <- compileToC (concatMap snd3 packages') srcPath Nothing outputDir False addDbgLineNumbers cfg.uncheckedArithmetic
   let cPreludePath = stLibDir </> "prelude.c"
   let cPreludeHPath = stLibDir </> "prelude.h"
   cPreludeHSrc <- BS.readFile cPreludeHPath >>= byteStringToTextOrThrow
@@ -493,7 +496,7 @@ compile cfg stLibDir srcPath exePathMaybe outputTimings = do
   let ccTime = diffUTCTime ccEndTime ccStartTime
 
   let timings' = timings1 {cc = ccTime, total = diffUTCTime ccEndTime startTime}
-  let timings = [("stlib", stLibTimings), ("", timings')]
+  let timings = ("", timings') : (outerOf3 <$> packages')
   when outputTimings
     $ writeTimingsFile "timings.txt" timings
 
@@ -505,23 +508,25 @@ main = do
     Just (cmd, args'') -> do
       cfg <- case extractArgs args'' of Left e -> throwIO e; Right x -> pure x
 
-      stLibDir <- case cfg.stLibDir of
-        Just x -> pure x
-        -- COMPILER-EXE-DIR/stlib (assumes the executable and stlib dir have been installed to the same dir)
-        _ -> (</> "stlib") . takeDirectory <$> getSymbolicLinkTarget "/proc/self/exe"
+      packages <- case find (fst >>> (== "stlib")) cfg.packages of
+        Just _ -> pure cfg.packages
+        _ -> do
+          -- assume the jackdawc executable and stlib package have been installed to the same directory
+          d <- getSymbolicLinkTarget "/proc/self/exe" <&> (takeDirectory >>> (</> "stlib"))
+          pure $ ("stlib", d) : cfg.packages
 
       case cmd of
         "help" ->
           TIO.putStrLn helpFile
         "run-tests" ->
-          runTests cfg stLibDir
+          runTests cfg "res/stlib"
         "build" -> do
           srcPath <- case cfg.inputFileOrDir of
             Nothing -> die "Expected path to source file"
             Just x -> pure x
 
           handle @CompileException (un >>> T.unpack >>> die)
-            $ compile cfg stLibDir srcPath cfg.exePath cfg.outputTimings
+            $ compile cfg srcPath cfg.exePath cfg.outputTimings packages
           pure ()
         "run" -> do
           srcPath <- case cfg.inputFileOrDir of
@@ -531,7 +536,7 @@ main = do
           case cfg.exePath of
             Just p -> do
               handle @CompileException (un >>> T.unpack >>> die)
-                $ compile cfg stLibDir srcPath cfg.exePath cfg.outputTimings
+                $ compile cfg srcPath cfg.exePath cfg.outputTimings packages
               callProcess p cfg.args
             _ -> do
               tmpDir <- getTemporaryDirectory
@@ -539,7 +544,7 @@ main = do
               hClose exeFile
 
               handle @CompileException (un >>> T.unpack >>> die)
-                $ compile cfg stLibDir srcPath (Just exePath) cfg.outputTimings
+                $ compile cfg srcPath (Just exePath) cfg.outputTimings packages
 
               callProcess exePath cfg.args
               removeFile exePath

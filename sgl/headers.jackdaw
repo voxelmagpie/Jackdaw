@@ -1,0 +1,1270 @@
+@Unsafe alias Tptrdiff_t = I64
+@Unsafe alias Tsize_t = I64
+@Unsafe alias Twchar_t = I32
+@Unsafe
+struct AS_0 {
+	__max_align_ll: I64,
+	__max_align_ld: I64
+}
+@Unsafe alias Tmax_align_t = AS_0
+@Unsafe alias T__u_char = U8
+@Unsafe alias T__u_short = U16
+@Unsafe alias T__u_int = U32
+@Unsafe alias T__u_long = U64
+@Unsafe alias T__int8_t = I8
+@Unsafe alias T__uint8_t = U8
+@Unsafe alias T__int16_t = I16
+@Unsafe alias T__uint16_t = U16
+@Unsafe alias T__int32_t = I32
+@Unsafe alias T__uint32_t = U32
+@Unsafe alias T__int64_t = I64
+@Unsafe alias T__uint64_t = U64
+@Unsafe alias T__int_least8_t = T__int8_t
+@Unsafe alias T__uint_least8_t = T__uint8_t
+@Unsafe alias T__int_least16_t = T__int16_t
+@Unsafe alias T__uint_least16_t = T__uint16_t
+@Unsafe alias T__int_least32_t = T__int32_t
+@Unsafe alias T__uint_least32_t = T__uint32_t
+@Unsafe alias T__int_least64_t = T__int64_t
+@Unsafe alias T__uint_least64_t = T__uint64_t
+@Unsafe alias T__quad_t = I64
+@Unsafe alias T__u_quad_t = U64
+@Unsafe alias T__intmax_t = I64
+@Unsafe alias T__uintmax_t = U64
+@Unsafe alias T__dev_t = U64
+@Unsafe alias T__uid_t = U32
+@Unsafe alias T__gid_t = U32
+@Unsafe alias T__ino_t = U64
+@Unsafe alias T__ino64_t = U64
+@Unsafe alias T__mode_t = U32
+@Unsafe alias T__nlink_t = U64
+@Unsafe alias T__off_t = I64
+@Unsafe alias T__off64_t = I64
+@Unsafe alias T__pid_t = I32
+@Unsafe
+struct AS_1 {
+	__val: Array[I32, 2]
+}
+@Unsafe alias T__fsid_t = AS_1
+@Unsafe alias T__clock_t = I64
+@Unsafe alias T__rlim_t = U64
+@Unsafe alias T__rlim64_t = U64
+@Unsafe alias T__id_t = U32
+@Unsafe alias T__time_t = I64
+@Unsafe alias T__useconds_t = U32
+@Unsafe alias T__suseconds_t = I64
+@Unsafe alias T__daddr_t = I32
+@Unsafe alias T__key_t = I32
+@Unsafe alias T__clockid_t = I32
+@Unsafe alias T__timer_t = *void
+@Unsafe alias T__blksize_t = I64
+@Unsafe alias T__blkcnt_t = I64
+@Unsafe alias T__blkcnt64_t = I64
+@Unsafe alias T__fsblkcnt_t = U64
+@Unsafe alias T__fsblkcnt64_t = U64
+@Unsafe alias T__fsfilcnt_t = U64
+@Unsafe alias T__fsfilcnt64_t = U64
+@Unsafe alias T__fsword_t = I64
+@Unsafe alias T__ssize_t = I64
+@Unsafe alias T__syscall_slong_t = I64
+@Unsafe alias T__syscall_ulong_t = U64
+@Unsafe alias T__loff_t = T__off64_t
+@Unsafe alias T__caddr_t = *I8
+@Unsafe alias T__intptr_t = I64
+@Unsafe alias T__socklen_t = U32
+@Unsafe alias T__sig_atomic_t = I32
+@Unsafe alias Tint8_t = T__int8_t
+@Unsafe alias Tint16_t = T__int16_t
+@Unsafe alias Tint32_t = T__int32_t
+@Unsafe alias Tint64_t = T__int64_t
+@Unsafe alias Tuint8_t = T__uint8_t
+@Unsafe alias Tuint16_t = T__uint16_t
+@Unsafe alias Tuint32_t = T__uint32_t
+@Unsafe alias Tuint64_t = T__uint64_t
+@Unsafe alias Tint_least8_t = T__int_least8_t
+@Unsafe alias Tint_least16_t = T__int_least16_t
+@Unsafe alias Tint_least32_t = T__int_least32_t
+@Unsafe alias Tint_least64_t = T__int_least64_t
+@Unsafe alias Tuint_least8_t = T__uint_least8_t
+@Unsafe alias Tuint_least16_t = T__uint_least16_t
+@Unsafe alias Tuint_least32_t = T__uint_least32_t
+@Unsafe alias Tuint_least64_t = T__uint_least64_t
+@Unsafe alias Tint_fast8_t = I8
+@Unsafe alias Tint_fast16_t = I64
+@Unsafe alias Tint_fast32_t = I64
+@Unsafe alias Tint_fast64_t = I64
+@Unsafe alias Tuint_fast8_t = U8
+@Unsafe alias Tuint_fast16_t = U64
+@Unsafe alias Tuint_fast32_t = U64
+@Unsafe alias Tuint_fast64_t = U64
+@Unsafe alias Tintptr_t = I64
+@Unsafe alias Tuintptr_t = U64
+@Unsafe alias Tintmax_t = T__intmax_t
+@Unsafe alias Tuintmax_t = T__uintmax_t
+@Unsafe alias GLFWglproc = ?fn ()
+@Unsafe alias GLFWvkproc = ?fn ()
+@Unsafe alias GLFWmonitor = S_GLFWmonitor
+@Unsafe alias GLFWwindow = S_GLFWwindow
+@Unsafe alias GLFWcursor = S_GLFWcursor
+@Unsafe alias GLFWerrorfun = ?fn (I32, *I8)
+@Unsafe alias GLFWwindowposfun = ?fn (*GLFWwindow, I32, I32)
+@Unsafe alias GLFWwindowsizefun = ?fn (*GLFWwindow, I32, I32)
+@Unsafe alias GLFWwindowclosefun = ?fn (*GLFWwindow)
+@Unsafe alias GLFWwindowrefreshfun = ?fn (*GLFWwindow)
+@Unsafe alias GLFWwindowfocusfun = ?fn (*GLFWwindow, I32)
+@Unsafe alias GLFWwindowiconifyfun = ?fn (*GLFWwindow, I32)
+@Unsafe alias GLFWwindowmaximizefun = ?fn (*GLFWwindow, I32)
+@Unsafe alias GLFWframebuffersizefun = ?fn (*GLFWwindow, I32, I32)
+@Unsafe alias GLFWwindowcontentscalefun = ?fn (*GLFWwindow, F32, F32)
+@Unsafe alias GLFWmousebuttonfun = ?fn (*GLFWwindow, I32, I32, I32)
+@Unsafe alias GLFWcursorposfun = ?fn (*GLFWwindow, F64, F64)
+@Unsafe alias GLFWcursorenterfun = ?fn (*GLFWwindow, I32)
+@Unsafe alias GLFWscrollfun = ?fn (*GLFWwindow, F64, F64)
+@Unsafe alias GLFWkeyfun = ?fn (*GLFWwindow, I32, I32, I32, I32)
+@Unsafe alias GLFWcharfun = ?fn (*GLFWwindow, U32)
+@Unsafe alias GLFWcharmodsfun = ?fn (*GLFWwindow, U32, I32)
+@Unsafe alias GLFWdropfun = ?fn (*GLFWwindow, I32, **I8)
+@Unsafe alias GLFWmonitorfun = ?fn (*GLFWmonitor, I32)
+@Unsafe alias GLFWjoystickfun = ?fn (I32, I32)
+@Unsafe
+struct S_GLFWvidmode {
+	width: I32,
+	height: I32,
+	redBits: I32,
+	greenBits: I32,
+	blueBits: I32,
+	refreshRate: I32
+}
+@Unsafe alias GLFWvidmode = S_GLFWvidmode
+@Unsafe
+struct S_GLFWgammaramp {
+	red: *U16,
+	green: *U16,
+	blue: *U16,
+	size: U32
+}
+@Unsafe alias GLFWgammaramp = S_GLFWgammaramp
+@Unsafe
+struct S_GLFWimage {
+	width: I32,
+	height: I32,
+	pixels: *U8
+}
+@Unsafe alias GLFWimage = S_GLFWimage
+@Unsafe
+struct S_GLFWgamepadstate {
+	buttons: Array[U8, 15],
+	axes: Array[F32, 6]
+}
+@Unsafe alias GLFWgamepadstate = S_GLFWgamepadstate
+@Unsafe fn glfwInit (): I32
+@Unsafe fn glfwTerminate ()
+@Unsafe fn glfwInitHint (hint: I32, value: I32)
+@Unsafe fn glfwGetVersion (major: *I32, minor: *I32, rev: *I32)
+@Unsafe fn glfwGetVersionString (): *I8
+@Unsafe fn glfwGetError (description: **I8): I32
+@Unsafe fn glfwSetErrorCallback (var callback: GLFWerrorfun): GLFWerrorfun
+@Unsafe fn glfwGetMonitors (count: *I32): **GLFWmonitor
+@Unsafe fn glfwGetPrimaryMonitor (): *GLFWmonitor
+@Unsafe fn glfwGetMonitorPos (monitor: *GLFWmonitor, xpos: *I32, ypos: *I32)
+@Unsafe fn glfwGetMonitorWorkarea (monitor: *GLFWmonitor, xpos: *I32, ypos: *I32, width: *I32, height: *I32)
+@Unsafe fn glfwGetMonitorPhysicalSize (monitor: *GLFWmonitor, widthMM: *I32, heightMM: *I32)
+@Unsafe fn glfwGetMonitorContentScale (monitor: *GLFWmonitor, xscale: *F32, yscale: *F32)
+@Unsafe fn glfwGetMonitorName (monitor: *GLFWmonitor): *I8
+@Unsafe fn glfwSetMonitorUserPointer (monitor: *GLFWmonitor, pointer: *void)
+@Unsafe fn glfwGetMonitorUserPointer (monitor: *GLFWmonitor): *void
+@Unsafe fn glfwSetMonitorCallback (var callback: GLFWmonitorfun): GLFWmonitorfun
+@Unsafe fn glfwGetVideoModes (monitor: *GLFWmonitor, count: *I32): *GLFWvidmode
+@Unsafe fn glfwGetVideoMode (monitor: *GLFWmonitor): *GLFWvidmode
+@Unsafe fn glfwSetGamma (monitor: *GLFWmonitor, gamma: F32)
+@Unsafe fn glfwGetGammaRamp (monitor: *GLFWmonitor): *GLFWgammaramp
+@Unsafe fn glfwSetGammaRamp (monitor: *GLFWmonitor, ramp: *GLFWgammaramp)
+@Unsafe fn glfwDefaultWindowHints ()
+@Unsafe fn glfwWindowHint (hint: I32, value: I32)
+@Unsafe fn glfwWindowHintString (hint: I32, value: *I8)
+@Unsafe fn glfwCreateWindow (width: I32, height: I32, title: *I8, monitor: *GLFWmonitor, share: *GLFWwindow): *GLFWwindow
+@Unsafe fn glfwDestroyWindow (window: *GLFWwindow)
+@Unsafe fn glfwWindowShouldClose (window: *GLFWwindow): I32
+@Unsafe fn glfwSetWindowShouldClose (window: *GLFWwindow, value: I32)
+@Unsafe fn glfwSetWindowTitle (window: *GLFWwindow, title: *I8)
+@Unsafe fn glfwSetWindowIcon (window: *GLFWwindow, count: I32, images: *GLFWimage)
+@Unsafe fn glfwGetWindowPos (window: *GLFWwindow, xpos: *I32, ypos: *I32)
+@Unsafe fn glfwSetWindowPos (window: *GLFWwindow, xpos: I32, ypos: I32)
+@Unsafe fn glfwGetWindowSize (window: *GLFWwindow, width: *I32, height: *I32)
+@Unsafe fn glfwSetWindowSizeLimits (window: *GLFWwindow, minwidth: I32, minheight: I32, maxwidth: I32, maxheight: I32)
+@Unsafe fn glfwSetWindowAspectRatio (window: *GLFWwindow, numer: I32, denom: I32)
+@Unsafe fn glfwSetWindowSize (window: *GLFWwindow, width: I32, height: I32)
+@Unsafe fn glfwGetFramebufferSize (window: *GLFWwindow, width: *I32, height: *I32)
+@Unsafe fn glfwGetWindowFrameSize (window: *GLFWwindow, left: *I32, top: *I32, right: *I32, bottom: *I32)
+@Unsafe fn glfwGetWindowContentScale (window: *GLFWwindow, xscale: *F32, yscale: *F32)
+@Unsafe fn glfwGetWindowOpacity (window: *GLFWwindow): F32
+@Unsafe fn glfwSetWindowOpacity (window: *GLFWwindow, opacity: F32)
+@Unsafe fn glfwIconifyWindow (window: *GLFWwindow)
+@Unsafe fn glfwRestoreWindow (window: *GLFWwindow)
+@Unsafe fn glfwMaximizeWindow (window: *GLFWwindow)
+@Unsafe fn glfwShowWindow (window: *GLFWwindow)
+@Unsafe fn glfwHideWindow (window: *GLFWwindow)
+@Unsafe fn glfwFocusWindow (window: *GLFWwindow)
+@Unsafe fn glfwRequestWindowAttention (window: *GLFWwindow)
+@Unsafe fn glfwGetWindowMonitor (window: *GLFWwindow): *GLFWmonitor
+@Unsafe fn glfwSetWindowMonitor (window: *GLFWwindow, monitor: *GLFWmonitor, xpos: I32, ypos: I32, width: I32, height: I32, refreshRate: I32)
+@Unsafe fn glfwGetWindowAttrib (window: *GLFWwindow, attrib: I32): I32
+@Unsafe fn glfwSetWindowAttrib (window: *GLFWwindow, attrib: I32, value: I32)
+@Unsafe fn glfwSetWindowUserPointer (window: *GLFWwindow, pointer: *void)
+@Unsafe fn glfwGetWindowUserPointer (window: *GLFWwindow): *void
+@Unsafe fn glfwSetWindowPosCallback (window: *GLFWwindow, var callback: GLFWwindowposfun): GLFWwindowposfun
+@Unsafe fn glfwSetWindowSizeCallback (window: *GLFWwindow, var callback: GLFWwindowsizefun): GLFWwindowsizefun
+@Unsafe fn glfwSetWindowCloseCallback (window: *GLFWwindow, var callback: GLFWwindowclosefun): GLFWwindowclosefun
+@Unsafe fn glfwSetWindowRefreshCallback (window: *GLFWwindow, var callback: GLFWwindowrefreshfun): GLFWwindowrefreshfun
+@Unsafe fn glfwSetWindowFocusCallback (window: *GLFWwindow, var callback: GLFWwindowfocusfun): GLFWwindowfocusfun
+@Unsafe fn glfwSetWindowIconifyCallback (window: *GLFWwindow, var callback: GLFWwindowiconifyfun): GLFWwindowiconifyfun
+@Unsafe fn glfwSetWindowMaximizeCallback (window: *GLFWwindow, var callback: GLFWwindowmaximizefun): GLFWwindowmaximizefun
+@Unsafe fn glfwSetFramebufferSizeCallback (window: *GLFWwindow, var callback: GLFWframebuffersizefun): GLFWframebuffersizefun
+@Unsafe fn glfwSetWindowContentScaleCallback (window: *GLFWwindow, var callback: GLFWwindowcontentscalefun): GLFWwindowcontentscalefun
+@Unsafe fn glfwPollEvents ()
+@Unsafe fn glfwWaitEvents ()
+@Unsafe fn glfwWaitEventsTimeout (timeout: F64)
+@Unsafe fn glfwPostEmptyEvent ()
+@Unsafe fn glfwGetInputMode (window: *GLFWwindow, mode: I32): I32
+@Unsafe fn glfwSetInputMode (window: *GLFWwindow, mode: I32, value: I32)
+@Unsafe fn glfwRawMouseMotionSupported (): I32
+@Unsafe fn glfwGetKeyName (key: I32, scancode: I32): *I8
+@Unsafe fn glfwGetKeyScancode (key: I32): I32
+@Unsafe fn glfwGetKey (window: *GLFWwindow, key: I32): I32
+@Unsafe fn glfwGetMouseButton (window: *GLFWwindow, button: I32): I32
+@Unsafe fn glfwGetCursorPos (window: *GLFWwindow, xpos: *F64, ypos: *F64)
+@Unsafe fn glfwSetCursorPos (window: *GLFWwindow, xpos: F64, ypos: F64)
+@Unsafe fn glfwCreateCursor (image: *GLFWimage, xhot: I32, yhot: I32): *GLFWcursor
+@Unsafe fn glfwCreateStandardCursor (shape: I32): *GLFWcursor
+@Unsafe fn glfwDestroyCursor (cursor: *GLFWcursor)
+@Unsafe fn glfwSetCursor (window: *GLFWwindow, cursor: *GLFWcursor)
+@Unsafe fn glfwSetKeyCallback (window: *GLFWwindow, var callback: GLFWkeyfun): GLFWkeyfun
+@Unsafe fn glfwSetCharCallback (window: *GLFWwindow, var callback: GLFWcharfun): GLFWcharfun
+@Unsafe fn glfwSetCharModsCallback (window: *GLFWwindow, var callback: GLFWcharmodsfun): GLFWcharmodsfun
+@Unsafe fn glfwSetMouseButtonCallback (window: *GLFWwindow, var callback: GLFWmousebuttonfun): GLFWmousebuttonfun
+@Unsafe fn glfwSetCursorPosCallback (window: *GLFWwindow, var callback: GLFWcursorposfun): GLFWcursorposfun
+@Unsafe fn glfwSetCursorEnterCallback (window: *GLFWwindow, var callback: GLFWcursorenterfun): GLFWcursorenterfun
+@Unsafe fn glfwSetScrollCallback (window: *GLFWwindow, var callback: GLFWscrollfun): GLFWscrollfun
+@Unsafe fn glfwSetDropCallback (window: *GLFWwindow, var callback: GLFWdropfun): GLFWdropfun
+@Unsafe fn glfwJoystickPresent (jid: I32): I32
+@Unsafe fn glfwGetJoystickAxes (jid: I32, count: *I32): *F32
+@Unsafe fn glfwGetJoystickButtons (jid: I32, count: *I32): *U8
+@Unsafe fn glfwGetJoystickHats (jid: I32, count: *I32): *U8
+@Unsafe fn glfwGetJoystickName (jid: I32): *I8
+@Unsafe fn glfwGetJoystickGUID (jid: I32): *I8
+@Unsafe fn glfwSetJoystickUserPointer (jid: I32, pointer: *void)
+@Unsafe fn glfwGetJoystickUserPointer (jid: I32): *void
+@Unsafe fn glfwJoystickIsGamepad (jid: I32): I32
+@Unsafe fn glfwSetJoystickCallback (var callback: GLFWjoystickfun): GLFWjoystickfun
+@Unsafe fn glfwUpdateGamepadMappings (string: *I8): I32
+@Unsafe fn glfwGetGamepadName (jid: I32): *I8
+@Unsafe fn glfwGetGamepadState (jid: I32, state: *GLFWgamepadstate): I32
+@Unsafe fn glfwSetClipboardString (window: *GLFWwindow, string: *I8)
+@Unsafe fn glfwGetClipboardString (window: *GLFWwindow): *I8
+@Unsafe fn glfwGetTime (): F64
+@Unsafe fn glfwSetTime (time: F64)
+@Unsafe fn glfwGetTimerValue (): Tuint64_t
+@Unsafe fn glfwGetTimerFrequency (): Tuint64_t
+@Unsafe fn glfwMakeContextCurrent (window: *GLFWwindow)
+@Unsafe fn glfwGetCurrentContext (): *GLFWwindow
+@Unsafe fn glfwSwapBuffers (window: *GLFWwindow)
+@Unsafe fn glfwSwapInterval (interval: I32)
+@Unsafe fn glfwExtensionSupported (extension: *I8): I32
+@Unsafe fn glfwGetProcAddress (procname: *I8): GLFWglproc
+@Unsafe fn glfwVulkanSupported (): I32
+@Unsafe fn glfwGetRequiredInstanceExtensions (count: *Tuint32_t): **I8
+@Unsafe alias Tkhronos_int32_t = Tint32_t
+@Unsafe alias Tkhronos_uint32_t = Tuint32_t
+@Unsafe alias Tkhronos_int64_t = Tint64_t
+@Unsafe alias Tkhronos_uint64_t = Tuint64_t
+@Unsafe alias Tkhronos_int8_t = I8
+@Unsafe alias Tkhronos_uint8_t = U8
+@Unsafe alias Tkhronos_int16_t = I16
+@Unsafe alias Tkhronos_uint16_t = U16
+@Unsafe alias Tkhronos_intptr_t = I64
+@Unsafe alias Tkhronos_uintptr_t = U64
+@Unsafe alias Tkhronos_ssize_t = I64
+@Unsafe alias Tkhronos_usize_t = U64
+@Unsafe alias Tkhronos_float_t = F32
+@Unsafe alias Tkhronos_utime_nanoseconds_t = Tkhronos_uint64_t
+@Unsafe alias Tkhronos_stime_nanoseconds_t = Tkhronos_int64_t
+@Unsafe const _KHRONOS_FALSE: Tkhronos_boolean_enum_t = 0
+@Unsafe const _KHRONOS_TRUE: Tkhronos_boolean_enum_t = 1
+@Unsafe const _KHRONOS_BOOLEAN_ENUM_FORCE_SIZE: Tkhronos_boolean_enum_t = 2147483647
+@Unsafe alias Tkhronos_boolean_enum_t = I32
+@Unsafe alias GLbyte = Tkhronos_int8_t
+@Unsafe alias GLclampf = Tkhronos_float_t
+@Unsafe alias GLfixed = Tkhronos_int32_t
+@Unsafe alias GLshort = Tkhronos_int16_t
+@Unsafe alias GLushort = Tkhronos_uint16_t
+// Skipped typedef GLvoid: typedef void
+@Unsafe alias GLsync = *S___GLsync
+@Unsafe alias GLint64 = Tkhronos_int64_t
+@Unsafe alias GLuint64 = Tkhronos_uint64_t
+@Unsafe alias GLenum = U32
+@Unsafe alias GLuint = U32
+@Unsafe alias GLchar = I8
+@Unsafe alias GLfloat = Tkhronos_float_t
+@Unsafe alias GLsizeiptr = Tkhronos_ssize_t
+@Unsafe alias GLintptr = Tkhronos_intptr_t
+@Unsafe alias GLbitfield = U32
+@Unsafe alias GLint = I32
+@Unsafe alias GLboolean = U8
+@Unsafe alias GLsizei = I32
+@Unsafe alias GLubyte = Tkhronos_uint8_t
+@Unsafe alias PFNGLACTIVETEXTUREPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLATTACHSHADERPROC = ?fn (var GLuint, var GLuint)
+@Unsafe alias PFNGLBINDATTRIBLOCATIONPROC = ?fn (var GLuint, var GLuint, *GLchar)
+@Unsafe alias PFNGLBINDBUFFERPROC = ?fn (var GLenum, var GLuint)
+@Unsafe alias PFNGLBINDFRAMEBUFFERPROC = ?fn (var GLenum, var GLuint)
+@Unsafe alias PFNGLBINDRENDERBUFFERPROC = ?fn (var GLenum, var GLuint)
+@Unsafe alias PFNGLBINDTEXTUREPROC = ?fn (var GLenum, var GLuint)
+@Unsafe alias PFNGLBLENDCOLORPROC = ?fn (var GLfloat, var GLfloat, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLBLENDEQUATIONPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLBLENDEQUATIONSEPARATEPROC = ?fn (var GLenum, var GLenum)
+@Unsafe alias PFNGLBLENDFUNCPROC = ?fn (var GLenum, var GLenum)
+@Unsafe alias PFNGLBLENDFUNCSEPARATEPROC = ?fn (var GLenum, var GLenum, var GLenum, var GLenum)
+@Unsafe alias PFNGLBUFFERDATAPROC = ?fn (var GLenum, var GLsizeiptr, *void, var GLenum)
+@Unsafe alias PFNGLBUFFERSUBDATAPROC = ?fn (var GLenum, var GLintptr, var GLsizeiptr, *void)
+@Unsafe alias PFNGLCHECKFRAMEBUFFERSTATUSPROC = ?fn (var GLenum): GLenum
+@Unsafe alias PFNGLCLEARPROC = ?fn (var GLbitfield)
+@Unsafe alias PFNGLCLEARCOLORPROC = ?fn (var GLfloat, var GLfloat, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLCLEARDEPTHFPROC = ?fn (var GLfloat)
+@Unsafe alias PFNGLCLEARSTENCILPROC = ?fn (var GLint)
+@Unsafe alias PFNGLCOLORMASKPROC = ?fn (var GLboolean, var GLboolean, var GLboolean, var GLboolean)
+@Unsafe alias PFNGLCOMPILESHADERPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLCOMPRESSEDTEXIMAGE2DPROC = ?fn (var GLenum, var GLint, var GLenum, var GLsizei, var GLsizei, var GLint, var GLsizei, *void)
+@Unsafe alias PFNGLCOMPRESSEDTEXSUBIMAGE2DPROC = ?fn (var GLenum, var GLint, var GLint, var GLint, var GLsizei, var GLsizei, var GLenum, var GLsizei, *void)
+@Unsafe alias PFNGLCOPYTEXIMAGE2DPROC = ?fn (var GLenum, var GLint, var GLenum, var GLint, var GLint, var GLsizei, var GLsizei, var GLint)
+@Unsafe alias PFNGLCOPYTEXSUBIMAGE2DPROC = ?fn (var GLenum, var GLint, var GLint, var GLint, var GLint, var GLint, var GLsizei, var GLsizei)
+@Unsafe alias PFNGLCREATEPROGRAMPROC = ?fn (): GLuint
+@Unsafe alias PFNGLCREATESHADERPROC = ?fn (var GLenum): GLuint
+@Unsafe alias PFNGLCULLFACEPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLDELETEBUFFERSPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLDELETEFRAMEBUFFERSPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLDELETEPROGRAMPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLDELETERENDERBUFFERSPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLDELETESHADERPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLDELETETEXTURESPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLDEPTHFUNCPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLDEPTHMASKPROC = ?fn (var GLboolean)
+@Unsafe alias PFNGLDEPTHRANGEFPROC = ?fn (var GLfloat, var GLfloat)
+@Unsafe alias PFNGLDETACHSHADERPROC = ?fn (var GLuint, var GLuint)
+@Unsafe alias PFNGLDISABLEPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLDISABLEVERTEXATTRIBARRAYPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLDRAWARRAYSPROC = ?fn (var GLenum, var GLint, var GLsizei)
+@Unsafe alias PFNGLDRAWELEMENTSPROC = ?fn (var GLenum, var GLsizei, var GLenum, *void)
+@Unsafe alias PFNGLENABLEPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLENABLEVERTEXATTRIBARRAYPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLFINISHPROC = ?fn ()
+@Unsafe alias PFNGLFLUSHPROC = ?fn ()
+@Unsafe alias PFNGLFRAMEBUFFERRENDERBUFFERPROC = ?fn (var GLenum, var GLenum, var GLenum, var GLuint)
+@Unsafe alias PFNGLFRAMEBUFFERTEXTURE2DPROC = ?fn (var GLenum, var GLenum, var GLenum, var GLuint, var GLint)
+@Unsafe alias PFNGLFRONTFACEPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLGENBUFFERSPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLGENERATEMIPMAPPROC = ?fn (var GLenum)
+@Unsafe alias PFNGLGENFRAMEBUFFERSPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLGENRENDERBUFFERSPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLGENTEXTURESPROC = ?fn (var GLsizei, *GLuint)
+@Unsafe alias PFNGLGETACTIVEATTRIBPROC = ?fn (var GLuint, var GLuint, var GLsizei, *GLsizei, *GLint, *GLenum, *GLchar)
+@Unsafe alias PFNGLGETACTIVEUNIFORMPROC = ?fn (var GLuint, var GLuint, var GLsizei, *GLsizei, *GLint, *GLenum, *GLchar)
+@Unsafe alias PFNGLGETATTACHEDSHADERSPROC = ?fn (var GLuint, var GLsizei, *GLsizei, *GLuint)
+@Unsafe alias PFNGLGETATTRIBLOCATIONPROC = ?fn (var GLuint, *GLchar): GLint
+@Unsafe alias PFNGLGETBOOLEANVPROC = ?fn (var GLenum, *GLboolean)
+@Unsafe alias PFNGLGETBUFFERPARAMETERIVPROC = ?fn (var GLenum, var GLenum, *GLint)
+@Unsafe alias PFNGLGETERRORPROC = ?fn (): GLenum
+@Unsafe alias PFNGLGETFLOATVPROC = ?fn (var GLenum, *GLfloat)
+@Unsafe alias PFNGLGETFRAMEBUFFERATTACHMENTPARAMETERIVPROC = ?fn (var GLenum, var GLenum, var GLenum, *GLint)
+@Unsafe alias PFNGLGETINTEGERVPROC = ?fn (var GLenum, *GLint)
+@Unsafe alias PFNGLGETPROGRAMIVPROC = ?fn (var GLuint, var GLenum, *GLint)
+@Unsafe alias PFNGLGETPROGRAMINFOLOGPROC = ?fn (var GLuint, var GLsizei, *GLsizei, *GLchar)
+@Unsafe alias PFNGLGETRENDERBUFFERPARAMETERIVPROC = ?fn (var GLenum, var GLenum, *GLint)
+@Unsafe alias PFNGLGETSHADERIVPROC = ?fn (var GLuint, var GLenum, *GLint)
+@Unsafe alias PFNGLGETSHADERINFOLOGPROC = ?fn (var GLuint, var GLsizei, *GLsizei, *GLchar)
+@Unsafe alias PFNGLGETSHADERPRECISIONFORMATPROC = ?fn (var GLenum, var GLenum, *GLint, *GLint)
+@Unsafe alias PFNGLGETSHADERSOURCEPROC = ?fn (var GLuint, var GLsizei, *GLsizei, *GLchar)
+@Unsafe alias PFNGLGETSTRINGPROC = ?fn (var GLenum): *GLubyte
+@Unsafe alias PFNGLGETTEXPARAMETERFVPROC = ?fn (var GLenum, var GLenum, *GLfloat)
+@Unsafe alias PFNGLGETTEXPARAMETERIVPROC = ?fn (var GLenum, var GLenum, *GLint)
+@Unsafe alias PFNGLGETUNIFORMFVPROC = ?fn (var GLuint, var GLint, *GLfloat)
+@Unsafe alias PFNGLGETUNIFORMIVPROC = ?fn (var GLuint, var GLint, *GLint)
+@Unsafe alias PFNGLGETUNIFORMLOCATIONPROC = ?fn (var GLuint, *GLchar): GLint
+@Unsafe alias PFNGLGETVERTEXATTRIBFVPROC = ?fn (var GLuint, var GLenum, *GLfloat)
+@Unsafe alias PFNGLGETVERTEXATTRIBIVPROC = ?fn (var GLuint, var GLenum, *GLint)
+@Unsafe alias PFNGLGETVERTEXATTRIBPOINTERVPROC = ?fn (var GLuint, var GLenum, **void)
+@Unsafe alias PFNGLHINTPROC = ?fn (var GLenum, var GLenum)
+@Unsafe alias PFNGLISBUFFERPROC = ?fn (var GLuint): GLboolean
+@Unsafe alias PFNGLISENABLEDPROC = ?fn (var GLenum): GLboolean
+@Unsafe alias PFNGLISFRAMEBUFFERPROC = ?fn (var GLuint): GLboolean
+@Unsafe alias PFNGLISPROGRAMPROC = ?fn (var GLuint): GLboolean
+@Unsafe alias PFNGLISRENDERBUFFERPROC = ?fn (var GLuint): GLboolean
+@Unsafe alias PFNGLISSHADERPROC = ?fn (var GLuint): GLboolean
+@Unsafe alias PFNGLISTEXTUREPROC = ?fn (var GLuint): GLboolean
+@Unsafe alias PFNGLLINEWIDTHPROC = ?fn (var GLfloat)
+@Unsafe alias PFNGLLINKPROGRAMPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLPIXELSTOREIPROC = ?fn (var GLenum, var GLint)
+@Unsafe alias PFNGLPOLYGONOFFSETPROC = ?fn (var GLfloat, var GLfloat)
+@Unsafe alias PFNGLREADPIXELSPROC = ?fn (var GLint, var GLint, var GLsizei, var GLsizei, var GLenum, var GLenum, *void)
+@Unsafe alias PFNGLRELEASESHADERCOMPILERPROC = ?fn ()
+@Unsafe alias PFNGLRENDERBUFFERSTORAGEPROC = ?fn (var GLenum, var GLenum, var GLsizei, var GLsizei)
+@Unsafe alias PFNGLSAMPLECOVERAGEPROC = ?fn (var GLfloat, var GLboolean)
+@Unsafe alias PFNGLSCISSORPROC = ?fn (var GLint, var GLint, var GLsizei, var GLsizei)
+@Unsafe alias PFNGLSHADERBINARYPROC = ?fn (var GLsizei, *GLuint, var GLenum, *void, var GLsizei)
+@Unsafe alias PFNGLSHADERSOURCEPROC = ?fn (var GLuint, var GLsizei, **GLchar, *GLint)
+@Unsafe alias PFNGLSTENCILFUNCPROC = ?fn (var GLenum, var GLint, var GLuint)
+@Unsafe alias PFNGLSTENCILFUNCSEPARATEPROC = ?fn (var GLenum, var GLenum, var GLint, var GLuint)
+@Unsafe alias PFNGLSTENCILMASKPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLSTENCILMASKSEPARATEPROC = ?fn (var GLenum, var GLuint)
+@Unsafe alias PFNGLSTENCILOPPROC = ?fn (var GLenum, var GLenum, var GLenum)
+@Unsafe alias PFNGLSTENCILOPSEPARATEPROC = ?fn (var GLenum, var GLenum, var GLenum, var GLenum)
+@Unsafe alias PFNGLTEXIMAGE2DPROC = ?fn (var GLenum, var GLint, var GLint, var GLsizei, var GLsizei, var GLint, var GLenum, var GLenum, *void)
+@Unsafe alias PFNGLTEXPARAMETERFPROC = ?fn (var GLenum, var GLenum, var GLfloat)
+@Unsafe alias PFNGLTEXPARAMETERFVPROC = ?fn (var GLenum, var GLenum, *GLfloat)
+@Unsafe alias PFNGLTEXPARAMETERIPROC = ?fn (var GLenum, var GLenum, var GLint)
+@Unsafe alias PFNGLTEXPARAMETERIVPROC = ?fn (var GLenum, var GLenum, *GLint)
+@Unsafe alias PFNGLTEXSUBIMAGE2DPROC = ?fn (var GLenum, var GLint, var GLint, var GLint, var GLsizei, var GLsizei, var GLenum, var GLenum, *void)
+@Unsafe alias PFNGLUNIFORM1FPROC = ?fn (var GLint, var GLfloat)
+@Unsafe alias PFNGLUNIFORM1FVPROC = ?fn (var GLint, var GLsizei, *GLfloat)
+@Unsafe alias PFNGLUNIFORM1IPROC = ?fn (var GLint, var GLint)
+@Unsafe alias PFNGLUNIFORM1IVPROC = ?fn (var GLint, var GLsizei, *GLint)
+@Unsafe alias PFNGLUNIFORM2FPROC = ?fn (var GLint, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLUNIFORM2FVPROC = ?fn (var GLint, var GLsizei, *GLfloat)
+@Unsafe alias PFNGLUNIFORM2IPROC = ?fn (var GLint, var GLint, var GLint)
+@Unsafe alias PFNGLUNIFORM2IVPROC = ?fn (var GLint, var GLsizei, *GLint)
+@Unsafe alias PFNGLUNIFORM3FPROC = ?fn (var GLint, var GLfloat, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLUNIFORM3FVPROC = ?fn (var GLint, var GLsizei, *GLfloat)
+@Unsafe alias PFNGLUNIFORM3IPROC = ?fn (var GLint, var GLint, var GLint, var GLint)
+@Unsafe alias PFNGLUNIFORM3IVPROC = ?fn (var GLint, var GLsizei, *GLint)
+@Unsafe alias PFNGLUNIFORM4FPROC = ?fn (var GLint, var GLfloat, var GLfloat, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLUNIFORM4FVPROC = ?fn (var GLint, var GLsizei, *GLfloat)
+@Unsafe alias PFNGLUNIFORM4IPROC = ?fn (var GLint, var GLint, var GLint, var GLint, var GLint)
+@Unsafe alias PFNGLUNIFORM4IVPROC = ?fn (var GLint, var GLsizei, *GLint)
+@Unsafe alias PFNGLUNIFORMMATRIX2FVPROC = ?fn (var GLint, var GLsizei, var GLboolean, *GLfloat)
+@Unsafe alias PFNGLUNIFORMMATRIX3FVPROC = ?fn (var GLint, var GLsizei, var GLboolean, *GLfloat)
+@Unsafe alias PFNGLUNIFORMMATRIX4FVPROC = ?fn (var GLint, var GLsizei, var GLboolean, *GLfloat)
+@Unsafe alias PFNGLUSEPROGRAMPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLVALIDATEPROGRAMPROC = ?fn (var GLuint)
+@Unsafe alias PFNGLVERTEXATTRIB1FPROC = ?fn (var GLuint, var GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIB1FVPROC = ?fn (var GLuint, *GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIB2FPROC = ?fn (var GLuint, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIB2FVPROC = ?fn (var GLuint, *GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIB3FPROC = ?fn (var GLuint, var GLfloat, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIB3FVPROC = ?fn (var GLuint, *GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIB4FPROC = ?fn (var GLuint, var GLfloat, var GLfloat, var GLfloat, var GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIB4FVPROC = ?fn (var GLuint, *GLfloat)
+@Unsafe alias PFNGLVERTEXATTRIBPOINTERPROC = ?fn (var GLuint, var GLint, var GLenum, var GLboolean, var GLsizei, *void)
+@Unsafe alias PFNGLVIEWPORTPROC = ?fn (var GLint, var GLint, var GLsizei, var GLsizei)
+@Unsafe fn glActiveTexture (var texture: GLenum)
+@Unsafe fn glAttachShader (var program: GLuint, var shader: GLuint)
+@Unsafe fn glBindAttribLocation (var program: GLuint, var index: GLuint, name: *GLchar)
+@Unsafe fn glBindBuffer (var target: GLenum, var buffer: GLuint)
+@Unsafe fn glBindFramebuffer (var target: GLenum, var framebuffer: GLuint)
+@Unsafe fn glBindRenderbuffer (var target: GLenum, var renderbuffer: GLuint)
+@Unsafe fn glBindTexture (var target: GLenum, var texture: GLuint)
+@Unsafe fn glBlendColor (var red: GLfloat, var green: GLfloat, var blue: GLfloat, var alpha: GLfloat)
+@Unsafe fn glBlendEquation (var mode: GLenum)
+@Unsafe fn glBlendEquationSeparate (var modeRGB: GLenum, var modeAlpha: GLenum)
+@Unsafe fn glBlendFunc (var sfactor: GLenum, var dfactor: GLenum)
+@Unsafe fn glBlendFuncSeparate (var sfactorRGB: GLenum, var dfactorRGB: GLenum, var sfactorAlpha: GLenum, var dfactorAlpha: GLenum)
+@Unsafe fn glBufferData (var target: GLenum, var size: GLsizeiptr, data: *void, var usage: GLenum)
+@Unsafe fn glBufferSubData (var target: GLenum, var offset: GLintptr, var size: GLsizeiptr, data: *void)
+@Unsafe fn glCheckFramebufferStatus (var target: GLenum): GLenum
+@Unsafe fn glClear (var mask: GLbitfield)
+@Unsafe fn glClearColor (var red: GLfloat, var green: GLfloat, var blue: GLfloat, var alpha: GLfloat)
+@Unsafe fn glClearDepthf (var d: GLfloat)
+@Unsafe fn glClearStencil (var s: GLint)
+@Unsafe fn glColorMask (var red: GLboolean, var green: GLboolean, var blue: GLboolean, var alpha: GLboolean)
+@Unsafe fn glCompileShader (var shader: GLuint)
+@Unsafe fn glCompressedTexImage2D (var target: GLenum, var level: GLint, var internalformat: GLenum, var width: GLsizei, var height: GLsizei, var border: GLint, var imageSize: GLsizei, data: *void)
+@Unsafe fn glCompressedTexSubImage2D (var target: GLenum, var level: GLint, var xoffset: GLint, var yoffset: GLint, var width: GLsizei, var height: GLsizei, var format: GLenum, var imageSize: GLsizei, data: *void)
+@Unsafe fn glCopyTexImage2D (var target: GLenum, var level: GLint, var internalformat: GLenum, var x: GLint, var y: GLint, var width: GLsizei, var height: GLsizei, var border: GLint)
+@Unsafe fn glCopyTexSubImage2D (var target: GLenum, var level: GLint, var xoffset: GLint, var yoffset: GLint, var x: GLint, var y: GLint, var width: GLsizei, var height: GLsizei)
+@Unsafe fn glCreateProgram (): GLuint
+@Unsafe fn glCreateShader (var _type: GLenum): GLuint
+@Unsafe fn glCullFace (var mode: GLenum)
+@Unsafe fn glDeleteBuffers (var n: GLsizei, buffers: *GLuint)
+@Unsafe fn glDeleteFramebuffers (var n: GLsizei, framebuffers: *GLuint)
+@Unsafe fn glDeleteProgram (var program: GLuint)
+@Unsafe fn glDeleteRenderbuffers (var n: GLsizei, renderbuffers: *GLuint)
+@Unsafe fn glDeleteShader (var shader: GLuint)
+@Unsafe fn glDeleteTextures (var n: GLsizei, textures: *GLuint)
+@Unsafe fn glDepthFunc (var func: GLenum)
+@Unsafe fn glDepthMask (var flag: GLboolean)
+@Unsafe fn glDepthRangef (var n: GLfloat, var f: GLfloat)
+@Unsafe fn glDetachShader (var program: GLuint, var shader: GLuint)
+@Unsafe fn glDisable (var cap: GLenum)
+@Unsafe fn glDisableVertexAttribArray (var index: GLuint)
+@Unsafe fn glDrawArrays (var mode: GLenum, var first: GLint, var count: GLsizei)
+@Unsafe fn glDrawElements (var mode: GLenum, var count: GLsizei, var _type: GLenum, indices: *void)
+@Unsafe fn glEnable (var cap: GLenum)
+@Unsafe fn glEnableVertexAttribArray (var index: GLuint)
+@Unsafe fn glFinish ()
+@Unsafe fn glFlush ()
+@Unsafe fn glFramebufferRenderbuffer (var target: GLenum, var attachment: GLenum, var renderbuffertarget: GLenum, var renderbuffer: GLuint)
+@Unsafe fn glFramebufferTexture2D (var target: GLenum, var attachment: GLenum, var textarget: GLenum, var texture: GLuint, var level: GLint)
+@Unsafe fn glFrontFace (var mode: GLenum)
+@Unsafe fn glGenBuffers (var n: GLsizei, buffers: *GLuint)
+@Unsafe fn glGenerateMipmap (var target: GLenum)
+@Unsafe fn glGenFramebuffers (var n: GLsizei, framebuffers: *GLuint)
+@Unsafe fn glGenRenderbuffers (var n: GLsizei, renderbuffers: *GLuint)
+@Unsafe fn glGenTextures (var n: GLsizei, textures: *GLuint)
+@Unsafe fn glGetActiveAttrib (var program: GLuint, var index: GLuint, var bufSize: GLsizei, length: *GLsizei, size: *GLint, _type: *GLenum, name: *GLchar)
+@Unsafe fn glGetActiveUniform (var program: GLuint, var index: GLuint, var bufSize: GLsizei, length: *GLsizei, size: *GLint, _type: *GLenum, name: *GLchar)
+@Unsafe fn glGetAttachedShaders (var program: GLuint, var maxCount: GLsizei, count: *GLsizei, shaders: *GLuint)
+@Unsafe fn glGetAttribLocation (var program: GLuint, name: *GLchar): GLint
+@Unsafe fn glGetBooleanv (var pname: GLenum, data: *GLboolean)
+@Unsafe fn glGetBufferParameteriv (var target: GLenum, var pname: GLenum, params: *GLint)
+@Unsafe fn glGetError (): GLenum
+@Unsafe fn glGetFloatv (var pname: GLenum, data: *GLfloat)
+@Unsafe fn glGetFramebufferAttachmentParameteriv (var target: GLenum, var attachment: GLenum, var pname: GLenum, params: *GLint)
+@Unsafe fn glGetIntegerv (var pname: GLenum, data: *GLint)
+@Unsafe fn glGetProgramiv (var program: GLuint, var pname: GLenum, params: *GLint)
+@Unsafe fn glGetProgramInfoLog (var program: GLuint, var bufSize: GLsizei, length: *GLsizei, infoLog: *GLchar)
+@Unsafe fn glGetRenderbufferParameteriv (var target: GLenum, var pname: GLenum, params: *GLint)
+@Unsafe fn glGetShaderiv (var shader: GLuint, var pname: GLenum, params: *GLint)
+@Unsafe fn glGetShaderInfoLog (var shader: GLuint, var bufSize: GLsizei, length: *GLsizei, infoLog: *GLchar)
+@Unsafe fn glGetShaderPrecisionFormat (var shadertype: GLenum, var precisiontype: GLenum, range: *GLint, precision: *GLint)
+@Unsafe fn glGetShaderSource (var shader: GLuint, var bufSize: GLsizei, length: *GLsizei, source: *GLchar)
+@Unsafe fn glGetString (var name: GLenum): *GLubyte
+@Unsafe fn glGetTexParameterfv (var target: GLenum, var pname: GLenum, params: *GLfloat)
+@Unsafe fn glGetTexParameteriv (var target: GLenum, var pname: GLenum, params: *GLint)
+@Unsafe fn glGetUniformfv (var program: GLuint, var location: GLint, params: *GLfloat)
+@Unsafe fn glGetUniformiv (var program: GLuint, var location: GLint, params: *GLint)
+@Unsafe fn glGetUniformLocation (var program: GLuint, name: *GLchar): GLint
+@Unsafe fn glGetVertexAttribfv (var index: GLuint, var pname: GLenum, params: *GLfloat)
+@Unsafe fn glGetVertexAttribiv (var index: GLuint, var pname: GLenum, params: *GLint)
+@Unsafe fn glGetVertexAttribPointerv (var index: GLuint, var pname: GLenum, pointer: **void)
+@Unsafe fn glHint (var target: GLenum, var mode: GLenum)
+@Unsafe fn glIsBuffer (var buffer: GLuint): GLboolean
+@Unsafe fn glIsEnabled (var cap: GLenum): GLboolean
+@Unsafe fn glIsFramebuffer (var framebuffer: GLuint): GLboolean
+@Unsafe fn glIsProgram (var program: GLuint): GLboolean
+@Unsafe fn glIsRenderbuffer (var renderbuffer: GLuint): GLboolean
+@Unsafe fn glIsShader (var shader: GLuint): GLboolean
+@Unsafe fn glIsTexture (var texture: GLuint): GLboolean
+@Unsafe fn glLineWidth (var width: GLfloat)
+@Unsafe fn glLinkProgram (var program: GLuint)
+@Unsafe fn glPixelStorei (var pname: GLenum, var param: GLint)
+@Unsafe fn glPolygonOffset (var factor: GLfloat, var units: GLfloat)
+@Unsafe fn glReadPixels (var x: GLint, var y: GLint, var width: GLsizei, var height: GLsizei, var format: GLenum, var _type: GLenum, pixels: *void)
+@Unsafe fn glReleaseShaderCompiler ()
+@Unsafe fn glRenderbufferStorage (var target: GLenum, var internalformat: GLenum, var width: GLsizei, var height: GLsizei)
+@Unsafe fn glSampleCoverage (var value: GLfloat, var invert: GLboolean)
+@Unsafe fn glScissor (var x: GLint, var y: GLint, var width: GLsizei, var height: GLsizei)
+@Unsafe fn glShaderBinary (var count: GLsizei, shaders: *GLuint, var binaryformat: GLenum, binary: *void, var length: GLsizei)
+@Unsafe fn glShaderSource (var shader: GLuint, var count: GLsizei, string: **GLchar, length: *GLint)
+@Unsafe fn glStencilFunc (var func: GLenum, var _ref: GLint, var mask: GLuint)
+@Unsafe fn glStencilFuncSeparate (var face: GLenum, var func: GLenum, var _ref: GLint, var mask: GLuint)
+@Unsafe fn glStencilMask (var mask: GLuint)
+@Unsafe fn glStencilMaskSeparate (var face: GLenum, var mask: GLuint)
+@Unsafe fn glStencilOp (var fail: GLenum, var zfail: GLenum, var zpass: GLenum)
+@Unsafe fn glStencilOpSeparate (var face: GLenum, var sfail: GLenum, var dpfail: GLenum, var dppass: GLenum)
+@Unsafe fn glTexImage2D (var target: GLenum, var level: GLint, var internalformat: GLint, var width: GLsizei, var height: GLsizei, var border: GLint, var format: GLenum, var _type: GLenum, pixels: *void)
+@Unsafe fn glTexParameterf (var target: GLenum, var pname: GLenum, var param: GLfloat)
+@Unsafe fn glTexParameterfv (var target: GLenum, var pname: GLenum, params: *GLfloat)
+@Unsafe fn glTexParameteri (var target: GLenum, var pname: GLenum, var param: GLint)
+@Unsafe fn glTexParameteriv (var target: GLenum, var pname: GLenum, params: *GLint)
+@Unsafe fn glTexSubImage2D (var target: GLenum, var level: GLint, var xoffset: GLint, var yoffset: GLint, var width: GLsizei, var height: GLsizei, var format: GLenum, var _type: GLenum, pixels: *void)
+@Unsafe fn glUniform1f (var location: GLint, var v0: GLfloat)
+@Unsafe fn glUniform1fv (var location: GLint, var count: GLsizei, value: *GLfloat)
+@Unsafe fn glUniform1i (var location: GLint, var v0: GLint)
+@Unsafe fn glUniform1iv (var location: GLint, var count: GLsizei, value: *GLint)
+@Unsafe fn glUniform2f (var location: GLint, var v0: GLfloat, var v1: GLfloat)
+@Unsafe fn glUniform2fv (var location: GLint, var count: GLsizei, value: *GLfloat)
+@Unsafe fn glUniform2i (var location: GLint, var v0: GLint, var v1: GLint)
+@Unsafe fn glUniform2iv (var location: GLint, var count: GLsizei, value: *GLint)
+@Unsafe fn glUniform3f (var location: GLint, var v0: GLfloat, var v1: GLfloat, var v2: GLfloat)
+@Unsafe fn glUniform3fv (var location: GLint, var count: GLsizei, value: *GLfloat)
+@Unsafe fn glUniform3i (var location: GLint, var v0: GLint, var v1: GLint, var v2: GLint)
+@Unsafe fn glUniform3iv (var location: GLint, var count: GLsizei, value: *GLint)
+@Unsafe fn glUniform4f (var location: GLint, var v0: GLfloat, var v1: GLfloat, var v2: GLfloat, var v3: GLfloat)
+@Unsafe fn glUniform4fv (var location: GLint, var count: GLsizei, value: *GLfloat)
+@Unsafe fn glUniform4i (var location: GLint, var v0: GLint, var v1: GLint, var v2: GLint, var v3: GLint)
+@Unsafe fn glUniform4iv (var location: GLint, var count: GLsizei, value: *GLint)
+@Unsafe fn glUniformMatrix2fv (var location: GLint, var count: GLsizei, var transpose: GLboolean, value: *GLfloat)
+@Unsafe fn glUniformMatrix3fv (var location: GLint, var count: GLsizei, var transpose: GLboolean, value: *GLfloat)
+@Unsafe fn glUniformMatrix4fv (var location: GLint, var count: GLsizei, var transpose: GLboolean, value: *GLfloat)
+@Unsafe fn glUseProgram (var program: GLuint)
+@Unsafe fn glValidateProgram (var program: GLuint)
+@Unsafe fn glVertexAttrib1f (var index: GLuint, var x: GLfloat)
+@Unsafe fn glVertexAttrib1fv (var index: GLuint, v: *GLfloat)
+@Unsafe fn glVertexAttrib2f (var index: GLuint, var x: GLfloat, var y: GLfloat)
+@Unsafe fn glVertexAttrib2fv (var index: GLuint, v: *GLfloat)
+@Unsafe fn glVertexAttrib3f (var index: GLuint, var x: GLfloat, var y: GLfloat, var z: GLfloat)
+@Unsafe fn glVertexAttrib3fv (var index: GLuint, v: *GLfloat)
+@Unsafe fn glVertexAttrib4f (var index: GLuint, var x: GLfloat, var y: GLfloat, var z: GLfloat, var w: GLfloat)
+@Unsafe fn glVertexAttrib4fv (var index: GLuint, v: *GLfloat)
+@Unsafe fn glVertexAttribPointer (var index: GLuint, var size: GLint, var _type: GLenum, var normalized: GLboolean, var stride: GLsizei, pointer: *void)
+@Unsafe fn glViewport (var x: GLint, var y: GLint, var width: GLsizei, var height: GLsizei)
+@Unsafe struct S_GLFWwindow { dummyStruct: I8 }
+@Unsafe struct S_GLFWcursor { dummyStruct: I8 }
+@Unsafe struct S_GLFWmonitor { dummyStruct: I8 }
+@Unsafe struct S___GLsync { dummyStruct: I8 }
+@Unsafe const _GL_STENCIL_WRITEMASK: I32 = 0xb98
+@Unsafe const _GLFW_KEY_KP_ADD: I32 = 334
+@Unsafe const _GL_TEXTURE_CUBE_MAP_NEGATIVE_Y: I32 = 0x8518
+@Unsafe const _GL_TEXTURE14: I32 = 0x84ce
+@Unsafe const _GLFW_KEY_END: I32 = 269
+@Unsafe const _UINT_LEAST64_MAX: U64 = 18446744073709551615
+@Unsafe const _GLFW_KEY_RIGHT_ALT: I32 = 346
+@Unsafe const _WCHAR_MAX: I32 = 0x7fffffff
+@Unsafe const _GL_BLEND: I32 = 0xbe2
+@Unsafe const _GLFW_MOUSE_BUTTON_2: I32 = 1
+@Unsafe const _GL_VERTEX_ATTRIB_ARRAY_ENABLED: I32 = 0x8622
+@Unsafe const _GLFW_FLOATING: I32 = 0x20007
+@Unsafe const _BITS_WCHAR_H: I32 = 1
+@Unsafe const _GLFW_MOD_CONTROL: I32 = 0x2
+@Unsafe const _GL_MAX_FRAGMENT_UNIFORM_VECTORS: I32 = 0x8dfd
+@Unsafe const _GLFW_AUX_BUFFERS: I32 = 0x2100b
+@Unsafe const _GL_COLOR_CLEAR_VALUE: I32 = 0xc22
+@Unsafe const _GLFW_KEY_Z: I32 = 90
+@Unsafe const _GL_UNSIGNED_INT: I32 = 0x1405
+@Unsafe const _GL_MAX_RENDERBUFFER_SIZE: I32 = 0x84e8
+@Unsafe const _GLFW_VERSION_UNAVAILABLE: I32 = 0x10007
+@Unsafe const _GL_BUFFER_SIZE: I32 = 0x8764
+@Unsafe const _GLFW_MOD_CAPS_LOCK: I32 = 0x10
+@Unsafe const _GLFW_NO_CURRENT_CONTEXT: I32 = 0x10002
+@Unsafe const _GLFW_CONTEXT_RELEASE_BEHAVIOR: I32 = 0x22009
+@Unsafe const _GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS: I32 = 0x8cd9
+@Unsafe const _GL_TEXTURE25: I32 = 0x84d9
+@Unsafe const _GL_SAMPLE_COVERAGE: I32 = 0x80a0
+@Unsafe const _GLFW_OSMESA_CONTEXT_API: I32 = 0x36003
+@Unsafe const _GLFW_MOUSE_BUTTON_LEFT: I32 = 0
+@Unsafe const _GLFW_VERSION_MAJOR: I32 = 3
+@Unsafe const _INT16_MAX: I32 = 32767
+@Unsafe const _GL_UNSIGNED_BYTE: I32 = 0x1401
+@Unsafe const _GL_CURRENT_PROGRAM: I32 = 0x8b8d
+@Unsafe const _GLFW_MAXIMIZED: I32 = 0x20008
+@Unsafe const _KHRONOS_SUPPORT_FLOAT: I32 = 1
+@Unsafe const _GL_LEQUAL: I32 = 0x203
+@Unsafe const _SIG_ATOMIC_MAX: I32 = 2147483647
+@Unsafe const _GLFW_FOCUS_ON_SHOW: I32 = 0x2000c
+@Unsafe const _GL_UNSIGNED_SHORT: I32 = 0x1403
+@Unsafe const _GLFW_KEY_UNKNOWN: I32 = -1
+@Unsafe const _GLFW_GAMEPAD_BUTTON_LEFT_BUMPER: I32 = 4
+@Unsafe const _GL_SCISSOR_TEST: I32 = 0xc11
+@Unsafe const _GLFW_SAMPLES: I32 = 0x2100d
+@Unsafe const _GL_SAMPLER_CUBE: I32 = 0x8b60
+@Unsafe const _GL_ELEMENT_ARRAY_BUFFER: I32 = 0x8893
+@Unsafe const _GL_TEXTURE3: I32 = 0x84c3
+@Unsafe const _GLFW_KEY_7: I32 = 55
+@Unsafe const _GL_TEXTURE_MIN_FILTER: I32 = 0x2801
+@Unsafe const _GL_POINTS: I32 = 0x0
+@Unsafe const _GL_INFO_LOG_LENGTH: I32 = 0x8b84
+@Unsafe const _GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING: I32 = 0x889f
+@Unsafe const _GL_TEXTURE_CUBE_MAP_NEGATIVE_Z: I32 = 0x851a
+@Unsafe const _GLFW_RELEASE_BEHAVIOR_NONE: I32 = 0x35002
+@Unsafe const _GL_TEXTURE30: I32 = 0x84de
+@Unsafe const _KHRONOS_SUPPORT_INT64: I32 = 1
+@Unsafe const _GLFW_COCOA_GRAPHICS_SWITCHING: I32 = 0x23003
+@Unsafe const _GLFW_KEY_F13: I32 = 302
+@Unsafe const _GL_ONE_MINUS_CONSTANT_ALPHA: I32 = 0x8004
+@Unsafe const _PTRDIFF_MAX: I64 = 9223372036854775807
+@Unsafe const _GL_DEPTH_TEST: I32 = 0xb71
+@Unsafe const _GL_STENCIL_CLEAR_VALUE: I32 = 0xb91
+@Unsafe const _GL_DECR: I32 = 0x1e03
+@Unsafe const _GL_ARRAY_BUFFER_BINDING: I32 = 0x8894
+@Unsafe const _GLFW_KEY_CAPS_LOCK: I32 = 280
+@Unsafe const _GL_FLOAT_MAT3: I32 = 0x8b5b
+@Unsafe const _INTMAX_MIN: I64 = -9223372036854775808
+@Unsafe const _GL_INVALID_FRAMEBUFFER_OPERATION: I32 = 0x506
+@Unsafe const _GL_BOOL_VEC4: I32 = 0x8b59
+@Unsafe const _GL_POLYGON_OFFSET_FILL: I32 = 0x8037
+@Unsafe const _GLFW_JOYSTICK_3: I32 = 2
+@Unsafe const _GLFW_KEY_5: I32 = 53
+@Unsafe const _GLFW_KEY_F19: I32 = 308
+@Unsafe const _GL_NONE: I32 = 0
+@Unsafe const _GLFW_OUT_OF_MEMORY: I32 = 0x10005
+@Unsafe const _GL_TEXTURE9: I32 = 0x84c9
+@Unsafe const _GL_SCISSOR_BOX: I32 = 0xc10
+@Unsafe const _INT_LEAST8_MAX: I32 = 127
+@Unsafe const _GL_RENDERBUFFER_BINDING: I32 = 0x8ca7
+@Unsafe const _GLFW_KEY_KP_DIVIDE: I32 = 331
+@Unsafe const _GLFW_KEY_F4: I32 = 293
+@Unsafe const _GL_BLEND_SRC_RGB: I32 = 0x80c9
+@Unsafe const _GL_FALSE: I32 = 0
+@Unsafe const _GLFW_MOUSE_BUTTON_3: I32 = 2
+@Unsafe const _WINT_MIN: I32 = 0
+@Unsafe const _GLFW_KEY_F24: I32 = 313
+@Unsafe const _GLFW_GAMEPAD_BUTTON_X: I32 = 2
+@Unsafe const _GLFW_CURSOR_DISABLED: I32 = 0x34003
+@Unsafe const _GLFW_NATIVE_CONTEXT_API: I32 = 0x36001
+@Unsafe const _GLFW_OPENGL_ES_API: I32 = 0x30002
+@Unsafe const _GLFW_JOYSTICK_2: I32 = 1
+@Unsafe const _GLFW_KEY_PAGE_DOWN: I32 = 267
+@Unsafe const _GL_FLOAT_VEC3: I32 = 0x8b51
+@Unsafe const _GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE: I32 = 0x8cd0
+@Unsafe const _GL_INCR_WRAP: I32 = 0x8507
+@Unsafe const _GLFW_X11_CLASS_NAME: I32 = 0x24001
+@Unsafe const _GL_RGB: I32 = 0x1907
+@Unsafe const linux: I32 = 1
+@Unsafe const _GLFW_JOYSTICK_16: I32 = 15
+@Unsafe const _GLFW_CONNECTED: I32 = 0x40001
+@Unsafe const _GL_MAX_TEXTURE_IMAGE_UNITS: I32 = 0x8872
+@Unsafe const _GL_ACTIVE_TEXTURE: I32 = 0x84e0
+@Unsafe const _GL_STENCIL_BACK_VALUE_MASK: I32 = 0x8ca4
+@Unsafe const _GL_BLEND_DST_ALPHA: I32 = 0x80ca
+@Unsafe const _GL_SHADER_COMPILER: I32 = 0x8dfa
+@Unsafe const _GL_VERTEX_ATTRIB_ARRAY_STRIDE: I32 = 0x8624
+@Unsafe const _GL_STENCIL_INDEX8: I32 = 0x8d48
+@Unsafe const _GLFW_KEY_KP_8: I32 = 328
+@Unsafe const _GL_TEXTURE_CUBE_MAP: I32 = 0x8513
+@Unsafe const _GLFW_CURSOR: I32 = 0x33001
+@Unsafe const _GLFW_VERSION_REVISION: I32 = 2
+@Unsafe const _GLFW_KEY_KP_SUBTRACT: I32 = 333
+@Unsafe const _GL_TEXTURE11: I32 = 0x84cb
+@Unsafe const _GLFW_OPENGL_FORWARD_COMPAT: I32 = 0x22006
+@Unsafe const _GL_TEXTURE_CUBE_MAP_POSITIVE_Z: I32 = 0x8519
+@Unsafe const _GL_INVERT: I32 = 0x150a
+@Unsafe const _GLFW_SCALE_TO_MONITOR: I32 = 0x2200c
+@Unsafe const _GL_POLYGON_OFFSET_FACTOR: I32 = 0x8038
+@Unsafe const _GL_DEPTH_FUNC: I32 = 0xb74
+@Unsafe const _GLFW_HAT_LEFT_DOWN: I32 = 12
+@Unsafe const _GLFW_KEY_F2: I32 = 291
+@Unsafe const _GL_DEPTH_RANGE: I32 = 0xb70
+@Unsafe const _GLFW_KEY_DELETE: I32 = 261
+@Unsafe const _GLFW_KEY_R: I32 = 82
+@Unsafe const _GLFW_KEY_P: I32 = 80
+@Unsafe const _GL_BLEND_EQUATION: I32 = 0x8009
+@Unsafe const _INT8_MIN: I32 = -128
+@Unsafe const _GLFW_GAMEPAD_BUTTON_TRIANGLE: I32 = 3
+@Unsafe const _GLFW_ACCUM_RED_BITS: I32 = 0x21007
+@Unsafe const _NULL: *void = (0) as *void
+@Unsafe const _GL_NEAREST: I32 = 0x2600
+@Unsafe const _GL_BOOL: I32 = 0x8b56
+@Unsafe const _UINTMAX_MAX: U64 = 18446744073709551615
+@Unsafe const _INT_LEAST64_MIN: I64 = -9223372036854775808
+@Unsafe const _GL_TEXTURE22: I32 = 0x84d6
+@Unsafe const _GLFW_KEY_F3: I32 = 292
+@Unsafe const _GLFW_KEY_N: I32 = 78
+@Unsafe const _GLFW_LOSE_CONTEXT_ON_RESET: I32 = 0x31002
+@Unsafe const _GLFW_KEY_RIGHT_SHIFT: I32 = 344
+@Unsafe const _GLFW_GAMEPAD_BUTTON_A: I32 = 0
+@Unsafe const _GL_REPEAT: I32 = 0x2901
+@Unsafe const _BITS_TYPES_H: I32 = 1
+@Unsafe const _GL_VERTEX_SHADER: I32 = 0x8b31
+@Unsafe const _GLFW_KEY_KP_1: I32 = 321
+@Unsafe const _GL_TEXTURE31: I32 = 0x84df
+@Unsafe const _GLFW_KEY_PRINT_SCREEN: I32 = 283
+@Unsafe const _GLFW_NO_API: I32 = 0
+@Unsafe const _GLFW_BLUE_BITS: I32 = 0x21003
+@Unsafe const _GL_STENCIL_BACK_PASS_DEPTH_PASS: I32 = 0x8803
+@Unsafe const _GL_NO_ERROR: I32 = 0
+@Unsafe const _GLFW_HAT_LEFT_UP: I32 = 9
+@Unsafe const _GL_ALPHA: I32 = 0x1906
+@Unsafe const _GLFW_STICKY_KEYS: I32 = 0x33002
+@Unsafe const _GLFW_GAMEPAD_BUTTON_DPAD_LEFT: I32 = 14
+@Unsafe const _GL_STENCIL_PASS_DEPTH_PASS: I32 = 0xb96
+@Unsafe const _GL_EQUAL: I32 = 0x202
+@Unsafe const _GL_SAMPLE_BUFFERS: I32 = 0x80a8
+@Unsafe const _GL_SAMPLER_2D: I32 = 0x8b5e
+@Unsafe const _GLFW_KEY_ENTER: I32 = 257
+@Unsafe const _GLFW_KEY_F15: I32 = 304
+@Unsafe const _GL_ONE_MINUS_SRC_ALPHA: I32 = 0x303
+@Unsafe const _GLFW_KEY_T: I32 = 84
+@Unsafe const _GLFW_KEY_INSERT: I32 = 260
+@Unsafe const _GLFW_KEY_F18: I32 = 307
+@Unsafe const _GL_SRC_ALPHA: I32 = 0x302
+@Unsafe const _GL_TEXTURE19: I32 = 0x84d3
+@Unsafe const _GLFW_DONT_CARE: I32 = -1
+@Unsafe const _GLFW_MOD_ALT: I32 = 0x4
+@Unsafe const _GLFW_KEY_F8: I32 = 297
+@Unsafe const _WINT_MAX: I64 = 4294967295
+@Unsafe const _SYS_CDEFS_H: I32 = 1
+@Unsafe const _GLFW_KEY_2: I32 = 50
+@Unsafe const _GL_VIEWPORT: I32 = 0xba2
+@Unsafe const _GLFW_JOYSTICK_12: I32 = 11
+@Unsafe const _GLFW_EGL_CONTEXT_API: I32 = 0x36002
+@Unsafe const _GL_RENDERBUFFER_RED_SIZE: I32 = 0x8d50
+@Unsafe const _GLFW_HAT_DOWN: I32 = 4
+@Unsafe const _GLFW_TRUE: I32 = 1
+@Unsafe const _GLFW_KEY_G: I32 = 71
+@Unsafe const _GLFW_KEY_MINUS: I32 = 45
+@Unsafe const _GLFW_HAT_CENTERED: I32 = 0
+@Unsafe const _GLFW_GAMEPAD_AXIS_RIGHT_TRIGGER: I32 = 5
+@Unsafe const _GLFW_KEY_F: I32 = 70
+@Unsafe const _INT_LEAST16_MAX: I32 = 32767
+@Unsafe const _GL_GENERATE_MIPMAP_HINT: I32 = 0x8192
+@Unsafe const _GLFW_KEY_O: I32 = 79
+@Unsafe const _GL_DONT_CARE: I32 = 0x1100
+@Unsafe const _GL_TEXTURE_BINDING_2D: I32 = 0x8069
+@Unsafe const _GL_LINE_STRIP: I32 = 0x3
+@Unsafe const _GLFW_KEY_MENU: I32 = 348
+@Unsafe const _GLFW_GAMEPAD_BUTTON_GUIDE: I32 = 8
+@Unsafe const _POSIX_SOURCE: I32 = 1
+@Unsafe const _GLFW_HRESIZE_CURSOR: I32 = 0x36005
+@Unsafe const _GLFW_KEY_Q: I32 = 81
+@Unsafe const _GL_COLOR_BUFFER_BIT: I32 = 0x4000
+@Unsafe const _GL_NICEST: I32 = 0x1102
+@Unsafe const _GLFW_DEPTH_BITS: I32 = 0x21005
+@Unsafe const _GL_STENCIL_BACK_WRITEMASK: I32 = 0x8ca5
+@Unsafe const _GLFW_JOYSTICK_9: I32 = 8
+@Unsafe const _PTRDIFF_MIN: I64 = -9223372036854775808
+@Unsafe const _GL_FRAGMENT_SHADER: I32 = 0x8b30
+@Unsafe const _GLFW_GAMEPAD_BUTTON_Y: I32 = 3
+@Unsafe const _GL_VENDOR: I32 = 0x1f00
+@Unsafe const _GLFW_KEY_DOWN: I32 = 264
+@Unsafe const _GLFW_GAMEPAD_AXIS_RIGHT_Y: I32 = 3
+@Unsafe const _GLFW_KEY_NUM_LOCK: I32 = 282
+@Unsafe const _GL_IMPLEMENTATION_COLOR_READ_FORMAT: I32 = 0x8b9b
+@Unsafe const _GL_RENDERBUFFER_BLUE_SIZE: I32 = 0x8d52
+@Unsafe const _GLFW_PRESS: I32 = 1
+@Unsafe const _INT32_MAX: I32 = 2147483647
+@Unsafe const _GL_ONE_MINUS_DST_ALPHA: I32 = 0x305
+@Unsafe const _INT_LEAST64_MAX: I64 = 9223372036854775807
+@Unsafe const _GLFW_KEY_F6: I32 = 295
+@Unsafe const _INT64_MAX: I64 = 9223372036854775807
+@Unsafe const _GLFW_JOYSTICK_15: I32 = 14
+@Unsafe const _GL_TEXTURE16: I32 = 0x84d0
+@Unsafe const _GLFW_DOUBLEBUFFER: I32 = 0x21010
+@Unsafe const _GLFW_OPENGL_COMPAT_PROFILE: I32 = 0x32002
+@Unsafe const _GL_INCR: I32 = 0x1e02
+@Unsafe const _GLFW_GAMEPAD_BUTTON_SQUARE: I32 = 2
+@Unsafe const _GLFW_COCOA_RETINA_FRAMEBUFFER: I32 = 0x23001
+@Unsafe const _GLFW_KEY_F17: I32 = 306
+@Unsafe const _GLFW_KEY_BACKSLASH: I32 = 92
+@Unsafe const _GL_TEXTURE23: I32 = 0x84d7
+@Unsafe const _GLFW_MOUSE_BUTTON_8: I32 = 7
+@Unsafe const _GL_SRC_ALPHA_SATURATE: I32 = 0x308
+@Unsafe const _GL_UNSIGNED_SHORT_4_4_4_4: I32 = 0x8033
+@Unsafe const _GL_STENCIL_BITS: I32 = 0xd57
+@Unsafe const _GLFW_MOD_SHIFT: I32 = 0x1
+@Unsafe const _GLFW_KEY_X: I32 = 88
+@Unsafe const _GLFW_HAT_RIGHT: I32 = 2
+@Unsafe const _GL_TEXTURE24: I32 = 0x84d8
+@Unsafe const _GL_BOOL_VEC3: I32 = 0x8b58
+@Unsafe const _GLFW_KEY_RIGHT_BRACKET: I32 = 93
+@Unsafe const _GLFW_KEY_D: I32 = 68
+@Unsafe const _GLFW_AUTO_ICONIFY: I32 = 0x20006
+@Unsafe const _GL_COMPILE_STATUS: I32 = 0x8b81
+@Unsafe const _GLFW_GAMEPAD_BUTTON_RIGHT_BUMPER: I32 = 5
+@Unsafe const _GL_INT_VEC2: I32 = 0x8b53
+@Unsafe const _GL_FLOAT_VEC2: I32 = 0x8b50
+@Unsafe const _GL_LOW_INT: I32 = 0x8df3
+@Unsafe const _GLFW_NO_ERROR: I32 = 0
+@Unsafe const _GL_BOOL_VEC2: I32 = 0x8b57
+@Unsafe const _GLFW_INVALID_ENUM: I32 = 0x10003
+@Unsafe const _GL_TRIANGLES: I32 = 0x4
+@Unsafe const _GL_DEPTH_COMPONENT: I32 = 0x1902
+@Unsafe const _GL_TRUE: I32 = 1
+@Unsafe const _GL_LESS: I32 = 0x201
+@Unsafe const _GLFW_OPENGL_API: I32 = 0x30001
+@Unsafe const _GL_TEXTURE6: I32 = 0x84c6
+@Unsafe const _GL_LINE_LOOP: I32 = 0x2
+@Unsafe const _GL_TEXTURE_2D: I32 = 0xde1
+@Unsafe const _GLFW_KEY_KP_MULTIPLY: I32 = 332
+@Unsafe const _GL_CONSTANT_ALPHA: I32 = 0x8003
+@Unsafe const _GLFW_KEY_F1: I32 = 290
+@Unsafe const _GL_TEXTURE26: I32 = 0x84da
+@Unsafe const _GL_CONSTANT_COLOR: I32 = 0x8001
+@Unsafe const _GL_TEXTURE: I32 = 0x1702
+@Unsafe const _GLFW_JOYSTICK_LAST: I32 = 15
+@Unsafe const _GLFW_MOUSE_BUTTON_6: I32 = 5
+@Unsafe const _GLFW_NO_WINDOW_CONTEXT: I32 = 0x1000a
+@Unsafe const _GLFW_PLATFORM_ERROR: I32 = 0x10008
+@Unsafe const _GL_KEEP: I32 = 0x1e00
+@Unsafe const _GLFW_CONTEXT_NO_ERROR: I32 = 0x2200a
+@Unsafe const _GLFW_GAMEPAD_BUTTON_DPAD_RIGHT: I32 = 12
+@Unsafe const _GL_RENDERBUFFER_HEIGHT: I32 = 0x8d43
+@Unsafe const _GL_ALPHA_BITS: I32 = 0xd55
+@Unsafe const _GL_INVALID_VALUE: I32 = 0x501
+@Unsafe const _UINT32_MAX: I64 = 4294967295
+@Unsafe const _GLFW_OPENGL_DEBUG_CONTEXT: I32 = 0x22007
+@Unsafe const _GL_FRAMEBUFFER_UNSUPPORTED: I32 = 0x8cdd
+@Unsafe const _GLFW_GAMEPAD_AXIS_LEFT_Y: I32 = 1
+@Unsafe const _GLFW_RESIZABLE: I32 = 0x20003
+@Unsafe const _GL_TEXTURE_CUBE_MAP_POSITIVE_Y: I32 = 0x8517
+@Unsafe const _GLFW_CONTEXT_CREATION_API: I32 = 0x2200b
+@Unsafe const _GLFW_KEY_V: I32 = 86
+@Unsafe const _GL_RENDERBUFFER_STENCIL_SIZE: I32 = 0x8d55
+@Unsafe const _GLFW_KEY_SCROLL_LOCK: I32 = 281
+@Unsafe const _GLFW_STICKY_MOUSE_BUTTONS: I32 = 0x33003
+@Unsafe const _INTMAX_MAX: I64 = 9223372036854775807
+@Unsafe const _GLFW_KEY_KP_0: I32 = 320
+@Unsafe const _GLFW_KEY_EQUAL: I32 = 61
+@Unsafe const _GLFW_JOYSTICK_5: I32 = 4
+@Unsafe const _GL_RENDERBUFFER_DEPTH_SIZE: I32 = 0x8d54
+@Unsafe const _GLFW_MOUSE_BUTTON_RIGHT: I32 = 1
+@Unsafe const _BITS_STDINT_UINTN_H: I32 = 1
+@Unsafe const _FEATURES_H: I32 = 1
+@Unsafe const _GL_MEDIUM_FLOAT: I32 = 0x8df1
+@Unsafe const _GL_DYNAMIC_DRAW: I32 = 0x88e8
+@Unsafe const _GL_STENCIL_PASS_DEPTH_FAIL: I32 = 0xb95
+@Unsafe const _GL_NUM_COMPRESSED_TEXTURE_FORMATS: I32 = 0x86a2
+@Unsafe const _GLFW_SRGB_CAPABLE: I32 = 0x2100e
+@Unsafe const _GL_SHADER_BINARY_FORMATS: I32 = 0x8df8
+@Unsafe const _GLFW_KEY_J: I32 = 74
+@Unsafe const _SIG_ATOMIC_MIN: I32 = -2147483648
+@Unsafe const _GLFW_KEY_UP: I32 = 265
+@Unsafe const _GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_CUBE_MAP_FACE: I32 = 0x8cd3
+@Unsafe const _GLFW_COCOA_MENUBAR: I32 = 0x51002
+@Unsafe const _GLFW_CONTEXT_REVISION: I32 = 0x22004
+@Unsafe const _GLFW_KEY_SLASH: I32 = 47
+@Unsafe const _GLFW_FOCUSED: I32 = 0x20001
+@Unsafe const _GLFW_KEY_E: I32 = 69
+@Unsafe const _GL_TEXTURE_WRAP_T: I32 = 0x2803
+@Unsafe const _GL_FRONT_AND_BACK: I32 = 0x408
+@Unsafe const _GL_BYTE: I32 = 0x1400
+@Unsafe const _BITS_TIME64_H: I32 = 1
+@Unsafe const _GL_VERTEX_ATTRIB_ARRAY_SIZE: I32 = 0x8623
+@Unsafe const _GLFW_KEY_I: I32 = 73
+@Unsafe const _GLFW_ANY_RELEASE_BEHAVIOR: I32 = 0
+@Unsafe const _GL_INT: I32 = 0x1404
+@Unsafe const _GLFW_FALSE: I32 = 0
+@Unsafe const _GL_DEPTH_CLEAR_VALUE: I32 = 0xb73
+@Unsafe const _GLFW_KEY_LEFT_ALT: I32 = 342
+@Unsafe const _GLFW_KEY_RIGHT: I32 = 262
+@Unsafe const _KHRONOS_MAX_ENUM: I32 = 0x7fffffff
+@Unsafe const _GL_STENCIL_BACK_FAIL: I32 = 0x8801
+@Unsafe const _GLFW_GAMEPAD_AXIS_LAST: I32 = 5
+@Unsafe const _GL_MIRRORED_REPEAT: I32 = 0x8370
+@Unsafe const _GL_TEXTURE4: I32 = 0x84c4
+@Unsafe const _GL_COLOR_ATTACHMENT0: I32 = 0x8ce0
+@Unsafe const _GL_STENCIL_FAIL: I32 = 0xb94
+@Unsafe const _GLFW_CONTEXT_ROBUSTNESS: I32 = 0x22005
+@Unsafe const _GL_COMPRESSED_TEXTURE_FORMATS: I32 = 0x86a3
+@Unsafe const _GLFW_KEY_RIGHT_CONTROL: I32 = 345
+@Unsafe const _GLFW_API_UNAVAILABLE: I32 = 0x10006
+@Unsafe const _GLFW_KEY_F23: I32 = 312
+@Unsafe const _GLFW_JOYSTICK_7: I32 = 6
+@Unsafe const _GL_SHORT: I32 = 0x1402
+@Unsafe const _GL_FLOAT_MAT4: I32 = 0x8b5c
+@Unsafe const _GLFW_OPENGL_ANY_PROFILE: I32 = 0
+@Unsafe const _GLFW_VISIBLE: I32 = 0x20004
+@Unsafe const _GLFW_HOVERED: I32 = 0x2000b
+@Unsafe const _GL_SAMPLE_COVERAGE_VALUE: I32 = 0x80aa
+@Unsafe const _GL_HIGH_FLOAT: I32 = 0x8df2
+@Unsafe const _GL_VERTEX_ATTRIB_ARRAY_POINTER: I32 = 0x8645
+@Unsafe const unix: I32 = 1
+@Unsafe const _GLFW_GAMEPAD_BUTTON_LEFT_THUMB: I32 = 9
+@Unsafe const _GLFW_KEY_F5: I32 = 294
+@Unsafe const _GL_VERTEX_ATTRIB_ARRAY_NORMALIZED: I32 = 0x886a
+@Unsafe const _GLFW_MOUSE_BUTTON_4: I32 = 3
+@Unsafe const _GL_STENCIL_FUNC: I32 = 0xb92
+@Unsafe const _GL_DEPTH_WRITEMASK: I32 = 0xb72
+@Unsafe const _GL_ONE: I32 = 1
+@Unsafe const _GLFW_KEY_GRAVE_ACCENT: I32 = 96
+@Unsafe const _INTPTR_MIN: I64 = -9223372036854775808
+@Unsafe const _GL_TEXTURE5: I32 = 0x84c5
+@Unsafe const _GLFW_ACCUM_GREEN_BITS: I32 = 0x21008
+@Unsafe const _GL_IMPLEMENTATION_COLOR_READ_TYPE: I32 = 0x8b9a
+@Unsafe const _GLFW_KEY_M: I32 = 77
+@Unsafe const _GL_ALIASED_POINT_SIZE_RANGE: I32 = 0x846d
+@Unsafe const _INTPTR_MAX: I64 = 9223372036854775807
+@Unsafe const _GL_FRONT_FACE: I32 = 0xb46
+@Unsafe const _GL_DEPTH_COMPONENT16: I32 = 0x81a5
+@Unsafe const _GL_RGBA4: I32 = 0x8056
+@Unsafe const _GLFW_KEY_KP_EQUAL: I32 = 336
+@Unsafe const _UINT_LEAST8_MAX: I32 = 255
+@Unsafe const _GLFW_NO_RESET_NOTIFICATION: I32 = 0x31001
+@Unsafe const _GL_FUNC_SUBTRACT: I32 = 0x800a
+@Unsafe const _GL_LINK_STATUS: I32 = 0x8b82
+@Unsafe const _BITS_STDINT_INTN_H: I32 = 1
+@Unsafe const _GL_GREEN_BITS: I32 = 0xd53
+@Unsafe const _GLFW_KEY_F11: I32 = 300
+@Unsafe const _GLFW_CROSSHAIR_CURSOR: I32 = 0x36003
+@Unsafe const _GLFW_STENCIL_BITS: I32 = 0x21006
+@Unsafe const _GLFW_KEY_WORLD_1: I32 = 161
+@Unsafe const _GLFW_KEY_LEFT_BRACKET: I32 = 91
+@Unsafe const _GLFW_MOUSE_BUTTON_MIDDLE: I32 = 2
+@Unsafe const _UINT8_MAX: I32 = 255
+@Unsafe const _GL_LINEAR_MIPMAP_NEAREST: I32 = 0x2701
+@Unsafe const _GL_STENCIL_TEST: I32 = 0xb90
+@Unsafe const _GLFW_FORMAT_UNAVAILABLE: I32 = 0x10009
+@Unsafe const _GL_ONE_MINUS_DST_COLOR: I32 = 0x307
+@Unsafe const _GLFW_TRANSPARENT_FRAMEBUFFER: I32 = 0x2000a
+@Unsafe const _GL_DELETE_STATUS: I32 = 0x8b80
+@Unsafe const _INT8_MAX: I32 = 127
+@Unsafe const _GL_RGB565: I32 = 0x8d62
+@Unsafe const _GL_FLOAT_MAT2: I32 = 0x8b5a
+@Unsafe const _GL_STENCIL_BACK_REF: I32 = 0x8ca3
+@Unsafe const _GL_LINEAR_MIPMAP_LINEAR: I32 = 0x2703
+@Unsafe const _GL_STREAM_DRAW: I32 = 0x88e0
+@Unsafe const _DEFAULT_SOURCE: I32 = 1
+@Unsafe const _GL_POLYGON_OFFSET_UNITS: I32 = 0x2a00
+@Unsafe const _GLFW_KEY_LEFT_SUPER: I32 = 343
+@Unsafe const _GL_NEVER: I32 = 0x200
+@Unsafe const _GL_ACTIVE_UNIFORM_MAX_LENGTH: I32 = 0x8b87
+@Unsafe const _GLFW_KEY_KP_ENTER: I32 = 335
+@Unsafe const _GL_TEXTURE10: I32 = 0x84ca
+@Unsafe const _GL_FRAMEBUFFER: I32 = 0x8d40
+@Unsafe const _GLFW_DISCONNECTED: I32 = 0x40002
+@Unsafe const _GL_NOTEQUAL: I32 = 0x205
+@Unsafe const _GL_STATIC_DRAW: I32 = 0x88e4
+@Unsafe const _GLFW_GAMEPAD_BUTTON_DPAD_UP: I32 = 11
+@Unsafe const _GL_RENDERBUFFER: I32 = 0x8d41
+@Unsafe const _GLFW_GAMEPAD_AXIS_LEFT_TRIGGER: I32 = 4
+@Unsafe const _GL_SAMPLE_COVERAGE_INVERT: I32 = 0x80ab
+@Unsafe const _GL_STENCIL_BUFFER_BIT: I32 = 0x400
+@Unsafe const _GLFW_KEY_PAGE_UP: I32 = 266
+@Unsafe const _GLFW_CURSOR_NORMAL: I32 = 0x34001
+@Unsafe const _GL_FLOAT: I32 = 0x1406
+@Unsafe const _GL_ACTIVE_ATTRIBUTES: I32 = 0x8b89
+@Unsafe const _GL_SRC_COLOR: I32 = 0x300
+@Unsafe const _GLFW_KEY_PERIOD: I32 = 46
+@Unsafe const _INT32_MIN: I32 = -2147483648
+@Unsafe const _GLFW_KEY_F16: I32 = 305
+@Unsafe const _GL_TEXTURE20: I32 = 0x84d4
+@Unsafe const _GLFW_KEY_F20: I32 = 309
+@Unsafe const _GL_NEAREST_MIPMAP_NEAREST: I32 = 0x2700
+@Unsafe const _GLFW_HAT_RIGHT_DOWN: I32 = 6
+@Unsafe const _GL_FRAMEBUFFER_BINDING: I32 = 0x8ca6
+@Unsafe const _GLFW_KEY_B: I32 = 66
+@Unsafe const _GLFW_KEY_F7: I32 = 296
+@Unsafe const _GLFW_KEY_SPACE: I32 = 32
+@Unsafe const _GL_REPLACE: I32 = 0x1e01
+@Unsafe const _GLFW_KEY_F22: I32 = 311
+@Unsafe const _GLFW_NO_ROBUSTNESS: I32 = 0
+@Unsafe const _GL_TEXTURE1: I32 = 0x84c1
+@Unsafe const _GL_MAX_VERTEX_UNIFORM_VECTORS: I32 = 0x8dfb
+@Unsafe const _GL_INT_VEC4: I32 = 0x8b55
+@Unsafe const _GLFW_KEY_SEMICOLON: I32 = 59
+@Unsafe const _STDC_PREDEF_H: I32 = 1
+@Unsafe const _GL_FIXED: I32 = 0x140c
+@Unsafe const _GLFW_HAT_LEFT: I32 = 8
+@Unsafe const _GLFW_MOUSE_BUTTON_7: I32 = 6
+@Unsafe const _GL_SUBPIXEL_BITS: I32 = 0xd50
+@Unsafe const _GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_LEVEL: I32 = 0x8cd2
+@Unsafe const _GLFW_REPEAT: I32 = 2
+@Unsafe const _GL_ONE_MINUS_SRC_COLOR: I32 = 0x301
+@Unsafe const _GLFW_HAT_RIGHT_UP: I32 = 3
+@Unsafe const _GL_GREATER: I32 = 0x204
+@Unsafe const _UINT16_MAX: I32 = 65535
+@Unsafe const _GLFW_GAMEPAD_BUTTON_RIGHT_THUMB: I32 = 10
+@Unsafe const _GLFW_MOUSE_BUTTON_LAST: I32 = 7
+@Unsafe const _GL_CURRENT_VERTEX_ATTRIB: I32 = 0x8626
+@Unsafe const _GLFW_KEY_A: I32 = 65
+@Unsafe const _GL_MAX_CUBE_MAP_TEXTURE_SIZE: I32 = 0x851c
+@Unsafe const _GLFW_GAMEPAD_BUTTON_START: I32 = 7
+@Unsafe const _GLFW_KEY_U: I32 = 85
+@Unsafe const _GL_RENDERBUFFER_INTERNAL_FORMAT: I32 = 0x8d44
+@Unsafe const _GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT: I32 = 0x8cd7
+@Unsafe const _GL_TEXTURE28: I32 = 0x84dc
+@Unsafe const _GLFW_MOD_NUM_LOCK: I32 = 0x20
+@Unsafe const _GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS: I32 = 0x8b4c
+@Unsafe const _GLFW_X11_INSTANCE_NAME: I32 = 0x24002
+@Unsafe const _GLFW_KEY_TAB: I32 = 258
+@Unsafe const _GL_RGB5_A1: I32 = 0x8057
+@Unsafe const _GLFW_JOYSTICK_11: I32 = 10
+@Unsafe const _GLFW_KEY_3: I32 = 51
+@Unsafe const _GL_DST_COLOR: I32 = 0x306
+@Unsafe const _GL_RENDERBUFFER_ALPHA_SIZE: I32 = 0x8d53
+@Unsafe const _GL_CCW: I32 = 0x901
+@Unsafe const _GL_STENCIL_ATTACHMENT: I32 = 0x8d20
+@Unsafe const _INT_LEAST16_MIN: I32 = -32768
+@Unsafe const _GLFW_KEY_PAUSE: I32 = 284
+@Unsafe const _GLFW_KEY_W: I32 = 87
+@Unsafe const _GL_RED_BITS: I32 = 0xd52
+@Unsafe const _GLFW_KEY_KP_7: I32 = 327
+@Unsafe const _GLFW_CLIENT_API: I32 = 0x22001
+@Unsafe const _GLFW_GAMEPAD_BUTTON_CROSS: I32 = 0
+@Unsafe const _GLFW_KEY_C: I32 = 67
+@Unsafe const _GL_MEDIUM_INT: I32 = 0x8df4
+@Unsafe const _GL_TEXTURE2: I32 = 0x84c2
+@Unsafe const _GL_MAX_VIEWPORT_DIMS: I32 = 0xd3a
+@Unsafe const _GLFW_KEY_L: I32 = 76
+@Unsafe const _GLFW_KEY_ESCAPE: I32 = 256
+@Unsafe const _LP64: I32 = 1
+@Unsafe const _GLFW_IBEAM_CURSOR: I32 = 0x36002
+@Unsafe const _GL_ATTACHED_SHADERS: I32 = 0x8b85
+@Unsafe const _GLFW_KEY_LEFT_SHIFT: I32 = 340
+@Unsafe const _GL_SAMPLES: I32 = 0x80a9
+@Unsafe const _GL_LINES: I32 = 0x1
+@Unsafe const _GL_LUMINANCE: I32 = 0x1909
+@Unsafe const _GL_CULL_FACE: I32 = 0xb44
+@Unsafe const _GLFW_KEY_KP_DECIMAL: I32 = 330
+@Unsafe const _GLFW_KEY_LEFT_CONTROL: I32 = 341
+@Unsafe const _GL_VERTEX_ATTRIB_ARRAY_TYPE: I32 = 0x8625
+@Unsafe const _GLFW_KEY_RIGHT_SUPER: I32 = 347
+@Unsafe const _GL_BLEND_DST_RGB: I32 = 0x80c8
+@Unsafe const _GLFW_COCOA_FRAME_NAME: I32 = 0x23002
+@Unsafe const _GLFW_STEREO: I32 = 0x2100c
+@Unsafe const _GL_CW: I32 = 0x900
+@Unsafe const _GL_FASTEST: I32 = 0x1101
+@Unsafe const _GL_NEAREST_MIPMAP_LINEAR: I32 = 0x2702
+@Unsafe const _GL_RENDERBUFFER_WIDTH: I32 = 0x8d42
+@Unsafe const _GL_OUT_OF_MEMORY: I32 = 0x505
+@Unsafe const _INT16_MIN: I32 = -32768
+@Unsafe const _GLFW_KEY_S: I32 = 83
+@Unsafe const _GL_BLUE_BITS: I32 = 0xd54
+@Unsafe const _GL_TEXTURE27: I32 = 0x84db
+@Unsafe const _GLFW_GAMEPAD_BUTTON_DPAD_DOWN: I32 = 13
+@Unsafe const _UINT_FAST64_MAX: U64 = 18446744073709551615
+@Unsafe const _GL_UNPACK_ALIGNMENT: I32 = 0xcf5
+@Unsafe const _INT_LEAST8_MIN: I32 = -128
+@Unsafe const _SIZE_MAX: U64 = 18446744073709551615
+@Unsafe const _GL_TEXTURE8: I32 = 0x84c8
+@Unsafe const _GLFW_OPENGL_CORE_PROFILE: I32 = 0x32001
+@Unsafe const _GLFW_KEY_F9: I32 = 298
+@Unsafe const _INT_FAST64_MIN: I64 = -9223372036854775808
+@Unsafe const _UINT64_MAX: U64 = 18446744073709551615
+@Unsafe const _GLFW_KEY_6: I32 = 54
+@Unsafe const _GL_TRIANGLE_FAN: I32 = 0x6
+@Unsafe const _GLFW_KEY_KP_2: I32 = 322
+@Unsafe const _GL_ACTIVE_UNIFORMS: I32 = 0x8b86
+@Unsafe const _WCHAR_MIN: I32 = -0x80000000
+@Unsafe const _INT_FAST32_MAX: I64 = 9223372036854775807
+@Unsafe const _GLFW_KEY_COMMA: I32 = 44
+@Unsafe const _GL_ALIASED_LINE_WIDTH_RANGE: I32 = 0x846e
+@Unsafe const _GL_FRONT: I32 = 0x404
+@Unsafe const _GLFW_KEY_KP_3: I32 = 323
+@Unsafe const _GLFW_GAMEPAD_BUTTON_BACK: I32 = 6
+@Unsafe const _GLFW_GAMEPAD_BUTTON_LAST: I32 = 14
+@Unsafe const _GL_STENCIL_BACK_FUNC: I32 = 0x8800
+@Unsafe const _GLFW_KEY_BACKSPACE: I32 = 259
+@Unsafe const _GLFW_RELEASE: I32 = 0
+@Unsafe const _GLFW_GAMEPAD_AXIS_RIGHT_X: I32 = 2
+@Unsafe const _GL_SAMPLE_ALPHA_TO_COVERAGE: I32 = 0x809e
+@Unsafe const _GL_DECR_WRAP: I32 = 0x8508
+@Unsafe const _GLFW_KEY_F12: I32 = 301
+@Unsafe const _GL_MAX_TEXTURE_SIZE: I32 = 0xd33
+@Unsafe const _GL_PACK_ALIGNMENT: I32 = 0xd05
+@Unsafe const _GLFW_KEY_1: I32 = 49
+@Unsafe const _GLFW_KEY_WORLD_2: I32 = 162
+@Unsafe const _GLFW_KEY_APOSTROPHE: I32 = 39
+@Unsafe const _GLFW_HAT_UP: I32 = 1
+@Unsafe const _GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME: I32 = 0x8cd1
+@Unsafe const _GL_COLOR_WRITEMASK: I32 = 0xc23
+@Unsafe const _UINT_LEAST16_MAX: I32 = 65535
+@Unsafe const _GLFW_JOYSTICK_1: I32 = 0
+@Unsafe const _GL_TEXTURE_CUBE_MAP_POSITIVE_X: I32 = 0x8515
+@Unsafe const _GLFW_KEY_H: I32 = 72
+@Unsafe const _GL_ELEMENT_ARRAY_BUFFER_BINDING: I32 = 0x8895
+@Unsafe const _UINT_FAST8_MAX: I32 = 255
+@Unsafe const _UINTPTR_MAX: U64 = 18446744073709551615
+@Unsafe const _GLFW_RED_BITS: I32 = 0x21001
+@Unsafe const _GLFW_GREEN_BITS: I32 = 0x21002
+@Unsafe const _GLFW_KEY_8: I32 = 56
+@Unsafe const _GLFW_KEY_KP_9: I32 = 329
+@Unsafe const _GLFW_JOYSTICK_13: I32 = 12
+@Unsafe const _GLFW_KEY_F21: I32 = 310
+@Unsafe const _STDINT_H: I32 = 1
+@Unsafe const _GL_TEXTURE29: I32 = 0x84dd
+@Unsafe const _GLFW_RELEASE_BEHAVIOR_FLUSH: I32 = 0x35001
+@Unsafe const _GLFW_JOYSTICK_6: I32 = 5
+@Unsafe const _GLFW_HAND_CURSOR: I32 = 0x36004
+@Unsafe const _GL_TEXTURE15: I32 = 0x84cf
+@Unsafe const _GL_FLOAT_VEC4: I32 = 0x8b52
+@Unsafe const _UINT_FAST16_MAX: U64 = 18446744073709551615
+@Unsafe const _GLFW_INVALID_VALUE: I32 = 0x10004
+@Unsafe const _GL_TEXTURE_MAG_FILTER: I32 = 0x2800
+@Unsafe const _GL_TEXTURE_WRAP_S: I32 = 0x2802
+@Unsafe const _GL_INVALID_ENUM: I32 = 0x500
+@Unsafe const _BITS_TYPESIZES_H: I32 = 1
+@Unsafe const _INT_FAST16_MIN: I64 = -9223372036854775808
+@Unsafe const _INT_FAST8_MAX: I32 = 127
+@Unsafe const _INT_FAST16_MAX: I64 = 9223372036854775807
+@Unsafe const _GLFW_MOUSE_BUTTON_1: I32 = 0
+@Unsafe const _GLFW_VERSION_MINOR: I32 = 3
+@Unsafe const _GL_BLEND_SRC_ALPHA: I32 = 0x80cb
+@Unsafe const _GLFW_CONTEXT_VERSION_MINOR: I32 = 0x22003
+@Unsafe const _GL_ACTIVE_ATTRIBUTE_MAX_LENGTH: I32 = 0x8b8a
+@Unsafe const _GLFW_KEY_F25: I32 = 314
+@Unsafe const _GL_MAX_VARYING_VECTORS: I32 = 0x8dfc
+@Unsafe const _ATFILE_SOURCE: I32 = 1
+@Unsafe const _GLFW_GAMEPAD_BUTTON_B: I32 = 1
+@Unsafe const _GLFW_ACCUM_ALPHA_BITS: I32 = 0x2100a
+@Unsafe const _GL_SHADER_SOURCE_LENGTH: I32 = 0x8b88
+@Unsafe const _GLFW_JOYSTICK_HAT_BUTTONS: I32 = 0x50001
+@Unsafe const _INT_FAST32_MIN: I64 = -9223372036854775808
+@Unsafe const _GLFW_JOYSTICK_10: I32 = 9
+@Unsafe const _GLFW_KEY_KP_4: I32 = 324
+@Unsafe const _GL_TEXTURE13: I32 = 0x84cd
+@Unsafe const _GL_DST_ALPHA: I32 = 0x304
+@Unsafe const _GLFW_KEY_LAST: I32 = 348
+@Unsafe const _GLFW_KEY_KP_6: I32 = 326
+@Unsafe const _GL_TRIANGLE_STRIP: I32 = 0x5
+@Unsafe const _GL_LINEAR: I32 = 0x2601
+@Unsafe const _GLFW_ARROW_CURSOR: I32 = 0x36001
+@Unsafe const _GL_TEXTURE21: I32 = 0x84d5
+@Unsafe const _UINT_LEAST32_MAX: I64 = 4294967295
+@Unsafe const _GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS: I32 = 0x8b4d
+@Unsafe const _GL_VALIDATE_STATUS: I32 = 0x8b83
+@Unsafe const _GL_SHADING_LANGUAGE_VERSION: I32 = 0x8b8c
+@Unsafe const _GL_CLAMP_TO_EDGE: I32 = 0x812f
+@Unsafe const _GLFW_NOT_INITIALIZED: I32 = 0x10001
+@Unsafe const _GLFW_LOCK_KEY_MODS: I32 = 0x33004
+@Unsafe const _GL_LOW_FLOAT: I32 = 0x8df0
+@Unsafe const _GLFW_MOD_SUPER: I32 = 0x8
+@Unsafe const _GL_TEXTURE18: I32 = 0x84d2
+@Unsafe const _GLFW_GAMEPAD_BUTTON_CIRCLE: I32 = 1
+@Unsafe const _GLFW_ALPHA_BITS: I32 = 0x21004
+@Unsafe const _GL_UNSIGNED_SHORT_5_6_5: I32 = 0x8363
+@Unsafe const _GLFW_KEY_LEFT: I32 = 263
+@Unsafe const _INT_LEAST32_MAX: I32 = 2147483647
+@Unsafe const _GL_STENCIL_REF: I32 = 0xb97
+@Unsafe const _GLFW_KEY_4: I32 = 52
+@Unsafe const _GLFW_REFRESH_RATE: I32 = 0x2100f
+@Unsafe const _GL_DEPTH_BUFFER_BIT: I32 = 0x100
+@Unsafe const _GL_GLES_PROTOTYPES: I32 = 1
+@Unsafe const _GL_DEPTH_BITS: I32 = 0xd56
+@Unsafe const _GL_STENCIL_BACK_PASS_DEPTH_FAIL: I32 = 0x8802
+@Unsafe const _INT_LEAST32_MIN: I32 = -2147483648
+@Unsafe const _GLFW_JOYSTICK_8: I32 = 7
+@Unsafe const _GL_HIGH_INT: I32 = 0x8df5
+@Unsafe const _INT_FAST64_MAX: I64 = 9223372036854775807
+@Unsafe const _GL_UNSIGNED_SHORT_5_5_5_1: I32 = 0x8034
+@Unsafe const _GL_ALWAYS: I32 = 0x207
+@Unsafe const _GL_SHADER_TYPE: I32 = 0x8b4f
+@Unsafe const _GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT: I32 = 0x8cd6
+@Unsafe const _GL_TEXTURE_CUBE_MAP_NEGATIVE_X: I32 = 0x8516
+@Unsafe const _GL_FUNC_ADD: I32 = 0x8006
+@Unsafe const _GLFW_JOYSTICK_4: I32 = 3
+@Unsafe const _GLFW_ICONIFIED: I32 = 0x20002
+@Unsafe const _GLFW_KEY_HOME: I32 = 268
+@Unsafe const _GLFW_KEY_9: I32 = 57
+@Unsafe const _GLFW_GAMEPAD_AXIS_LEFT_X: I32 = 0
+@Unsafe const _GL_LINE_WIDTH: I32 = 0xb21
+@Unsafe const _GL_FRAMEBUFFER_COMPLETE: I32 = 0x8cd5
+@Unsafe const _GL_FUNC_REVERSE_SUBTRACT: I32 = 0x800b
+@Unsafe const _GL_ES_VERSION_2_0: I32 = 1
+@Unsafe const _GL_VERSION: I32 = 0x1f02
+@Unsafe const _GLFW_JOYSTICK_14: I32 = 13
+@Unsafe const _GL_DITHER: I32 = 0xbd0
+@Unsafe const _GL_RGBA: I32 = 0x1908
+@Unsafe const _GLFW_MOUSE_BUTTON_5: I32 = 4
+@Unsafe const _GL_TEXTURE7: I32 = 0x84c7
+@Unsafe const _GLFW_KEY_K: I32 = 75
+@Unsafe const _INT_FAST8_MIN: I32 = -128
+@Unsafe const _INT64_MIN: I64 = -9223372036854775808
+@Unsafe const _GL_GEQUAL: I32 = 0x206
+@Unsafe const _GLFW_KEY_0: I32 = 48
+@Unsafe const _GL_RENDERER: I32 = 0x1f01
+@Unsafe const _GL_TEXTURE12: I32 = 0x84cc
+@Unsafe const _GLFW_CENTER_CURSOR: I32 = 0x20009
+@Unsafe const _GLFW_COCOA_CHDIR_RESOURCES: I32 = 0x51001
+@Unsafe const _GL_TEXTURE0: I32 = 0x84c0
+@Unsafe const _GLFW_RAW_MOUSE_MOTION: I32 = 0x33005
+@Unsafe const _GL_EXTENSIONS: I32 = 0x1f03
+@Unsafe const _GL_BLEND_EQUATION_ALPHA: I32 = 0x883d
+@Unsafe const _GL_ARRAY_BUFFER: I32 = 0x8892
+@Unsafe const _GLFW_ACCUM_BLUE_BITS: I32 = 0x21009
+@Unsafe const _GLFW_KEY_KP_5: I32 = 325
+@Unsafe const _GLFW_CURSOR_HIDDEN: I32 = 0x34002
+@Unsafe const _GL_RENDERBUFFER_GREEN_SIZE: I32 = 0x8d51
+@Unsafe const _GL_INVALID_OPERATION: I32 = 0x502
+@Unsafe const _POSIX_C_SOURCE: I32 = 200809
+// Skipped (C parse error) GL_APIENTRYP: *
+@Unsafe const _GLFW_CONTEXT_VERSION_MAJOR: I32 = 0x22002
+@Unsafe const _GL_NUM_SHADER_BINARY_FORMATS: I32 = 0x8df9
+@Unsafe const _GLFW_DECORATED: I32 = 0x20005
+@Unsafe const _GL_ZERO: I32 = 0
+@Unsafe const _GL_CULL_FACE_MODE: I32 = 0xb45
+@Unsafe const _GL_BACK: I32 = 0x405
+@Unsafe const _GLFW_VRESIZE_CURSOR: I32 = 0x36006
+@Unsafe const _GLFW_KEY_F10: I32 = 299
+@Unsafe const _GL_BLEND_EQUATION_RGB: I32 = 0x8009
+@Unsafe const _GL_LUMINANCE_ALPHA: I32 = 0x190a
+@Unsafe const _GL_TEXTURE_BINDING_CUBE_MAP: I32 = 0x8514
+@Unsafe const _GL_ONE_MINUS_CONSTANT_COLOR: I32 = 0x8002
+@Unsafe const _GL_BUFFER_USAGE: I32 = 0x8765
+@Unsafe const _UINT_FAST32_MAX: U64 = 18446744073709551615
+@Unsafe const _GL_DEPTH_ATTACHMENT: I32 = 0x8d00
+@Unsafe const _GL_TEXTURE17: I32 = 0x84d1
+@Unsafe const _GL_INT_VEC3: I32 = 0x8b54
+@Unsafe const _GLFW_KEY_F14: I32 = 303
+@Unsafe const _GL_STENCIL_VALUE_MASK: I32 = 0xb93
+@Unsafe const _GL_BLEND_COLOR: I32 = 0x8005
+@Unsafe const _GLFW_KEY_Y: I32 = 89
+@Unsafe const _GLFW_OPENGL_PROFILE: I32 = 0x22008
+@Unsafe const _GL_MAX_VERTEX_ATTRIBS: I32 = 0x8869

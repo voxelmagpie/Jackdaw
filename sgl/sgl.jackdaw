@@ -1,0 +1,57 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "headers"
+import "glfw_err"
+
+@ThreadUnsafe
+struct Window {
+    @Unsafe x: *GLFWwindow
+
+    fn new(msaa: Bool): Self unsafe {
+        if glfwInit() == 0 { throw &"GLFW initialisation failure"; }
+        glfwSetErrorCallback(glfwErrorCallback);
+
+        glfwWindowHint(_GLFW_CLIENT_API, _GLFW_OPENGL_ES_API);
+        glfwWindowHint(_GLFW_CONTEXT_VERSION_MAJOR, 2);
+        glfwWindowHint(_GLFW_CONTEXT_VERSION_MINOR, 0);
+        glfwWindowHint(_GLFW_SAMPLES, msaa ? 4 : 0);    
+
+        var x = glfwCreateWindow(640, 480, "Voxels".getCPtr(), nullptr, nullptr);
+        if x == nullptr { throw &"GLFW window creation failure"; }
+        glfwMakeContextCurrent(x);
+
+        return Self{x};
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        glfwDestroyWindow(self.x);
+        // TODO glfwTerminate() if this is the last window
+    }
+
+    fn shouldClose (ref self: Self): Bool unsafe {
+        return glfwWindowShouldClose(self.x) != _GLFW_FALSE;
+    }
+
+    fn getFramebufferSize (ref self: Self): (I32, I32) unsafe {
+        var w: I32;
+        var h: I32;
+        glfwGetFramebufferSize(self.x, &w, &h);
+        return (w, h);
+    }
+
+    fn swapBuffers (ref self: Self) unsafe {
+        glfwSwapBuffers(self.x);
+    }
+}
+
+
+fn pollInput () unsafe {
+    glfwPollEvents();
+}
+
+fn waitForInput () unsafe {
+    glfwWaitEvents();
+}
+

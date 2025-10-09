@@ -1,21 +1,23 @@
 Usage: jackdawc <mode> [options]
 
 Modes:
-    build <source-dir> <args>   Compiles the given Jackdaw source file or directory 
-    run <source-dir> <args>     Compiles the code and runs the produced executable
-    help                        Shows this help text
+  build <source-dir> <args>   Compiles the given Jackdaw source file or directory 
+  run <source-dir> <args>     Compiles the code and runs the produced executable
+  help                        Shows this help text
 
 Options:
-    --stlib <stlib-dir>         Path to the standard library (default is based on compiler executable location)
-    --build-mode {debug|unopt|opt|small}
-                                Sets the debugging and optimisation flags
-    --strip                     Removes all unneeded information from the produced executable file
-    --exe <file-path>           Destination path for the executable
-    --dump-c                    Write the C file that is created during compilation to disk
-    --no-cpp-line               Do not add C preprocessor #line directives
-    --cc <c-compiler>           Set the C compiler to use a back end; suggested values: gcc,clang,tcc
-    --c-warnings                Output warnings from the C compiler
-    --unchecked-arithmetic      Do not throw an exception on integer overflow, etc.
-    --timings                   Output the timings.txt file which contains timing information for the compiler passes
-    --single-threaded           Disable multithreading support
-    -- [args]                   Passes all further arguments to the compiled program (for `run` mode only)
+  --build-mode {debug|unopt|opt|small}
+                              Sets the debugging and optimisation flags
+  --strip                     Removes all unneeded information from the produced executable file
+  --exe <file-path>           Destination path for the executable
+  --dump-c                    Write the C file that is created during compilation to disk
+  --no-cpp-line               Do not add C preprocessor #line directives
+  --cc <c-compiler>           Set the C compiler to use a back end; suggested values: gcc,clang,tcc
+  --c-warnings                Output warnings from the C compiler
+  --unchecked-arithmetic      Do not throw an exception on integer overflow, etc.
+  --timings                   Output the timings.txt file which 
+                              contains timing information for the compiler passes
+  --single-threaded           Disable multithreading support
+  -- <args>                   Passes all further arguments to the compiled program
+                              (for `run` mode only)
+  --add-package <name> <path> Defines a library package that is accessible to the project.

@@ -3,11 +3,11 @@ all: tests
 
 .PHONY: tests
 tests: stlib
-	cabal run --disable-optimization --enable-debug-info jackdawc -- run-tests --stlib res/stlib --c-warnings +RTS -N
+	cabal run --disable-optimization --enable-debug-info jackdawc -- run-tests --c-warnings +RTS -N
 
 .PHONY: tests_tcc
 tests_tcc: stlib
-	cabal run --disable-optimization --enable-debug-info jackdawc -- run-tests --stlib res/stlib --cc tcc --single-threaded --unchecked-arithmetic +RTS -N
+	cabal run --disable-optimization --enable-debug-info jackdawc -- run-tests --cc tcc --single-threaded --unchecked-arithmetic +RTS -N
 
 .PHONY: debug
 debug: stlib
@@ -17,7 +17,7 @@ debug: stlib
 # The .ps file can be viewed in Inkscape
 .PHONY: profile_tests
 profile_tests: stlib
-	cabal run --enable-optimization=2 --enable-profiling jackdawc -- run-tests --stlib res/stlib --cc tcc --single-threaded --unchecked-arithmetic +RTS -N -sstderr -pj -hc -l -L100
+	cabal run --enable-optimization=2 --enable-profiling jackdawc -- run-tests --cc tcc --single-threaded --unchecked-arithmetic +RTS -N -sstderr -pj -hc -l -L100
 	-hp2ps -c -M jackdawc.hp
 
 .PHONY: release

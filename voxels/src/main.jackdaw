@@ -4,15 +4,11 @@
 
 import "@stlib/fs"
 import "@stlib/os_string"
-import "headers"
+import "@sgl/sgl" (Window, pollInput)
+import "@sgl/headers"
 import "terrain"
 import "matrix"
 import "vector"
-
-@Unsafe
-fn glfwErrorCallback (error: I32, description: *CChar) {
-    traceCStr(description);
-}
 
 @Unsafe
 fn glMsgCallback (source: GLenum, type_: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *GLchar, userParam: *void) {
@@ -90,19 +86,7 @@ fn start () unsafe {
     var fsDepthSrc = readFile("src/fs_depth.glsl");
     fsDepthSrc.push(0);
 
-    if glfwInit() == 0 { throw &"GLFW initialisation failure"; }
-    glfwSetErrorCallback(glfwErrorCallback);
-
-    glfwWindowHint(_GLFW_CLIENT_API, _GLFW_OPENGL_ES_API);
-    glfwWindowHint(_GLFW_CONTEXT_VERSION_MAJOR, 2);
-    glfwWindowHint(_GLFW_CONTEXT_VERSION_MINOR, 0);
-    glfwWindowHint(_GLFW_SAMPLES, 4);
-    glfwWindowHint(_GLFW_SRGB_CAPABLE, _GL_FALSE);
-    
-
-    var window = glfwCreateWindow(640, 480, "Voxels".getCPtr(), nullptr, nullptr);
-    if window == nullptr { throw &"GLFW window creation failure"; }
-    glfwMakeContextCurrent(window);
+    var window = Window.new(true);
 
     var glDebugMessageCallback = glfwGetProcAddress("DebugMessageCallback".getCPtr());
     if glDebugMessageCallback != nullptr {
@@ -137,27 +121,25 @@ fn start () unsafe {
     var y: F32 = 0;
     var lastFrameTime = glfwGetTime() as F32;
 
-    glfwPollEvents();
     loop {
-        if glfwWindowShouldClose(window) != 0 { break; }
-        if glfwGetKey(window, _GLFW_KEY_ESCAPE) != 0 { break; }
+        pollInput();
+        if window.shouldClose() { break; }
+        if glfwGetKey(window.x, _GLFW_KEY_ESCAPE) != 0 { break; }
 
         var thisFrameTime = glfwGetTime() as F32;
         var delta = thisFrameTime - lastFrameTime;
 
-        if glfwGetKey(window, _GLFW_KEY_RIGHT) != 0 {
+        if glfwGetKey(window.x, _GLFW_KEY_RIGHT) != 0 {
             r = r - delta*2;
         }
-        else if glfwGetKey(window, _GLFW_KEY_LEFT) != 0 {
+        else if glfwGetKey(window.x, _GLFW_KEY_LEFT) != 0 {
             r = r + delta*2;
         }
         else {
             r = r - delta*0.1;
         }
 
-        var width: I32;
-        var height: I32;
-        glfwGetFramebufferSize(window, &width, &height);
+        var (width, height) = window.getFramebufferSize();
         glViewport(0, 0, width, height);
 
         glDepthMask(_GL_TRUE);
@@ -222,12 +204,7 @@ fn start () unsafe {
         glEnableVertexAttribArray(2);
         glDrawArrays(_GL_TRIANGLES, 0, waterVertexCount);
 
-        glfwSwapBuffers(window);
-        // glfwWaitEvents();
-        glfwPollEvents();
+        window.swapBuffers();
         lastFrameTime=thisFrameTime;
     }
-
-    glfwDestroyWindow(window);
-    glfwTerminate();
 }

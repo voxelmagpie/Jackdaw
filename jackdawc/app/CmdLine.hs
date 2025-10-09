@@ -66,11 +66,6 @@ extractArgs xs = case runState (runExceptT go1) (xs', def) of
       getNextArg >>= \case
         Just (ArgSetting option valueMaybe) -> do
           case option of
-            "--stlib" -> do
-              getNextArg >>= \case
-                Just (ArgFilePath path) -> do
-                  modify' $ second $ \s -> s {stLibDir = Just path}
-                _ -> throwError $ ArgsException "Expected standard library path"
             "--build-mode" -> do
               mode <- case fromMaybe "" valueMaybe of
                 "debug" -> pure BuildDebug
@@ -108,6 +103,17 @@ extractArgs xs = case runState (runExceptT go1) (xs', def) of
             "--" -> do
               as <- getAllRemainingArgStrings
               modify' $ second $ \s -> s {args = as}
+            "--add-package" -> do
+              name <-
+                getNextArg >>= \case
+                  Just (ArgFilePath name) -> pure name
+                  _ -> throwError $ ArgsException "Expected name"
+              path <-
+                getNextArg >>= \case
+                  Just (ArgFilePath path) -> pure path
+                  _ -> throwError $ ArgsException "Expected path"
+
+              modify' $ second $ \s -> s {packages = (name, path) : s.packages}
             _ -> throwError $ ArgsException $ "Unknown configuration option: " <> T.pack option
           go2
         _ -> pure ()
@@ -128,7 +134,6 @@ instance Default BuildMode where
 
 data Config = Config
   { inputFileOrDir :: Maybe String,
-    stLibDir :: Maybe String,
     buildMode :: BuildMode,
     strip :: Bool,
     exePath :: Maybe String,
@@ -140,6 +145,7 @@ data Config = Config
     cWarnings :: Bool,
     uncheckedArithmetic :: Bool,
     outputTimings :: Bool,
-    singleThreaded :: Bool
+    singleThreaded :: Bool,
+    packages :: [(String, FilePath)]
   }
   deriving (Show, Eq, Generic, Default)

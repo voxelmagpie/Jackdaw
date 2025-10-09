@@ -211,7 +211,7 @@ convertConstant' (c, t) = do
       pure (L.ConstSizeof sizeOfType', cType)
     H.ConstStructOrTuple cs -> do
       cs' <- forM cs convertConstant'
-      pure (L.ConstStruct cs', cType)
+      pure (L.ConstStructUnion cs', cType)
     H.ConstArray elType cs -> do
       cs'@(List1 (_, innerType) _) <- forM (cs <&> (,elType)) convertConstant'
       pure (L.ConstArray (fst <$> cs') innerType, cType)
@@ -225,7 +225,7 @@ convertConstant' (c, t) = do
       pure (L.ConstCastLit l cType, cType)
     H.ConstEnum idx -> do
       let tagType = case cType of L.UnionType (List1 x _) -> x; _ -> undefined
-      pure (L.ConstStruct [(L.ConstLit $ L.IntLit $ fromIntegral idx, tagType)], cType)
+      pure (L.ConstStructUnion [(L.ConstLit $ L.IntLit $ fromIntegral idx, tagType)], cType)
 
 -- Adds a constant to the LIR and returns the name
 -- unless the constant is a literal value in which case an LExpr is returned

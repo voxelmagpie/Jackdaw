@@ -145,7 +145,7 @@ transpileConstLiteral (constVal, t) = do
   case constVal of
     L.ConstLit l ->
       pure $ t'' <> lExprToText False l
-    L.ConstStruct xs -> do
+    L.ConstStructUnion xs -> do
       xs' <- forM xs transpileConstLiteral
       pure $ con ["{", sep ", " xs', "}"]
     L.ConstArray xs el -> do

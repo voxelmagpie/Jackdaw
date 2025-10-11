@@ -4,11 +4,51 @@
 
 import "@stlib/fs"
 import "@stlib/os_string"
-import "@sgl/sgl" (Window, pollInput)
-import "@sgl/headers"
+import "headers"
 import "terrain"
 import "matrix"
 import "vector"
+
+@Unsafe
+fn glfwErrorCallback (error: I32, description: *CChar) {
+    traceCStr(description);
+}
+
+struct Window {
+    @Unsafe x: *GLFWwindow
+
+    fn new(): Self unsafe {
+        glfwWindowHint(_GLFW_CLIENT_API, _GLFW_OPENGL_ES_API);
+        glfwWindowHint(_GLFW_CONTEXT_VERSION_MAJOR, 2);
+        glfwWindowHint(_GLFW_CONTEXT_VERSION_MINOR, 0);
+        glfwWindowHint(_GLFW_SAMPLES, 4);    
+
+        var x = glfwCreateWindow(640, 480, "Voxels".getCPtr(), nullptr, nullptr);
+        if x == nullptr { throw &"GLFW window creation failure"; }
+        glfwMakeContextCurrent(x);
+
+        return Self{x};
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        glfwDestroyWindow(self.x);
+    }
+
+    fn shouldClose (ref self: Self): Bool unsafe {
+        return glfwWindowShouldClose(self.x) != _GLFW_FALSE;
+    }
+
+    fn getFramebufferSize (ref self: Self): (I32, I32) unsafe {
+        var w: I32;
+        var h: I32;
+        glfwGetFramebufferSize(self.x, &w, &h);
+        return (w, h);
+    }
+
+    fn swapBuffers (ref self: Self) unsafe {
+        glfwSwapBuffers(self.x);
+    }
+}
 
 @Unsafe
 fn glMsgCallback (source: GLenum, type_: GLenum, id: GLuint, severity: GLenum, length: GLsizei, message: *GLchar, userParam: *void) {
@@ -77,6 +117,9 @@ fn makeProgram (vsSrc: List[U8], fsSrc: List[U8]): GLuint {
 }
 
 fn start () unsafe {
+    if glfwInit() == 0 { throw &"GLFW initialisation failure"; }
+    glfwSetErrorCallback(glfwErrorCallback);
+
     var vsSrc = readFile("src/vs.glsl");
     vsSrc.push(0);
     var vsDepthSrc = readFile("src/vs_depth.glsl");
@@ -86,7 +129,7 @@ fn start () unsafe {
     var fsDepthSrc = readFile("src/fs_depth.glsl");
     fsDepthSrc.push(0);
 
-    var window = Window.new(true);
+    var window = Window.new();
 
     var glDebugMessageCallback = glfwGetProcAddress("DebugMessageCallback".getCPtr());
     if glDebugMessageCallback != nullptr {
@@ -122,7 +165,7 @@ fn start () unsafe {
     var lastFrameTime = glfwGetTime() as F32;
 
     loop {
-        pollInput();
+        glfwPollEvents();
         if window.shouldClose() { break; }
         if glfwGetKey(window.x, _GLFW_KEY_ESCAPE) != 0 { break; }
 
@@ -207,4 +250,7 @@ fn start () unsafe {
         window.swapBuffers();
         lastFrameTime=thisFrameTime;
     }
+
+    _ = window;
+    glfwTerminate();
 }

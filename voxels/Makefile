@@ -4,15 +4,15 @@ STLIB := ../jackdawc/res/stlib/
 EXE := build/voxels
 CC ?= cc
 
-all: ../sgl/headers.jackdaw
+all: src/headers.jackdaw
 	mkdir -p build
-	$(JACKDAWC) build src --add-package stlib $(STLIB) --add-package sgl ../sgl --exe $(EXE) --dump-c $(shell pkg-config --libs glfw3) -lGLESv2 -lm --cc $(CC) --timings +RTS -N
+	$(JACKDAWC) build src --add-package stlib $(STLIB) --exe $(EXE) --dump-c $(shell pkg-config --libs glfw3) -lGLESv2 -lm --cc $(CC) --timings +RTS -N
 
 
 
-../sgl/headers.jackdaw: ../sgl/headers.c $(C2JD)
+src/headers.jackdaw: src/headers.c $(C2JD)
 	$(C2JD) $< > $@
 
 clean:
-	-rm ../sgl/headers.jackdaw
+	-rm src/headers.jackdaw
 	-rm -r build 

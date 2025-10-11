@@ -132,7 +132,7 @@ typeIsCopyable = \case
   I.NumPrimType _ -> pure True
   I.ANamedType id -> do
     tsDef <- checkTDef2 id
-    pure $ not $ case tsDef of I.AStructDef2 x -> x.nonCopyable; I.AnEnumDef2 x -> x.nonCopyable
+    pure $ not $ case tsDef of I.AStructDef2 x -> x.nonCopyable; I.AnEnumDef2 x -> x.nonCopyable; I.AUnionDef2 _ -> False
   I.TupleType xs -> allM typeIsCopyable $ toList xs
   I.AFnType _ -> pure True
   I.AnAccessorType _ -> pure True
@@ -164,7 +164,8 @@ getGenericBuiltinType ctx ns name gArgs = do
 -- If this is a member function then the context includes generic parameters from containing type as well as the function
 -- 'userCtx' is the context of the code that is accessing this definition
 -- 'outerCtx' is the context of the source file or type that the definition is within
-makeVDefCtx :: (MonadHirRead' m) => Ctx -> Ctx -> [I.GenericArg] -> [A.GenericParameter] -> Bool -> Bool -> VName' -> Bool -> SrcLoc' -> m Ctx
+makeVDefCtx :: 
+  (MonadHirRead' m) => Ctx -> Ctx -> [I.GenericArg] -> [A.GenericParameter] -> Bool -> Bool -> VName' -> Bool -> SrcLoc' -> m Ctx
 makeVDefCtx _userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsafe srcLoc = do
   let gp = zip astGp genericArgs
   let newTypeParams =
@@ -391,7 +392,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                   Just (A.AnEnumDef e) -> do
                     unless (i >= 0 && i < fromIntegral (length e.dataCons))
                       $ throw userCtx.et (gArgs !! 1) "Index out of range"
-                    pure $ Just (I.ConstBool $ isJust $ snd $ e.dataCons !! fromIntegral i, bool)
+                    pure $ Just (I.ConstBool $ isJust $ snd3 $ e.dataCons !! fromIntegral i, bool)
                   _ -> throw userCtx.et (gArgs !! 0) "Not an enum"
               "@stlib/stlib:isArrayType" -> do
                 let isArray = case typeGArg 0 of
@@ -733,17 +734,19 @@ checkTDef2 id = do
     Td2Queued (ctx, _, _, astDef) -> do
       markTypeDefVisiting id
       let c = case astDef of
+            A.ATypeAlias _ -> undefined
             A.ATypeDef d -> A.tDefCommon d
             A.AStructDef d -> A.tDefCommon d
             A.AnEnumDef d -> A.tDefCommon d
-            A.ATypeAlias _ -> undefined
-      let typeIsUnsafe' = Attribute "Unsafe" `elem` (A.tsDefCommon astDef).attributes
+            A.AUnionDef d -> A.tDefCommon d
 
       let hasOnDrop = HM.member (VName "onDrop") c.vDefs.defs
       case astDef of
         A.ATypeAlias _ -> undefined
         A.ATypeDef _ -> undefined -- No fields so not queued by getTSDefType
         A.AStructDef structDef -> do
+          let typeIsUnsafe' = Attribute "Unsafe" `elem` (A.tsDefCommon astDef).attributes
+
           fields <- forM structDef.fields $ \(sr', typeExpr, attribs) -> do
             t <- getType ctx {inUnsafeCode = typeIsUnsafe' || Attribute "Unsafe" `elem` attribs} typeExpr
             checkTypeHasRuntimeRepr ctx.et sr' t
@@ -759,10 +762,12 @@ checkTDef2 id = do
           tDef <- getTDef id
           markTypeDefVisited id $ I.AStructDef2 $ I.StructDef2 (I.tDefCommon tDef) nonCopyable fields
         A.AnEnumDef enumDef -> do
-          dataCons <- forM enumDef.dataCons $ \(sr', typeExprMaybe) -> forM typeExprMaybe $ \typeExpr -> do
-            t <- getType ctx typeExpr
-            checkTypeHasRuntimeRepr ctx.et sr' t
-            pure t
+          dataCons <- forM enumDef.dataCons $ \(sr', typeExprMaybe, attribs) -> do
+            when (Attribute "Unsafe" `elem` attribs) $ error "TODO: unsafe enum data constructors"
+            forM typeExprMaybe $ \typeExpr -> do
+              t <- getType ctx typeExpr
+              checkTypeHasRuntimeRepr ctx.et sr' t
+              pure t
 
           nonCopyable <-
             if hasOnDrop
@@ -779,6 +784,14 @@ checkTDef2 id = do
 
           tDef <- getTDef id <&> \case I.AnEnumDef x -> x; _ -> undefined
           markTypeDefVisited id $ I.AnEnumDef2 $ I.EnumDef2 tDef tagType nonCopyable dataCons
+        A.AUnionDef unionDef -> do
+          dataCons <- forM unionDef.dataCons $ \(sr', typeExpr, _attribs) -> do
+            t <- getType ctx typeExpr
+            checkTypeHasRuntimeRepr ctx.et sr' t
+            pure t
+
+          tDef <- getTDef id <&> \case I.AUnionDef x -> x; _ -> undefined
+          markTypeDefVisited id $ I.AUnionDef2 $ I.UnionDef2 tDef dataCons
 
 getTSDefType ::
   (MonadTc m) =>
@@ -789,7 +802,8 @@ getTSDefType ::
   (TFqn, A.AnyTSDef) ->
   m I.Type
 getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
-  let typeIsUnsafe' = Attribute "Unsafe" `elem` (A.tsDefCommon astDef).attributes
+  let isUnion = case astDef of A.AUnionDef _ -> True; _ -> False
+  let typeIsUnsafe' = isUnion || Attribute "Unsafe" `elem` (A.tsDefCommon astDef).attributes
 
   unless userCtx.inUnsafeCode
     $ when typeIsUnsafe'
@@ -866,6 +880,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
                 A.ATypeDef d -> A.tDefCommon d
                 A.AStructDef d -> A.tDefCommon d
                 A.AnEnumDef d -> A.tDefCommon d
+                A.AUnionDef d -> A.tDefCommon d
           let name = fst c.c.name
 
           let tDefCommon =
@@ -933,12 +948,32 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
               let srcLoc = srcRangeToSrcLoc' (snd enumDef.c.c.name)
               ctx <- makeTSDefCtx userCtx outerCtx fqn enumDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
 
-              let canBeCastedToInt = all (isNothing . snd) $ Ins.elems enumDef.dataCons
+              let canBeCastedToInt = all (isNothing . snd3) $ Ins.elems enumDef.dataCons
 
               (t, id) <-
                 addTSDef fqn gArgs'
                   $ I.AnEnumDef
                   $ I.EnumDef tDefCommon canBeCastedToInt (length enumDef.dataCons)
+
+              let ctx' = ctx {C.selfType = Just (fqn, t)}
+              addTypeCtx t ctx'
+              forM_ c.requireStmnts $ checkRequireStmnt ctx'
+              queueTDefVisit id (ctx', userCtx, sr, astDef)
+              -- Type checking continues in checkTDef2
+              pure t
+            --
+            A.AUnionDef unionDef -> do
+              forM_ (toList unionDef.c.vDefs.defs) $ \(n, d) ->
+                when (n `elem` Ins.keys unionDef.dataCons)
+                  $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
+
+              let srcLoc = srcRangeToSrcLoc' (snd unionDef.c.c.name)
+              ctx <- makeTSDefCtx userCtx outerCtx fqn unionDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
+
+              (t, id) <-
+                addTSDef fqn gArgs'
+                  $ I.AUnionDef
+                  $ I.UnionDef tDefCommon (length unionDef.dataCons)
 
               let ctx' = ctx {C.selfType = Just (fqn, t)}
               addTypeCtx t ctx'
@@ -1783,9 +1818,18 @@ getAccessorExpr ctx sr astAccessorExpr = do
                 when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs)
                   $ addError ctx.et sr "Cannot access unsafe field in safe context"
                 dropFn <- getDropFn ctx.tcIn t sr
-                let accExpr = I.FieldAccessorExpr {expr = e, index = fromIntegral fieldIdx, dropFn = dropFn}
-                pure (I.AFieldAccessorExpr accExpr, fieldType, sr)
+                pure (I.AFieldAccessorExpr $ I.FieldAccessorExpr e (fromIntegral fieldIdx) dropFn, fieldType, sr)
           _ -> throw ctx.et sr "Accessor type is not valid on structs"
+        I.AUnionDef2 s -> case fst astAccessorExpr.accessor of
+          A.ANameAccessor name gArgsMaybe -> do
+            -- Member function calls are handled in getFnCallExpr
+            when (isJust gArgsMaybe) $ throw ctx.et astAccessorExpr.accessor "Member function call is not valid here"
+            case Ins.lookupWithIndex name s.dataCons of
+              Nothing ->
+                throw ctx.et (snd astAccessorExpr.accessor) $ "No such data constructor: " <> un name
+              Just (fieldType, fieldIdx) ->
+                pure (I.AFieldAccessorExpr $ I.FieldAccessorExpr e (fromIntegral fieldIdx) Nothing, fieldType, sr)
+          _ -> throw ctx.et sr "Accessor type is not valid on unions"
         I.AnEnumDef2 _ -> throw ctx.et sr "Accessors are not valid on enums\nConsider using pattern matching"
     _ -> throw ctx.et sr "Accessor is not valid for this type"
 
@@ -2445,15 +2489,19 @@ getTypeAccessExprConst ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = 
     case typeOrNs of
       Right (I.ANamedType tDefId) -> do
         checkTDef2 tDefId >>= \case
-          I.AnEnumDef2 enumDef -> do
-            case Ins.lookupWithIndex name enumDef.dataCons of
-              Just x -> pure $ Just (enumDef, x)
+          I.AnEnumDef2 d -> do
+            case Ins.lookupWithIndex name d.dataCons of
+              Just x -> pure $ Just (d.e.c, x)
+              _ -> pure Nothing
+          I.AUnionDef2 d -> do
+            case Ins.lookupWithIndex name d.dataCons of
+              Just (x, i) -> pure $ Just (d.e.c, (Just x, i))
               _ -> pure Nothing
           _ -> pure Nothing
       _ -> pure Nothing
 
   case (dataConsMaybe, typeOrNs) of
-    (Just (enumDef, (consType, consIdx)), Right t) ->
+    (Just (defCommon, (consType, consIdx)), Right t) ->
       case consType of
         Nothing -> do
           -- Data constructor does not hold a value so just produce a value of the enum type
@@ -2462,10 +2510,10 @@ getTypeAccessExprConst ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = 
           -- Data constructor does hold a value so need to produce a function that returns the enum value
 
           let fnType = I.AFnType $ I.FnType [(Move, dcType)] False (Just t) False
-          let fqn = VFqn $ un enumDef.e.c.fqn <> ".$" <> un name
+          let fqn = VFqn $ un defCommon.fqn <> ".$" <> un name
 
           -- Function is cached
-          vDefIdMaybe <- getCachedVDef fqn enumDef.e.c.genericArgs <&> (<&> fst)
+          vDefIdMaybe <- getCachedVDef fqn defCommon.genericArgs <&> (<&> fst)
           vDefId <- case vDefIdMaybe of
             Just x -> pure x
             Nothing -> do
@@ -2474,7 +2522,7 @@ getTypeAccessExprConst ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = 
                     I.VDefCommon
                       { name = (VName $ "_" <> un name, sr),
                         fqn = fqn,
-                        genericArgs = enumDef.e.c.genericArgs,
+                        genericArgs = defCommon.genericArgs,
                         typ = fnType,
                         reachableFromStart = reachableFromStart,
                         attributes = []

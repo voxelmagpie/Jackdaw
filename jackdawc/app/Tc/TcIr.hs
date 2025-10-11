@@ -30,6 +30,8 @@ import Hir
     TDefId (..),
     Type (..),
     TypeDef (..),
+    UnionDef2 (..),
+    UnionDef(..),
     VDefCommon (..),
     VDefId (..),
     typeHasRuntimeRepr,

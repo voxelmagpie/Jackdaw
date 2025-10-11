@@ -1,0 +1,12 @@
+//! 5 # -5
+
+union X {
+    i(U32),
+    f(F32)
+}
+
+fn start () unsafe {
+    var x = X.f(readI32() as F32);
+    x.i |= 0x80000000;
+    writeI32(x.f as I32);
+}

@@ -45,10 +45,10 @@ emptyHir = Ir <$> tblEmpty <*> HT.new <*> HT.new <*> tblEmpty <*> HT.new
 -- The first type contains all the information that can be gathered from the AST,
 -- without getting the types of fields
 
-data AnyTDef = AStructDef TDefCommon | AnEnumDef EnumDef
+data AnyTDef = AStructDef TDefCommon | AnEnumDef EnumDef | AUnionDef UnionDef
   deriving (Show, Generic)
 
-data AnyTDef2 = AStructDef2 StructDef2 | AnEnumDef2 EnumDef2
+data AnyTDef2 = AStructDef2 StructDef2 | AnEnumDef2 EnumDef2 | AUnionDef2 UnionDef2
   deriving (Show, Generic)
 
 data AnyVDef = AConstDef ConstDef | AFnDef FnDef
@@ -100,6 +100,18 @@ data EnumDef2 = EnumDef2
   }
   deriving (Show, Generic)
 
+data UnionDef = UnionDef
+  { c :: TDefCommon,
+    dataConsCount :: Int
+  }
+  deriving (Show, Generic)
+
+data UnionDef2 = UnionDef2
+  { e :: UnionDef,
+    dataCons :: InsOrdMap VName Type
+  }
+  deriving (Show, Generic)
+
 class IsTypeDef a where
   tDefCommon :: a -> TDefCommon
 
@@ -109,17 +121,23 @@ instance IsTypeDef TypeDef where
 instance IsTypeDef EnumDef where
   tDefCommon x = x.c
 
+instance IsTypeDef UnionDef where
+  tDefCommon x = x.c
+
 instance IsTypeDef StructDef2 where
   tDefCommon x = x.c
 
 instance IsTypeDef EnumDef2 where
   tDefCommon x = x.e.c
 
+instance IsTypeDef UnionDef2 where
+  tDefCommon x = x.e.c
+
 instance IsTypeDef AnyTDef where
-  tDefCommon = \case AStructDef d -> d; AnEnumDef d -> d.c
+  tDefCommon = \case AStructDef d -> d; AnEnumDef d -> d.c; AUnionDef d -> d.c
 
 instance IsTypeDef AnyTDef2 where
-  tDefCommon = \case AStructDef2 d -> d.c; AnEnumDef2 d -> d.e.c
+  tDefCommon = \case AStructDef2 d -> d.c; AnEnumDef2 d -> d.e.c; AUnionDef2 d -> d.e.c
 
 data VDefCommon = VDefCommon
   { name :: VName',

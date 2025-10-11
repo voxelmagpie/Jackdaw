@@ -34,7 +34,7 @@ const typeIsCopyable [A]: Bool
 
 const parameterCount[f]: I32
 
-const enumDataConsCount [A]: I32
+const enumDataConsCount [A]: I32 // 0 for unions
 const dataConsTakesType [A, i]: Bool
 alias DataConsType [A, i] // Not valid for data constructors that do not take a value
 @NoThrow fn getEnumActiveIndex [A] (A): I32

@@ -287,16 +287,17 @@ visitAccessorExpr ctx (hirExpr, sr) = case hirExpr of
     pure (L.ILExpr $ L.ConstNameAddrOf cName, L.PtrType (Just cType))
   H.AFieldAccessorExpr e -> do
     (e', cType) <- visitAccessorExpr ctx e.expr
+    let structOrUnion xs =
+          let typ = xs !! fromIntegral e.index
+              ptrType = L.PtrType (Just typ)
+           in case e' of
+                L.ILExpr le -> (L.ILExpr $ L.LStructUnionElemPtr le (fromIntegral e.index), ptrType)
+                _ -> (L.IStructUnionElemPtr e' (fromIntegral e.index), ptrType)
     case cType of
-      L.PtrType (Just (L.StructType xs)) -> do
-        let typ = xs !! fromIntegral e.index
-            ptrType = L.PtrType (Just typ)
-        case e' of
-          L.ILExpr le -> pure (L.ILExpr $ L.LStructUnionElemPtr le (fromIntegral e.index), ptrType)
-          _ -> pure (L.IStructUnionElemPtr e' (fromIntegral e.index), ptrType)
-      L.PtrType (Just (L.ArrayType typ _)) -> do
-        let ptrType = L.PtrType (Just typ)
-        pure (L.IArrayIndexPtr e' (fromIntegral e.index), ptrType)
+      L.PtrType (Just (L.StructType xs)) -> pure $ structOrUnion xs
+      L.PtrType (Just (L.UnionType xs)) -> pure $ structOrUnion xs
+      L.PtrType (Just (L.ArrayType typ _)) ->
+        pure (L.IArrayIndexPtr e' (fromIntegral e.index), L.PtrType (Just typ))
       _ -> error "Invalid type for index accessor"
   H.PtrDerefExpr e pointeeType -> do
     pointeeType' <- convertType pointeeType
@@ -381,6 +382,8 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
     x <- case cType of
       L.StructType xs -> do
         pure (L.ILExpr $ L.LStructUnionElem e' e.index, xs !! e.index)
+      L.UnionType xs -> do
+        pure (L.ILExpr $ L.LStructUnionElem e' e.index, xs !! e.index)
       L.ArrayType elementType _ ->
         pure (L.IArrayIndex (L.ILExpr e') (fromIntegral e.index), elementType)
       _ -> error "Invalid type for index accessor"
@@ -398,6 +401,9 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
     (e', cType) <- visitAccessorExpr ctx e.expr
     case cType of
       L.PtrType (Just (L.StructType xs)) -> do
+        let getPtr = L.IStructUnionElemPtr e' e.index
+        pure (L.IPtrRead getPtr, xs !! e.index)
+      L.PtrType (Just (L.UnionType xs)) -> do
         let getPtr = L.IStructUnionElemPtr e' e.index
         pure (L.IPtrRead getPtr, xs !! e.index)
       L.PtrType (Just (L.ArrayType elementType _)) -> do
@@ -534,22 +540,31 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
     id <- newTmpId
     addInstr sr $ L.IAddUninitTmp id t'
     pure (L.ILExpr $ L.LTmp id, t')
-  H.DataConsExpr enumType idx expr -> do
-    enumType' <- convertType enumType
+  H.DataConsExpr enumOrUnionHirType idx expr -> do
+    unionType <- convertType enumOrUnionHirType
     (e, exprType) <- visitExpr' ctx expr
 
     id <- newTmpId
-    addInstr sr $ L.IAddUninitTmp id enumType'
+    addInstr sr $ L.IAddUninitTmp id unionType
 
-    tagTypeHir <- case enumType of
-      H.ANamedType n -> H.getTDef2 n <&> \case H.AnEnumDef2 ed -> ed.tagType; _ -> undefined
+    tagTypeHir <- case enumOrUnionHirType of
+      H.ANamedType n ->
+        H.getTDef2 n <&> \case
+          H.AnEnumDef2 ed -> Just ed.tagType
+          H.AUnionDef2 _ -> Nothing
+          _ -> undefined
       _ -> undefined
-    tagType <- convertType tagTypeHir
-    let xt = L.StructType $ List1 tagType [exprType]
-    let (x, _) = (L.IInitStruct (List1 (L.IntLit $ fromIntegral idx) [e]) xt, xt)
-    addInstr sr $ L.ISetUnion (L.LTmp id) (idx + 1) x
+    tagType <- forM tagTypeHir convertType
 
-    pure (L.ILExpr $ L.LTmp id, enumType')
+    case tagType of
+      Just tagType' -> do
+        let xt = L.StructType $ List1 tagType' [exprType]
+        let (x, _) = (L.IInitStruct (List1 (L.IntLit $ fromIntegral idx) [e]) xt, xt)
+        addInstr sr $ L.ISetUnion (L.LTmp id) (idx + 1) x
+      _ ->
+        addInstr sr $ L.ISetUnion (L.LTmp id) idx (L.ILExpr e)
+
+    pure (L.ILExpr $ L.LTmp id, unionType)
   H.ActiveDataConsExpr e -> do
     case e of
       Left e' -> do
@@ -1251,6 +1266,9 @@ convertType hirType =
                   Just t -> L.StructType $ List1 tagType [t]
 
           pure $ L.UnionType $ List1 tagType dataConsTypes'
+        H.AUnionDef2 e -> do
+          dataConsTypes <- forM (Ins.elems e.dataCons) convertType
+          pure $ L.UnionType $ List1 (must $ head dataConsTypes) (tail dataConsTypes)
     H.TupleType xs -> do
       xs' <- forM xs convertType
       pure $ L.StructType $ list2ToList1 xs'

@@ -26,7 +26,12 @@ newtype RequireStmnt = RequireStmnt Expr
   deriving (Show, Generic)
   deriving anyclass (Newtype)
 
-data AnyTSDef = ATypeDef TypeDef | AStructDef StructDef | AnEnumDef EnumDef | ATypeAlias TypeAlias
+data AnyTSDef
+  = ATypeDef TypeDef
+  | AStructDef StructDef
+  | AnEnumDef EnumDef
+  | AUnionDef UnionDef
+  | ATypeAlias TypeAlias
   deriving (Show, Generic)
 
 data VDefs = VDefs
@@ -62,7 +67,13 @@ data StructDef = StructDef
 
 data EnumDef = EnumDef
   { c :: TypeDefCommon,
-    dataCons :: InsOrdMap VName (SrcRange, Maybe TypeExpr)
+    dataCons :: InsOrdMap VName (SrcRange, Maybe TypeExpr, [Attribute])
+  }
+  deriving (Show, Generic)
+
+data UnionDef = UnionDef
+  { c :: TypeDefCommon,
+    dataCons :: InsOrdMap VName (SrcRange, TypeExpr, [Attribute])
   }
   deriving (Show, Generic)
 
@@ -84,11 +95,15 @@ instance IsTypeDef StructDef where
 instance IsTypeDef EnumDef where
   tDefCommon x = x.c
 
+instance IsTypeDef UnionDef where
+  tDefCommon x = x.c
+
 getTDefCommonMaybe :: AnyTSDef -> Maybe TypeDefCommon
 getTDefCommonMaybe = \case
   ATypeDef d -> Just d.c
   AStructDef d -> Just d.c
   AnEnumDef d -> Just d.c
+  AUnionDef d -> Just d.c
   ATypeAlias _ -> Nothing
 
 class IsTSDef a where
@@ -104,7 +119,12 @@ instance IsTSDef StructDef where
   tsDefCommon x = x.c.c
 
 instance IsTSDef AnyTSDef where
-  tsDefCommon = \case ATypeDef d -> d.c.c; AStructDef d -> d.c.c; AnEnumDef d -> d.c.c; ATypeAlias a -> a.c
+  tsDefCommon = \case
+    ATypeDef d -> d.c.c
+    AStructDef d -> d.c.c
+    AnEnumDef d -> d.c.c
+    AUnionDef d -> d.c.c
+    ATypeAlias a -> a.c
 
 data GenericParameter
   = TypeGenericParameter TName'

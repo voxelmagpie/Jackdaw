@@ -103,6 +103,7 @@ import InsOrdMap qualified as Ins
     'type'          { (IdentOrKw (VName "type"), _) }
     'enum'          { (IdentOrKw (VName "enum"), _) }
     'struct'        { (IdentOrKw (VName "struct"), _) }
+    'union'        { (IdentOrKw (VName "union"), _) }
     'var'           { (IdentOrKw (VName "var"), _) }
     'fn'            { (IdentOrKw (VName "fn"), _) }
     'accessor'      { (IdentOrKw (VName "accessor"), _) }
@@ -188,6 +189,7 @@ RequireStmnt :: {(A.RequireStmnt, SrcRange)}
 TSDef :: {(TName', A.AnyTSDef)}
     : Many(Attribute) 'type' Empty TName GPsMaybe '{' Many(RequireStmnt) VDefs '}' { ($4, A.ATypeDef $ A.TypeDef $ A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $8 ($7 <&> fst)) }
     | Many(Attribute) 'struct' Empty TName GPsMaybe '{' Many(RequireStmnt) StructFields VDefs '}' { ($4, A.AStructDef $ A.StructDef (A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $9 ($7 <&> fst)) $8) }
+    | Many(Attribute) 'union' Empty TName GPsMaybe '{' Many(RequireStmnt) UnionFields VDefs '}' { ($4, A.AUnionDef $ A.UnionDef (A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $9 ($7 <&> fst)) $8) }
     | Many(Attribute) 'enum' Empty TName GPsMaybe '{' Many(RequireStmnt) EnumFields VDefs '}' { ($4, A.AnEnumDef $ A.EnumDef (A.TypeDefCommon (A.TSDefCommon $4 $5 $1) $9 ($7 <&> fst)) $8) }
     | Many(Attribute) 'alias' TName GPsMaybe Maybe(AliasTypeExpr) { ($3, A.ATypeAlias $ A.TypeAlias (A.TSDefCommon $3 $4 $1) $5) }
 
@@ -205,15 +207,23 @@ StructField :: {(VName, (SrcRange, A.TypeExpr, [Attribute]))}
     : Many(Attribute) VName ':' TypeExpr { (fst $2, (snd $2, $4, $1)) }
 
 
--- TODO Atributes on data constructors
-EnumFields :: {Ins.InsOrdMap VName (SrcRange, Maybe A.TypeExpr)}
+EnumFields :: {Ins.InsOrdMap VName (SrcRange, Maybe A.TypeExpr, [Attribute])}
     : EnumField { Ins.singleton (fst $1) (snd $1) }
-    | EnumFields ',' EnumField {% maybe (throwError $ ("Duplicate field name", fst $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
+    | EnumFields ',' EnumField {% maybe (throwError $ ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
 
 
-EnumField :: {(VName, (SrcRange, Maybe A.TypeExpr))}
-    : VName { ((fst $1), (snd $1, Nothing)) }
-    | VName '(' TypeExpr ')' { ((fst $1), (snd $1, Just $3)) }
+EnumField :: {(VName, (SrcRange, Maybe A.TypeExpr, [Attribute]))}
+    : Many(Attribute) VName { ((fst $2), (snd $2, Nothing, $1)) }
+    | Many(Attribute) VName '(' TypeExpr ')' { ((fst $2), (snd $2, Just $4, $1)) }
+
+
+UnionFields :: {Ins.InsOrdMap VName (SrcRange, A.TypeExpr, [Attribute])}
+    : UnionField { Ins.singleton (fst $1) (snd $1) }
+    | UnionFields ',' UnionField {% maybe (throwError $ ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
+
+
+UnionField :: {(VName, (SrcRange, A.TypeExpr, [Attribute]))}
+    : Many(Attribute) VName '(' TypeExpr ')' { ((fst $2), (snd $2, $4, $1)) }
 
 
 VDefs :: {A.VDefs}

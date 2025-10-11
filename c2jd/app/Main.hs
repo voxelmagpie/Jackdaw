@@ -60,7 +60,7 @@ go cFilePath dumpCFiles = do
     Left e -> die $ show e
     Right x -> pure x
 
-  s <- State <$> HT.new <*> newIORef [] <*> newIORef 0 <*> HT.new <*> HT.new <*> HT.new <*> HT.new
+  s <- State <$> HT.new <*> newIORef [] <*> newIORef 0 <*> HT.new <*> HT.new <*> HT.new <*> HT.new <*> HT.new
 
   translateFile s decls
 

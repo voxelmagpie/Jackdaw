@@ -20,6 +20,7 @@ data State = State
     -- False: struct has been forward declared
     -- True: struct definition has been seen (may or may not have been forward declared (doesn't matter))
     gotStructDef :: HashTable Text Bool,
+    gotUnionDef :: HashTable Text Bool,
     ppDefs :: HashTable Text [Token'],
     ppMacros :: HashTable Text ([Text], [Token']),
     ppDefsCache :: HashTable Text [Token']

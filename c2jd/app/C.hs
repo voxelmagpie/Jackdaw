@@ -56,7 +56,7 @@ translateFile s decls = do
                     _ -> pure ()
                   t <- processType s (Just $ toTsDefNamingConv ident) False typeSpecs deriv
                   name <- forceTsDefNamingConv s ident
-                  addLine s $ "@Unsafe alias " <> name <> " = " <> t
+                  unless (name == t) $ addLine s $ "@Unsafe alias " <> name <> " = " <> t
               a -> do
                 traceM "Invalid typedef"
                 traceShowM a
@@ -152,7 +152,7 @@ evalCExpr s = \case
     case (l', r') of
       (JdInt x isHex, JdInt y isHex') ->
         evalIntBinOp op x y <&> \z -> JdInt z (isHex || isHex')
-      x -> showAndThrow "Unexpected value for binary op" x
+      x -> showAndThrow "Unexpected input for binary op" x
   (CCast (CDecl declSpecs [] _) e _) -> do
     t <- processType s Nothing False (getTypeSpecs declSpecs) []
     evalCExpr s e <&> JdCast t
@@ -221,15 +221,43 @@ mapName s x = do
     _ -> throwIO $ CException $ "Name not found: " <> x
 
 -- Translates a struct type, may be named or anonymous
-processCSUType :: State -> CStructureUnion NodeInfo -> IO Text
-processCSUType s (CStruct CStructTag identMaybe (Just decls) _ _) = do
-  name <- case identMaybe of
-    Just x ->
-      pure $ "S_" <> identToText x
-    _ ->
-      ("AS_" <>) <$> getNextAnonId s
+processCSUType :: State -> Maybe Text -> CStructureUnion NodeInfo -> IO Text
+-- Struct
+processCSUType s nameMaybe (CStruct CStructTag identMaybe (Just decls) _ _) =
+  createStructUnion s False identMaybe decls nameMaybe
+-- Struct forward declaration
+processCSUType s _ (CStruct CStructTag (Just ident) Nothing _ _) = do
+  let name = "S_" <> identToText ident
+  x <- HT.lookup s.gotStructDef name
+  when (isNothing x) $ HT.insert s.gotStructDef name False
+  pure name
+-- Union
+processCSUType s nameMaybe (CStruct CUnionTag identMaybe (Just decls) _ _) =
+  createStructUnion s True identMaybe decls nameMaybe
+-- Union forward declaration
+processCSUType s _ (CStruct CUnionTag (Just ident) Nothing _ _) = do
+  let name = "U_" <> identToText ident
+  x <- HT.lookup s.gotUnionDef name
+  when (isNothing x) $ HT.insert s.gotUnionDef name False
+  pure name
+processCSUType _ _ s = showAndThrow "Invalid struct" s
 
-  HT.insert s.gotStructDef name True
+createStructUnion :: State -> Bool -> Maybe Ident -> [CDeclaration NodeInfo] -> Maybe Text -> IO Text
+createStructUnion s isUnion identMaybe decls nameMaybe = do
+  let letter = if isUnion then "U" else "S"
+  name <- case (identMaybe, nameMaybe) of
+    (Just x, _) ->
+      pure $ letter <> "_" <> identToText x
+    (_, Just n) ->
+      pure n
+    (_, _) ->
+      (\x -> "A" <> letter <> "_" <> x) <$> getNextAnonId s
+
+  if isUnion
+    then
+      HT.insert s.gotUnionDef name True
+    else
+      HT.insert s.gotStructDef name True
 
   fields <- forM decls $ \case
     CDecl declSpecs xs _ -> do
@@ -242,26 +270,21 @@ processCSUType s (CStruct CStructTag identMaybe (Just decls) _ _) = do
               t <- processType s Nothing False typeSpecs deriv
               pure $ "\t" <> toVDefNamingConv x <> ": " <> t
             _ -> throwIO $ CException "No field name"
-        _ -> showAndThrow "Invalid struct field" xs
+        _ -> showAndThrow "Invalid field" xs
     _ -> pure []
 
   -- Add these lines now in case the fields threw an exception
-  addLine s $ "@Unsafe\nstruct " <> name <> " {"
+
+  if isUnion
+    then
+      addLine s $ "union " <> name <> " {"
+    else
+      addLine s $ "@Unsafe\nstruct " <> name <> " {"
+
   addLine s $ T.intercalate ",\n" $ concat fields
   addLine s "}"
 
   pure name
--- Forward declaration
-processCSUType s (CStruct CStructTag (Just ident) Nothing _ _) = do
-  let name = "S_" <> identToText ident
-  x <- HT.lookup s.gotStructDef name
-  when (isNothing x) $ HT.insert s.gotStructDef name False
-  pure name
-processCSUType _ (CStruct CUnionTag identMaybe _ _ _) =
-  throwIO $ CException $ "Unions not supported (yet)" <> case identMaybe of
-    Just i -> " (" <> identToText i <> ")"
-    _ -> ""
-processCSUType _ s = showAndThrow "Invalid struct" s
 
 processCEnumType :: State -> Maybe Text -> CEnumeration NodeInfo -> IO Text
 processCEnumType s nameMaybe (CEnum identMaybe fields' _ _) = do
@@ -336,7 +359,7 @@ processType' s nameMaybe xs = do
     ([CBoolType _], _) -> pure "Bool"
     ([CTypeDef (Ident "__builtin_va_list" _ _) _], _) -> throwIO $ CException "__builtin_va_list"
     ([CTypeDef ident _], _) -> mapName s $ identToText ident
-    ([CSUType x _], _) -> processCSUType s x
+    ([CSUType x _], _) -> processCSUType s nameMaybe x
     ([CEnumType x _], _) -> processCEnumType s nameMaybe x
     _ -> showAndThrow "Unknown type(2)" xs'
 

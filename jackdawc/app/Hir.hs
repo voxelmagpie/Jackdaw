@@ -247,7 +247,6 @@ data Expr'
   | AFnCallExpr FnCallExpr
   | ACondOpExpr CondOpExpr
   | AGetFieldExpr GetFieldExpr
-  | AGetFieldFromAccExpr GetFieldFromAccExpr
   | DerefAccessorExpr AccessorExpr
   | MoveLocalVarExpr LocalVarUid VName
   | BitCast Expr Type
@@ -313,12 +312,6 @@ data GetFieldExpr = GetFieldExpr
   { expr :: Expr,
     index :: Int,
     dropFn :: Maybe DropFn
-  }
-  deriving (Show, Generic)
-
-data GetFieldFromAccExpr = GetFieldFromAccExpr
-  { expr :: AccessorExpr,
-    index :: Int
   }
   deriving (Show, Generic)
 

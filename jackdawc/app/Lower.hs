@@ -397,19 +397,6 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
         let i = L.ICallVoid' $ L.ICallVoid (L.ConstName $ un dropLirFn) [L.LGetVarPtr varId] False
         addInstr sr i
     pure x
-  H.AGetFieldFromAccExpr e -> do
-    (e', cType) <- visitAccessorExpr ctx e.expr
-    case cType of
-      L.PtrType (Just (L.StructType xs)) -> do
-        let getPtr = L.IStructUnionElemPtr e' e.index
-        pure (L.IPtrRead getPtr, xs !! e.index)
-      L.PtrType (Just (L.UnionType xs)) -> do
-        let getPtr = L.IStructUnionElemPtr e' e.index
-        pure (L.IPtrRead getPtr, xs !! e.index)
-      L.PtrType (Just (L.ArrayType elementType _)) -> do
-        let getPtr = L.IArrayIndexPtr e' (fromIntegral e.index)
-        pure (L.IPtrRead getPtr, elementType)
-      _ -> error "Invalid type for index accessor"
   H.AFnCallExpr e -> do
     (e', fnType) <- visitExpr' ctx e.fn
 

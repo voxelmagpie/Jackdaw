@@ -330,7 +330,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
             if fieldCopyable
               then
                 -- Make a copy of the field
-                pure (Left $ H.AGetFieldFromAccExpr $ H.GetFieldFromAccExpr x e.index, t)
+                pure (Left $ H.DerefAccessorExpr (H.AFieldAccessorExpr $ H.FieldAccessorExpr x e.index, sr), t)
               else
                 -- Cannot move one field as the value would be left invalid
                 throw sr "Cannot extract individual fields"

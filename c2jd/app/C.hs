@@ -10,11 +10,12 @@ import Control.Exception (Exception, handle, throwIO)
 import Control.Monad (forM, forM_, unless, void, when)
 import Data.Bits (Bits (complement, shift), (.&.), (.|.))
 import Data.Char (ord)
+import Data.Foldable (find)
 import Data.HashTable.IO qualified as HT
 import Data.IORef (modifyIORef', readIORef, writeIORef)
 import Data.Maybe (fromMaybe, isNothing, mapMaybe)
 import Data.Text qualified as T
-import GHC.IORef (newIORef)
+import GHC.IORef (IORef, newIORef)
 import Language.C
 import Language.C.Data.Ident (Ident (Ident))
 import Names
@@ -129,36 +130,40 @@ showAndThrow err x = trace (T.unpack err) $ traceShow x $ throwIO $ CException e
 data JdType = JdInt Integer Bool | JdChar Char | JdFloat Text | JdString Text | JdCast Text JdType | JdSizeOf Text
   deriving (Show, Eq, Generic)
 
-evalCExpr :: State -> CExpr -> IO JdType
-evalCExpr s = \case
+evalCExpr :: State -> [(Text, JdType)] -> CExpr -> IO JdType
+evalCExpr s vars = \case
+  (CVar ident _) ->
+    case find (fst >>> (== identToText ident)) vars of
+      Just (_, x) -> pure x
+      _ -> throwIO $ CException $ "Unknown variable: " <> identToText ident
   (CConst (CIntConst (CInteger x HexRepr _) _)) -> pure $ JdInt x True
   (CConst (CIntConst (CInteger x _ _) _)) -> pure $ JdInt x False
   (CConst (CCharConst (CChar x _) _)) -> pure $ JdChar x
   (CConst (CFloatConst (CFloat x) _)) -> pure $ JdFloat $ T.pack x
   (CConst (CStrConst (CString x _) _)) -> pure $ JdString $ T.pack x
   (CUnary CMinOp e _) ->
-    evalCExpr s e >>= \case
+    evalCExpr s vars e >>= \case
       JdInt x isHex -> pure $ JdInt (-x) isHex
       JdFloat x ->
         pure $ JdFloat $ if T.head x == '-' then T.tail x else T.cons '-' x
       x -> showAndThrow "Unexpected value for unary -" x
   (CUnary CCompOp e _) ->
-    evalCExpr s e >>= \case
+    evalCExpr s vars e >>= \case
       JdInt x isHex -> pure $ JdInt (complement x) isHex
       x -> showAndThrow "Unexpected value for unary ~" x
   (CBinary op l r _) -> do
-    l' <- evalCExpr s l
-    r' <- evalCExpr s r
+    l' <- evalCExpr s vars l
+    r' <- evalCExpr s vars r
     case (l', r') of
       (JdInt x isHex, JdInt y isHex') ->
         evalIntBinOp op x y <&> \z -> JdInt z (isHex || isHex')
       x -> showAndThrow "Unexpected input for binary op" x
   (CCast (CDecl declSpecs [] _) e _) -> do
     t <- processType s Nothing False (getTypeSpecs declSpecs) []
-    evalCExpr s e <&> JdCast t
+    evalCExpr s vars e <&> JdCast t
   (CCast (CDecl declSpecs [(Just (CDeclr Nothing deriv _ _ _), _, _)] _) e _) -> do
     t <- processType s Nothing False (getTypeSpecs declSpecs) deriv
-    evalCExpr s e <&> JdCast t
+    evalCExpr s vars e <&> JdCast t
   (CSizeofType (CDecl declSpecs [] _) _) -> do
     t <- processType s Nothing False (getTypeSpecs declSpecs) []
     pure $ JdSizeOf t
@@ -304,30 +309,29 @@ processCEnumType s nameMaybe (CEnum identMaybe fields' _ _) = do
 
   handle (\(CException msg) -> addLine s $ "// Skipped (rest of) enum " <> constsType <> ": " <> msg) $ do
     i <- newIORef (-1)
-    fieldValues :: HashTable Text Integer <- HT.new
+    fieldValues :: IORef [(Text, Integer)] <- newIORef []
 
     forM_ fields $ \(fieldName, valueMaybe) -> do
-      case valueMaybe of
+      isHex <- case valueMaybe of
         -- Autoincrementing enum value
-        Nothing -> modifyIORef' i (+ 1)
+        Nothing -> modifyIORef' i (+ 1) >> pure False
         -- Explicit enum value
-        Just (CConst (CIntConst (CInteger i' _ _) _)) -> writeIORef i i'
-        Just (CVar ident _) ->
-          HT.lookup fieldValues (toVDefNamingConv ident) >>= \case
-            Just i' -> writeIORef i i'
-            _ -> showAndThrow "Invalid enum value (ident is not a field name)" ident
-        Just (CBinary op (CVar ident _) (CConst (CIntConst (CInteger x _ _) _)) _) -> do
-          HT.lookup fieldValues (toVDefNamingConv ident) >>= \case
-            Just i' -> evalIntBinOp op i' x >>= writeIORef i
-            _ -> showAndThrow "Invalid enum value (ident is not a field name)" ident
-        Just x -> showAndThrow "Invalid enum value" x
+        Just e -> do
+          names <- readIORef fieldValues <&> (<&> \(n, x) -> (n, JdInt x False))
+          value <- evalCExpr s names e
+          case value of
+            JdInt i' isHex -> do
+              writeIORef i i'
+              pure isHex
+            _ -> showAndThrow "Invalid enum value expression" e
 
       i' <- readIORef i
       fieldName' <- forceVDefNamingConv s fieldName
-      HT.insert fieldValues fieldName' i'
+      modifyIORef' fieldValues ((fieldName', i') :)
 
       -- If an exception is thrown then the constants before the invalid one are still written
-      addLine s $ "@Unsafe const " <> fieldName' <> ": " <> constsType <> " = " <> tShow i'
+      let i'' = if isHex then intToHex i' else tShow i'
+      addLine s $ "@Unsafe const " <> fieldName' <> ": " <> constsType <> " = " <> i''
 
   pure name
 
@@ -370,7 +374,7 @@ applyDeriv' :: State -> Bool -> Text -> [CDerivedDeclarator NodeInfo] -> IO Text
 applyDeriv' s isParam type' = \case
   [] -> pure type'
   (CArrDeclr _ (CArrSize False e) _ : xs) -> do
-    sz <- evalCExpr s e >>= \case JdInt i _ -> pure i; x -> showAndThrow "Expected int" x
+    sz <- evalCExpr s [] e >>= \case JdInt i _ -> pure i; x -> showAndThrow "Expected int" x
     applyDeriv' s isParam ("Array[" <> type' <> ", " <> tShow sz <> "]") xs
   -- Pointer to unsized array is just a pointer to the first element in the array
   (CArrDeclr _ (CNoArrSize False) _ : CPtrDeclr _ _ : xs) ->

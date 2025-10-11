@@ -48,7 +48,7 @@ transpilePpDefs s input = do
               traceShowM e
               addLine s $ "// Skipped (C parse error) " <> name <> ": " <> cSrc
             Right (ast, _) ->
-              try (evalCExpr s ast) >>= \case
+              try (evalCExpr s [] ast) >>= \case
                 Right x -> do
                   let (t, x') = jdTypeToText x
                   let name' = if isVDefNamingConv name then name else T.cons '_' name

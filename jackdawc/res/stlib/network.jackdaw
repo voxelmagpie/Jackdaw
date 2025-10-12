@@ -221,7 +221,7 @@ struct Socket {
     }
 
     // Returns false if the socket is closed
-    fn readToRingBuffer (ref self: Self): Bool unsafe {
+    fn _readToRingBuffer (ref self: Self): Bool unsafe {
         if self.rRing._count >= self.rRing.capacity {
             return true;
         }
@@ -259,7 +259,7 @@ struct Socket {
 
     fn readByte (ref self: Self): Maybe[U8] {
         for (; self.rRing.count() < 1;) {
-            if !self.readToRingBuffer() { return .none; }
+            if !self._readToRingBuffer() { return .none; }
         }
         return .some(self.rRing.pop());
     }
@@ -270,14 +270,14 @@ struct Socket {
 
     fn peekByte (ref self: Self): Maybe[U8] {
         for (; self.rRing.count() < 1;) {
-            if !self.readToRingBuffer() { return .none; }
+            if !self._readToRingBuffer() { return .none; }
         }
         return .some(self.rRing.peek());
     }
 
     fn readU32 (ref self: Self): Maybe[U32] {
         for (; self.rRing.count() < 4;) {
-            if !self.readToRingBuffer() { return .none; }
+            if !self._readToRingBuffer() { return .none; }
         }
         var x0 = self.rRing.pop() as U32;
         var x1 = self.rRing.pop() as U32;

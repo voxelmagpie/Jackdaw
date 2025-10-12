@@ -6,6 +6,7 @@ import "utf8"
 
 // A string with an unknown encoding used for file paths and command line arguments
 struct OsString {
+    // TODO This should be @Unsafe
     data: List[U8] // Null terminated, encoding will be UTF-16 on Windows and is ASCII-compatible on Linux
 
     fn fromString (var s: String): Self {

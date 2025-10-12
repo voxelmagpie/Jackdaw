@@ -4,6 +4,8 @@
 
 import "@stlib/os_string"
 import "@stlib/io"
+import "@stlib/posix"
+import "@stlib/raw_slice"
 
 @Unsafe fn fopen (path: *CChar, mode: *CChar): *void
 @Unsafe fn fclose (*void)
@@ -215,3 +217,65 @@ fn getStdOutPtr (): *void
 fn getStdErrPtr (): *void
 
 fn getStdErr (): File unsafe { return File { f = getStdErrPtr() }; }
+
+
+enum FileSizeResult {
+    size(I64),
+    notAFile,
+    notFound
+}
+
+fn getFileSize (filePath: OsString): FileSizeResult unsafe {
+    var st: Stat;
+    if stat(filePath.getCPtr(), &st) != 0 {
+        if getErrNo() == 2 {
+            return .notFound;
+        }
+        ioError("stat");
+    }
+    var fType = st.st_mode & s_ifmt;
+    if fType != s_ifreg {
+        return .notAFile;
+    }
+    return .size(st.st_size);
+}
+
+
+struct MMapFile {
+    @Unsafe fd: I32,
+    @Unsafe ptr: *U8,
+    @Unsafe _length: ISize
+
+    fn new (filePath: OsString, offset: I64, _length: ISize): Self unsafe {
+        var fd = open(filePath.getCPtr(), o_rdonly);
+        if fd < 0 { ioError("open"); }
+
+        var ptr = mmap(nullptr, _length as USize, prot_read, map_private, fd, offset) as *U8;
+        if ptr == nullptr or ptr == (-1 as *U8) { 
+            _ = close(fd);
+            ioError("mmap"); 
+        }
+
+        return Self{ fd, ptr, _length };
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        _ = munmap(self.ptr, self._length as USize);
+        _ = close(self.fd);
+    }
+
+    fn length (self: Self): ISize unsafe {
+        return self._length;
+    }
+
+    @Unsafe
+	fn asRawSlice (self: Self): RawSlice[U8] {
+		return .{ ptr = self.ptr, length=self._length };
+	}
+
+	accessor asSlice (self: Self): Slice[U8] unsafe {
+		return self.asRawSlice();
+	}
+
+}
+

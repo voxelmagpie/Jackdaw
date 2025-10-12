@@ -6,11 +6,13 @@ import "@stlib/network"
 import "@stlib/process"
 import "@stlib/raw_slice"
 import "@stlib/io"
+import "@stlib/fs"
 import "@stlib/posix"
-import "http"
-import "uri"
+import "@stlib/os_string"
+import "@http/http"
+import "@http/uri"
 
-fn start (Args, var streams: IoStreams) unsafe {
+fn start (Args, var streams: IoStreams) {
     // var server = ListenSocket.openOn(25565);
     // streams.stdOut.writeLine("Listening");
 
@@ -20,16 +22,14 @@ fn start (Args, var streams: IoStreams) unsafe {
     
     
     loop {
-        unsafe {
-            var s = server.acceptUnbuffered();
-            match Process.fork() {
-                .parent(_) {
-                    // The child process now has a copy of the socket so this (parent) process's copy of 
-                    // the socket is closed
-                }
-                .child {
-                    handleConn(s);
-                }
+        var s = server.acceptUnbuffered();
+        match Process.fork() {
+            .parent(_) {
+                // The child process now has a copy of the socket so this (parent) process's copy of 
+                // the socket is closed
+            }
+            .child {
+                handleConn(s);
             }
         }
     }
@@ -59,28 +59,26 @@ fn handleConn (var unbuf: UnbufferedSocket): I32 {
             continue;
         }
 
-        var filePath = uri == "/" ? rootFilePath ++ "/index.html" : rootFilePath ++ uri;
-        var st: Stat;
-        unsafe {
-            if stat(filePath.getCPtr(), &st) != 0 {
-                if getErrNo() == 2 {
-                    if uri == "/" {
-                        s.writeString(response404Root);
-                    }
-                    else {
-                        s.writeString(response404);
-                    }
-                    continue;
-                }
-                ioError("stat");
+        var filePath = OsString.fromString(uri == "/" ? rootFilePath ++ "/index.html" : rootFilePath ++ uri);
+        var fileLength: I64;
+        match getFileSize(filePath) {
+            .size(x) { 
+                fileLength = x; 
             }
-            if (st.st_mode & s_ifmt) != s_ifreg {
-                // TODO List files as hyperlinks
+            .notAFile {
+                if uri == "/" {
+                    s.writeString(response404Root);
+                }
+                else {
+                    s.writeString(response404);
+                }
+                continue;
+            }
+            .notFound {
                 s.writeString(response400);
                 continue;
             }
         }
-        var fileLength = st.st_size;
 
         if uri == "/" {
             s.writeString(responseHeadHtml);
@@ -97,16 +95,9 @@ fn handleConn (var unbuf: UnbufferedSocket): I32 {
             .head {
             }
             .get {
-                unsafe {
-                    if fileLength > 0 {
-                        var fd = open(filePath.getCPtr(), o_rdonly);
-                        if fd < 0 { ioError("open"); }
-                        var fileData = mmap(nullptr, fileLength as USize, prot_read, map_private, fd, 0);
-                        if fileData == nullptr or fileData == (-1 as USize as *void) { ioError("mmap"); }
-                        s.writeBytes(RawSlice[U8]{ ptr = fileData as *U8, length=fileLength });
-                        _ = munmap(fileData, fileLength as USize);
-                        _ = close(fd);
-                    }
+                if fileLength > 0 {
+                    var m = MMapFile.new(filePath, 0, fileLength);
+                    s.writeBytes(m.asSlice());
                 }
             }
         }

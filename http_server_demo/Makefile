@@ -5,5 +5,5 @@ CC ?= cc
 
 all:
 	mkdir -p build
-	$(JACKDAWC) build src --add-package stlib $(STLIB) --exe $(EXE) --dump-c --cc $(CC) --timings +RTS -N
+	$(JACKDAWC) build src --add-package stlib $(STLIB) --add-package http ../http --exe $(EXE) --dump-c --cc $(CC) --timings +RTS -N
 

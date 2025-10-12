@@ -27,7 +27,7 @@ fn intToString [A] (var i: A): String {
 	}
 
 	var s = String.new();
-    s.utf8Data.reserve((i < 0 ? 1 : 0) + chars.count() + 1);
+    s.reserve((i < 0 ? 1 : 0) + chars.count());
 
 	if signFlip < 0 {
 		s ++= "-";

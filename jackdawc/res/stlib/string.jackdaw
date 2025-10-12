@@ -7,24 +7,24 @@ import "utf8"
 import "raw_slice"
 
 struct String {
-    // TODO This should be @Unsafe
+    @Unsafe 
     utf8Data: List[U8] // Null terminated
 
-    fn new (): Self {
+    fn new (): Self unsafe {
         return Self{ utf8Data = .singleton(0) };
     }
 
-    fn hash (self: Self): Hash {
+    fn hash (self: Self): Hash unsafe {
         return hashBytes(self.utf8Data.asSlice());
     }
 
-    fn ++= appendString (ref self: Self, other: String) {
+    fn ++= appendString (ref self: Self, other: String) unsafe {
         _ = self.utf8Data.pop();
         self.utf8Data.append(other.utf8Data.asSlice());
     }
 
     @Unsafe
-    fn appendCString (ref self: Self, c: *CChar) {
+    fn appendCString (ref self: Self, c: *CChar) unsafe {
         var sl = RawSlice[U8]{ ptr = c as *U8, length = strlen(c) as ISize };
         if !isValidUtf8(sl) { throw &"C string is not valid UTF-8"; }
         sl.length += 1; // Add null terminator back
@@ -32,7 +32,7 @@ struct String {
         self.utf8Data ++= sl;
     }
 
-    fn ++ join (self: Self, other: String): String {
+    fn ++ join (self: Self, other: String): String unsafe {
         var utf8Data = List[U8].new();
         utf8Data.reserve(self.utf8Data.length() + other.utf8Data.length() - 1);
         utf8Data.append(self.utf8Data.asSlice());
@@ -41,14 +41,14 @@ struct String {
         return Self{utf8Data};
     }
 
-    fn pushAsciiChar (ref self: Self, c: U8) {
+    fn pushAsciiChar (ref self: Self, c: U8) unsafe {
         if c == 0 or c > 127 { throw &"ASCII character out of range"; }
         self.utf8Data.at(self.utf8Data.length()-1) = c;
         self.utf8Data.push(0);
     }
 
     // TODO Test this properly
-    fn pushCodePoint (ref self: Self, c: U32) {
+    fn pushCodePoint (ref self: Self, c: U32) unsafe {
         _ = self.utf8Data.pop();
         if c == 0 {
             self.pushCodePoint(0xfffd);
@@ -81,12 +81,12 @@ struct String {
     }
 
     // Includes null terminator
-    fn sizeInBytes (self: Self): ISize {
+    fn sizeInBytes (self: Self): ISize unsafe {
         return self.utf8Data.length();
     }
 
     // Does not include null terminator
-    fn length (self: Self): ISize {
+    fn length (self: Self): ISize unsafe {
         return self.utf8Data.length() - 1;
     }
 
@@ -96,7 +96,7 @@ struct String {
     }
 
     @Unsafe
-    fn getUtf8RawSlice (self: Self): RawSlice[U8] {
+    fn getUtf8RawSliceWithNull (self: Self): RawSlice[U8] {
         return self.utf8Data.asRawSlice();
     }
 
@@ -107,7 +107,11 @@ struct String {
         return x;
     }
 
-    fn trimEnd (ref self: Self) {
+    accessor utf8Slice (self: Self): Slice[U8] unsafe {
+        return self.getUtf8RawSliceNoNull();
+    } 
+
+    fn trimEnd (ref self: Self) unsafe {
         var atEnd: ISize = 0;
         for (var i: ISize = self.utf8Data.length()-2; i >= 0; i -= 1) {
             var c = self.utf8Data.at(i);
@@ -124,7 +128,7 @@ struct String {
         return self.clone();
     }
 
-    fn findStartOfCodePoint (self: Self, var i: ISize): ISize {
+    fn findStartOfCodePoint (self: Self, var i: ISize): ISize unsafe {
         if i < 0 or i >= self.utf8Data.length()-1 { throw &"Index out of range"; }
         
         loop {
@@ -141,12 +145,16 @@ struct String {
     }
 
     // Returns (code point, utf8 bytes length)
-    fn codePointAt (self: Self, var i: ISize): (U32, I32) {
+    fn codePointAt (self: Self, var i: ISize): (U32, I32) unsafe {
         i = self.findStartOfCodePoint(i);
 
         match readUtf8CodePoint(self.utf8Data.asSlice().subSlice(i, self.utf8Data.length()-1-i)) {
             .none { throw &"Invalid UTF8"; }
             .some(x) { return x; }
         }
+    }
+
+    fn reserve (ref self: Self, n: ISize) unsafe {
+        self.utf8Data.reserve(n+1);
     }
 }

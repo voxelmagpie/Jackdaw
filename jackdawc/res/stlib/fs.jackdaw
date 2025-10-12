@@ -90,7 +90,6 @@ struct File {
     // Attempts to read up to and including the next newline, may read less if EOF is reached
     fn readLine (ref self: Self): String {
         var line = String.new();
-        _ = line.utf8Data.pop();
         loop {
             // TODO Change this to read 1-4 bytes and call readUtf8CodePoint
             var c0: U8;
@@ -99,7 +98,7 @@ struct File {
                 .some(x) { c0 = x; }
             }
 
-            line.utf8Data.push(c0);
+            line.pushAsciiChar(c0);
 
             if c0 >> 7 == 0 {
                 // ASCII
@@ -132,18 +131,17 @@ struct File {
                 var c2 = self.readByte().orThrowMsg(&"EOF in UTF8 code point");
                 if (c2 >> 6) != 0b10 { throw &"Invalid UTF8"; }
                 c = (c << 6) | (c2 & 0b111111);
-                line.utf8Data.push(c2);
+                line.pushAsciiChar(c2);
             }
 
             if c < min or c > 0x10FFFF { throw &"Invalid UTF8"; }
             if c >= 0xd800 and c <= 0xdfff { throw &"Invalid UTF8"; }
         }
-        line.utf8Data.push(0);
         return line;
     }
 
     fn writeString (ref self: Self, s: String) {
-        self.writeBytes(s.utf8Data.asSlice().subSlice(0, s.utf8Data.length() - 1));
+        self.writeBytes(s.utf8Slice());
     }
 
     fn writeLine (ref self: Self, s: String) {

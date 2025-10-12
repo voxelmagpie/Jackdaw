@@ -240,7 +240,7 @@ type Array [A, n] {
 	}
 
 	accessor iterator iter (self: Self): A {
-		for (var i = 0; i < n; i+=1) {
+		for (var i: ISize = 0; i < n; i+=1) {
 			yield self.at(i);
 		}
 	}
@@ -275,7 +275,7 @@ type Slice [A] {
 
 	accessor iterator iter (self: Self): A {
 		var l = self.length();
-		for (var i = 0; i < l; i=i+1) {
+		for (var i: ISize = 0; i < l; i=i+1) {
 			yield self.at(i);
 		}
 	}

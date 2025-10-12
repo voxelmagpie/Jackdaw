@@ -23,7 +23,7 @@ fn encodeObject (ref s: String, j: Json, id: JsonObjectId) {
         s.pushAsciiChar(',');
         s.pushAsciiChar(' ');
     }
-    if !empty { s.utf8Data.removeLastN(3); s.utf8Data.push(0); }
+    if !empty { unsafe {s.utf8Data.removeLastN(3); s.utf8Data.push(0); } }
     s.pushAsciiChar('}');
 }
 
@@ -36,7 +36,7 @@ fn encodeArray (ref s: String, j: Json, id: JsonArrayId) {
         s.pushAsciiChar(',');
         s.pushAsciiChar(' ');
     }
-    if !empty { s.utf8Data.removeLastN(3); s.utf8Data.push(0); }
+    if !empty { unsafe {s.utf8Data.removeLastN(3); s.utf8Data.push(0); } }
     s.pushAsciiChar(']');
 }
 
@@ -63,48 +63,40 @@ fn encodeValue (ref s: String, j: Json, value: JsonValue) {
     }
 }
 
-iterator allButLast [C, T] (xs: C): T {
-    foreach x in xs.iterRange(0, xs.length()-1) {
-        yield x;
-    }
-}
-
 fn encodeString (ref s: String, j: Json, id: JsonStringId) {
     encodeString_(s, j, j.strings.get(id));
 }
 
 fn encodeString_ (ref s: String, j: Json, str: String) {
-    _ = s.utf8Data.pop();
-    s.utf8Data.push('"');
-    foreach c in allButLast[List[U8], U8](str.utf8Data) {
+    s.pushAsciiChar('"');
+    foreach c in str.utf8Slice().iter() {
         if c == 0 {
-            s.utf8Data.push('\\'); s.utf8Data.push('0');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('0');
         }
         else if c == '"' {
-            s.utf8Data.push('\\'); s.utf8Data.push('"');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('"');
         }
         else if c == '\\' {
-            s.utf8Data.push('\\'); s.utf8Data.push('\\');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('\\');
         }
         else if c == '\b' {
-            s.utf8Data.push('\\'); s.utf8Data.push('b');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('b');
         }
         else if c == '\f' {
-            s.utf8Data.push('\\'); s.utf8Data.push('f');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('f');
         }
         else if c == '\n' {
-            s.utf8Data.push('\\'); s.utf8Data.push('n');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('n');
         }
         else if c == '\r' {
-            s.utf8Data.push('\\'); s.utf8Data.push('r');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('r');
         }
         else if c == '\t' {
-            s.utf8Data.push('\\'); s.utf8Data.push('t');
+            s.pushAsciiChar('\\'); s.pushAsciiChar('t');
         }
         else {
-            s.utf8Data.push(c);
+            s.pushAsciiChar(c);
         }
     }
-    s.utf8Data.push('"');
-    s.utf8Data.push(0);
+    s.pushAsciiChar('"');
 }

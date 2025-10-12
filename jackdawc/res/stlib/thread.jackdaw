@@ -4,6 +4,8 @@
 
 // Requires pthreads
 
+import "@stlib/memory"
+
 struct Thread [A, R] {
     @Unsafe id: PThreadId
 
@@ -21,7 +23,7 @@ struct Thread [A, R] {
         initPtr.* = .{ arg, f };
 
         var id: PThreadId = 0;
-        if pthread_create(&id, &attr, runThread[A, R] as fn (*void): *void, initPtr) != 0 {
+        if pthread_create(&id, &attr, _runThread[A, R] as fn (*void): *void, initPtr) != 0 {
             throw &"pthread_create error";
         }
 
@@ -50,6 +52,10 @@ struct Thread [A, R] {
         return x;
     }
 
+    fn leak (var self: Self) {
+        leak[Self](self);
+    }
+
     @Unsafe
     fn cancel (var self: Self) unsafe {
         pthread_cancel(self.id);
@@ -69,7 +75,7 @@ struct ThreadInit [A, R] {
 }
 
 @Unsafe
-fn runThread [A, R] (var initPtr: *ThreadInit[A, R]): *void {
+fn _runThread [A, R] (var initPtr: *ThreadInit[A, R]): *void {
     try {
         var .{arg, f} = initPtr.*;
         free(initPtr);

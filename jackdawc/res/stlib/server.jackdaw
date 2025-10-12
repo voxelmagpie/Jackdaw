@@ -1,0 +1,52 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/network"
+import "@stlib/process"
+import "@stlib/thread"
+
+struct Server {
+    socket: ListenSocket,
+    port: U16
+
+    fn new (var port: U16): Self {
+        var socket: ListenSocket;
+        if port == 0 {
+            var (s,p) = ListenSocket.open();
+            socket = s;
+            port = p;
+        }
+        else {
+            socket = .openOn(port);
+        }
+
+        return Self{ socket, port };
+    }
+
+    fn acceptFork [T] (ref self: Self, f: fn (var UnbufferedSocket, var T), var x: T) {
+        var s = self.socket.acceptUnbuffered();
+        match Process.fork() {
+            .parent(_) {
+                // The child process now has a copy of the socket so this (parent) process's copy of 
+                // the socket is closed
+            }
+            .child {
+                f(s, x);
+            }
+        }
+    }
+
+    fn acceptThreaded [T] (ref self: Self, f: fn (var UnbufferedSocket, var T), var x: T) {
+        var s = self.socket.acceptUnbuffered();
+        Thread[(fn (var UnbufferedSocket, var T), UnbufferedSocket, T), I32].new(Self._run[T], (f, s, x), 0).leak();
+    }
+
+    fn _run [T] (var x: (fn (var UnbufferedSocket, var T), UnbufferedSocket, T)): I32 {
+        var (x,y,z) = x;
+        x(y, z);
+        return 0;
+    }
+}
+
+

@@ -3,43 +3,29 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import "@stlib/network"
-import "@stlib/process"
 import "@stlib/raw_slice"
 import "@stlib/io"
 import "@stlib/fs"
 import "@stlib/posix"
 import "@stlib/os_string"
+import "@stlib/server"
 import "@http/http"
 import "@http/uri"
 
 fn start (Args, var streams: IoStreams) {
-    // var server = ListenSocket.openOn(25565);
-    // streams.stdOut.writeLine("Listening");
-
-    var (server, port) = ListenSocket.open();
-    streams.stdOut.writeLine("Listening on port " ++ port.toString());
-
+    var server = Server.new(25565);    
+    streams.stdOut.writeLine("Listening on port " ++ server.port.toString());
     
-    
-    loop {
-        var s = server.acceptUnbuffered();
-        match Process.fork() {
-            .parent(_) {
-                // The child process now has a copy of the socket so this (parent) process's copy of 
-                // the socket is closed
-            }
-            .child {
-                handleConn(s);
-            }
-        }
+    for (var i = 0; true; i += 1) {
+        server.acceptFork[I32](handleConn, i);
     }
 }
 
-fn handleConn (var unbuf: UnbufferedSocket): I32 {
+fn handleConn (var unbuf: UnbufferedSocket, var I32) {
     var s = Socket.fromUnbuffered(unbuf);
 
     loop {
-        if !s.peekByte().isSome() { return 0; }
+        if !s.peekByte().isSome() { return; }
 
         var .{ reqType, uri, keepAliveDefault:keepAlive } = HttpRequest.read(s).orThrow();
 
@@ -104,8 +90,6 @@ fn handleConn (var unbuf: UnbufferedSocket): I32 {
 
         if !keepAlive { break; }
     }
-
-    return 0;
 }
 
 fn loadGoogle (ref streams: IoStreams) {

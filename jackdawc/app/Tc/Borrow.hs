@@ -376,7 +376,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
         let mode' = if selfParamMode == Exclusive then Exclusive else mode
         selfExpOrAcc <- borrowCheckExpr ctx mode' $ fst $ e.args !! 0
         (selfExpr, uid') <- case fst selfExpOrAcc of
-          Left _ -> throw (fst $ e.args !! 0) "Argument is not an accessor"
+          Left _ -> throw (fst $ e.args !! 0) "First argument is an r-value but accessor functions require a reference"
           Right x -> pure x
 
         -- Get the list of new borrows from the first argument

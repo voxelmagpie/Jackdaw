@@ -313,16 +313,6 @@ fn roundUp [A] (i: A, to: A): A {
 fn initialised [A] (*A) {}
 
 
-fn initArray [A, n] (x: A): Array[A, n] unsafe {
-    require typeIsCopyable[A];
-    var xs: Array[A, n] = uninitialised;
-    foreach ref y in xs.iter() {
-        (&y).* = x;
-    }
-    return xs;
-}
-
-
 //
 // Start
 //

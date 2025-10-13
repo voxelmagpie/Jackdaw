@@ -21,7 +21,7 @@ struct ListenSocket {
             family = af_inet6,
             port = 0,
             flowinfo = 0,
-            addr = initArray[U8, 16](0),
+            addr = .new(0),
             scope_id = 0
         };
 
@@ -47,7 +47,7 @@ struct ListenSocket {
             family = af_inet6,
             port = htons(port),
             flowinfo = 0,
-            addr = initArray[U8, 16](0),
+            addr = .new(0),
             scope_id = 0
         };
 
@@ -119,7 +119,7 @@ struct UnbufferedSocket {
             family = af_inet,
             port = htons(port),
             addr=address,
-            padding = initArray[U8, 8](0)
+            padding = .new(0)
         };
 
         if connect(fd, &addr, sizeOf[type(addr)] as U32) != 0 { ioError("connect"); }

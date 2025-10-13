@@ -13,7 +13,7 @@ struct Matrix [A, size] {
     values: Array[A, size * size]
 
     fn zeros (): Self {
-        return Self{ values = initArray[A, size*size](0) };
+        return Self{ values = .new(0) };
     }
 
     fn identity (): Self unsafe {

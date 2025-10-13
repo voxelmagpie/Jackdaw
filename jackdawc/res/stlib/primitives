@@ -234,6 +234,22 @@ f(_f32, F32)
 
 
 type Array [A, n] {
+	fn new (x: A): Self unsafe {
+		require typeIsCopyable[A];
+		var xs: Self = uninitialised;
+		foreach ref y in xs.iter() {
+			(&y).* = x;
+		}
+		return xs;
+	}
+
+	fn singleton (var x: A): Self unsafe {
+		require n == 1;
+		var xs: Self = uninitialised;
+		(&xs as *A).* = x;
+		return xs;
+	}
+
 	accessor at (self: Self, i: ISize): A unsafe {
 		if i < 0 or i >= n { throw &"Array index out of bounds"; }
 		return (&self as *A) + i;

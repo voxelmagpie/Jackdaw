@@ -273,7 +273,12 @@ createStructUnion s isUnion identMaybe decls nameMaybe = do
           case identMaybe' of
             Just x -> do
               t <- processType s Nothing False typeSpecs deriv
-              pure $ "\t" <> toVDefNamingConv x <> ": " <> t
+              pure
+                $ if isUnion
+                  then
+                    "\t" <> toVDefNamingConv x <> "(" <> t <> ")"
+                  else
+                    "\t" <> toVDefNamingConv x <> ": " <> t
             _ -> throwIO $ CException "No field name"
         _ -> showAndThrow "Invalid field" xs
     _ -> pure []
@@ -292,6 +297,9 @@ createStructUnion s isUnion identMaybe decls nameMaybe = do
   pure name
 
 processCEnumType :: State -> Maybe Text -> CEnumeration NodeInfo -> IO Text
+-- Forward declaration
+processCEnumType s _ (CEnum (Just ident) Nothing _ _) = do
+  forceTsDefNamingConv s ident
 processCEnumType s nameMaybe (CEnum identMaybe fields' _ _) = do
   let fields = fromMaybe [] fields'
 

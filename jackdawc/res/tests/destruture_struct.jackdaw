@@ -1,15 +1,16 @@
-//! 9 # 9
+//! 9 9 # 10
 
 struct X {
-    a: I32
+    a: I32,
+    b: Bool
     fn onDrop (Self) {}
 }
 
 fn des (var x: X) {
-    var .{a} = x;
-    writeI32(a);
+    var .{b, a} = x;
+    writeI32(a + (b ? 1 : 0));
 }
 
 fn start () {
-    des(X{a=readI32()});
+    des(X{a=readI32(), b=readI32() > 1});
 }

@@ -721,9 +721,9 @@ visitDestructure ctx sr l t = \case
   H.AStructDes ds -> do
     let ts = case t of L.StructType x -> toList x; _ -> undefined
     foldM
-      (\c (t', (d, fieldIdx)) -> visitDestructure c sr (L.LStructUnionElem l fieldIdx) t' d)
+      (\c (d, fieldIdx) -> visitDestructure c sr (L.LStructUnionElem l fieldIdx) (ts !! fieldIdx) d)
       ctx
-      (zip ts $ toList ds)
+      (toList ds)
 
 visitRefDestructure :: (MonadLo m) => Ctx -> SrcRange -> L.LExpr -> L.Type -> H.Destructure -> m Ctx
 visitRefDestructure ctx sr l t = \case

@@ -244,6 +244,7 @@ struct MMapFile {
     @Unsafe ptr: *U8,
     @Unsafe _length: ISize
 
+    // TODO Return Maybe[Self], return .none if file not found
     fn new (filePath: OsString, offset: I64, _length: ISize): Self unsafe {
         var fd = open(filePath.getCPtr(), o_rdonly);
         if fd < 0 { ioError("open"); }
@@ -255,6 +256,41 @@ struct MMapFile {
         }
 
         return Self{ fd, ptr, _length };
+    }
+
+    // TODO Swap names of new and new2
+    fn new2 (filePath: OsString): Maybe[Self] unsafe {
+        var fd = open(filePath.getCPtr(), o_rdonly);
+        if fd < 0 {
+            if getErrNo() == 2 {
+                return .none;
+            }
+            ioError("open");
+        }
+
+        var _length: ISize;
+        match getFileSize(filePath) {
+            .size(x) {
+                // TODO Check value fits in ISize
+                _length = x;
+            }
+            .notAFile {
+                _ = close(fd);
+                return .none;
+            }
+            .notFound {
+                _ = close(fd);
+                return .none;
+            }
+        }
+
+        var ptr = mmap(nullptr, _length as USize, prot_read, map_private, fd, 0) as *U8;
+        if ptr == nullptr or ptr == (-1 as *U8) { 
+            _ = close(fd);
+            ioError("mmap"); 
+        }
+
+        return .some(Self{ fd, ptr, _length });
     }
 
     fn onDrop (ref self: Self) unsafe {

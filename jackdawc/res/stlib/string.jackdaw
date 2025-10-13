@@ -5,6 +5,7 @@
 import "hash"
 import "utf8"
 import "raw_slice"
+import "memory" as M ()
 
 struct String {
     @Unsafe 
@@ -156,5 +157,13 @@ struct String {
 
     fn reserve (ref self: Self, n: ISize) unsafe {
         self.utf8Data.reserve(n+1);
+    }
+
+    fn startsWith (ref self: Self, prefix: String): Bool unsafe {
+        if prefix.utf8Data.length() > self.utf8Data.length() {
+            return false;
+        }
+
+        return M.memCmp(self.utf8Data.ptr, prefix.utf8Data.ptr, prefix.utf8Data.length() - 1) == 0;
     }
 }

@@ -88,6 +88,7 @@ fn readUri (ref s: Socket): HttpResult[String] {
                     var hi = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
                     var lo = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
                     var c = (hi << 4) | lo;
+                    // TODO Allow high bytes and validate URI utf8 before returning
                     if c > 127 { return .err(&"Non-ASCII % character in URI"); }
                     if c < 32  { return .err(&"Null/control % character in URI"); }
                     str.pushAsciiChar(c as U8);

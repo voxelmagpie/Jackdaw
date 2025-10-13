@@ -1,0 +1,187 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/server" as S
+import "@stlib/hash_map"
+import "@stlib/network" (Socket)
+import "@stlib/os_string"
+import "@stlib/fs" (MMapFile)
+import "http"
+import "uri"
+
+struct Server {
+    server: S.Server
+
+    fn new (port: U16): Self {
+        return Self{ server = .new(port) };
+    }
+
+    // If .none is returned then the caller is in the original process and should call acceptFork again
+    fn acceptFork (ref self: Self): Maybe[Connection] {
+        match self.server.acceptFork() {
+            .none {
+                return .none;
+            }
+            .some(unbuf) {
+                return .some(.{ s = .fromUnbuffered(unbuf) });
+            }
+        }
+    }
+}
+
+enum NextRequest {
+    invalid, // Request was invalid, caller should call sendBadRequest400
+    closed, // Socket closed, no more requests
+    request(Request) // Request received, response needed
+}
+
+struct Request {
+    head: Bool,
+    uri: String,
+    keepAlive: Bool,
+    headers: HashMap[String, String]
+}
+
+struct Connection {
+    s: Socket
+
+    fn nextRequest (ref self: Self): NextRequest {
+        if !self.s.peekByte().isSome() { return .closed; }
+
+        var .{ reqType, uri, keepAliveDefault:keepAlive } = HttpRequest.read(self.s).orThrow();
+
+        var headers = readHttpHeaders(self.s).orThrow();
+        if headers.contains("connection") {
+            keepAlive = headers.get("connection") != "close";
+        }
+
+        if !uriIsValid(uri) { 
+            return .invalid;
+        }
+        
+        var head: Bool;
+        match reqType {
+            .head { head = true; }
+            _ { head = false; }
+        }
+
+        return .request(.{ head, uri, keepAlive, headers });
+    }
+
+    fn sendBadRequest400 (ref self: Self) {
+        self.s.writeString("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n");
+        self.s.flush();
+    }
+
+    fn sendForbidden403 (ref self: Self) {
+        self.s.writeString("HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n");
+        self.s.flush();
+    }
+
+    fn sendNotFound404 (ref self: Self) {
+        self.s.writeString("HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n");
+        self.s.flush();
+    }
+
+    fn sendServerError500 (ref self: Self) {
+        self.s.writeString("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0\r\n\r\n");
+        self.s.flush();
+    }
+
+    fn sendTempRedirect307 (ref self: Self, to: String) {
+        self.s.writeString("HTTP/1.1 307 Temporary Redirect\r\nContent-Length: 0\r\nLocation: ");
+        self.s.writeString(to.toString());
+        self.s.writeString("\r\n\r\n");
+        self.s.flush();
+    }
+
+    fn sendRedirect308 (ref self: Self, to: String) {
+        self.s.writeString("HTTP/1.1 308 Permanent Redirect\r\nContent-Length: 0\r\nLocation: ");
+        self.s.writeString(to.toString());
+        self.s.writeString("\r\n\r\n");
+        self.s.flush();
+    }
+
+    // Content-Length is sent automatically
+    fn sendRawResponse (ref self: Self, status: String, headers: Slice[(String, String)], data: Slice[U8]) {
+        self._sendHeaderLine(status);
+        self._sendContentLength(data.length());
+        self._sendHeaders(headers);
+        self.s.writeString("\r\n");
+        self.s.writeBytes(data);
+        self.s.flush();
+    }
+
+    fn _sendHeaderLine (ref self: Self, status: String) {
+        self.s.writeString("HTTP/1.1 ");
+        self.s.writeString(status);
+        self.s.writeString("\r\n");
+    }
+
+    fn _sendHeaders (ref self: Self, headers: Slice[(String, String)]) {
+        foreach (x, y) in headers.iter() {
+            self.s.writeString(x);
+            self.s.writeString(": ");
+            self.s.writeString(y);
+            self.s.writeString("\r\n");
+        }
+    }
+
+    fn _sendContentLength (ref self: Self, l: ISize) {
+        // TODO self._sendHeaders(("Content-Length", data.length().toString()));
+        self.s.writeString("Content-Length: ");
+        self.s.writeString(l.toString());
+        self.s.writeString("\r\n");
+    }
+
+    // Sends a 404 if the file is not found
+    fn sendFile (ref self: Self, path: OsString, extraHeaders: Slice[(String, String)], head: Bool) {
+        match MMapFile.new2(path) {
+            .none {
+                self.sendNotFound404();
+            }
+            .some(m) {
+                self._sendHeaderLine("200 OK");
+                self._sendContentLength(m.length());
+                self._sendHeaders(extraHeaders);
+                self.s.writeString("\r\n");
+                if !head {
+                    self.s.writeBytes(m.asSlice());
+                }
+                self.s.flush();
+            }
+        }
+    }
+
+    fn sendString (ref self: Self, s: String, extraHeaders: Slice[(String, String)], head: Bool) {
+        self._sendHeaderLine("200 OK");
+        self._sendContentLength(s.length());
+        self._sendHeaders(extraHeaders);
+        self.s.writeString("\r\n");
+        if !head {
+            self.s.writeString(s);
+        }
+        self.s.flush();
+    }
+
+    fn sendBytes (ref self: Self, data: Slice[U8], extraHeaders: Slice[(String, String)], head: Bool) {
+        self._sendHeaderLine("200 OK");
+        self._sendContentLength(data.length());
+        self._sendHeaders(extraHeaders);
+        self.s.writeString("\r\n");
+        if !head {
+            self.s.writeBytes(data);
+        }
+        self.s.flush();
+    }
+
+    // Only valid in response to a HEAD request
+    fn sendHead (ref self: Self, contentLength: ISize, extraHeaders: Slice[(String, String)]) {
+        self._sendHeaderLine("200 OK");
+        self._sendContentLength(contentLength);
+        self._sendHeaders(extraHeaders);
+        self.s.writeString("\r\n");
+        self.s.flush();
+    }
+}

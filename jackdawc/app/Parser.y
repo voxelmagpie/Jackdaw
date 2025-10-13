@@ -12,7 +12,6 @@ module Parser(parseJackdawAst) where
 
 import Tokens
 import Ast qualified as A
-import Control.Monad.Except (throwError)
 import Names
 import SrcLoc
 import Prelude2((<&>), Text, consMaybe, List1(..), List2(..), HashMap, first, second, Default (..), un, fst3)
@@ -200,7 +199,7 @@ AliasTypeExpr :: {A.TypeExpr}
 
 StructFields :: {Ins.InsOrdMap VName (SrcRange, A.TypeExpr, [Attribute])}
     : StructField { Ins.singleton (fst $1) (snd $1) }
-    | StructFields ',' StructField {% maybe (throwError $ ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
+    | StructFields ',' StructField {% maybe (parseError' ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
 
 
 StructField :: {(VName, (SrcRange, A.TypeExpr, [Attribute]))}
@@ -209,7 +208,7 @@ StructField :: {(VName, (SrcRange, A.TypeExpr, [Attribute]))}
 
 EnumFields :: {Ins.InsOrdMap VName (SrcRange, Maybe A.TypeExpr, [Attribute])}
     : EnumField { Ins.singleton (fst $1) (snd $1) }
-    | EnumFields ',' EnumField {% maybe (throwError $ ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
+    | EnumFields ',' EnumField {% maybe (parseError' ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
 
 
 EnumField :: {(VName, (SrcRange, Maybe A.TypeExpr, [Attribute]))}
@@ -219,7 +218,7 @@ EnumField :: {(VName, (SrcRange, Maybe A.TypeExpr, [Attribute]))}
 
 UnionFields :: {Ins.InsOrdMap VName (SrcRange, A.TypeExpr, [Attribute])}
     : UnionField { Ins.singleton (fst $1) (snd $1) }
-    | UnionFields ',' UnionField {% maybe (throwError $ ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
+    | UnionFields ',' UnionField {% maybe (parseError' ("Duplicate field name", fst3 $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
 
 
 UnionField :: {(VName, (SrcRange, A.TypeExpr, [Attribute]))}
@@ -501,7 +500,7 @@ AtomExp :: {A.Expr}
 
 StructInitFields :: {Ins.InsOrdMap VName (SrcRange, Maybe A.Expr)}
     : StructInitField { Ins.singleton (fst $1) (snd $1) }
-    | StructInitFields ',' StructInitField {% maybe (throwError $ ("Duplicate field name", fst $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
+    | StructInitFields ',' StructInitField {% maybe (parseError' ("Duplicate field name", fst $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
 
 
 StructInitField :: {(VName, (SrcRange, Maybe A.Expr))}
@@ -593,7 +592,7 @@ TupleDesInner :: {List2 A.Destructure}
 
 StructDesInner :: {Ins.InsOrdMap VName (SrcRange, A.Destructure)}
     : StructDesField { Ins.singleton (fst $1) (snd $1) }
-    | StructDesInner ',' StructDesField {% maybe (throwError $ ("Duplicate field name", fst $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
+    | StructDesInner ',' StructDesField {% maybe (parseError' ("Duplicate field name", fst $ snd $3)) pure $ Ins.tryInsert (fst $3) (snd $3) $1 }
 
 
 StructDesField :: {(VName, (SrcRange, A.Destructure))}

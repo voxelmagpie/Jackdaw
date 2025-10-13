@@ -38,6 +38,11 @@ parseError ((token, r@(SrcRange srcPath' l _)) : _, strings) =
               T.intercalate ", " $ T.pack <$> strings
             ]
 
+parseError' :: (Text, SrcRange) -> ParseM a
+parseError' (msg, r@(SrcRange srcPath' l _)) = throwError (msg', r)
+  where
+    msg' = msg <> " in " <> T.pack srcPath' <> ":" <> tShow l.line
+
 range :: TokenL -> TokenL -> SrcRange
 range (_, SrcRange f l _) (_, SrcRange _ _ r) = SrcRange f l r
 
@@ -63,7 +68,7 @@ getIntLit _ = error "Not an int"
 
 getInt64Lit :: TokenL -> ParseM Int64
 getInt64Lit (IntLiteral x, sr) =
-  if x >= 0 && x <= 18446744073709551615 then pure $ fromIntegral x else throwError ("Int out of range", sr)
+  if x >= 0 && x <= 18446744073709551615 then pure $ fromIntegral x else parseError' ("Int out of range", sr)
 getInt64Lit _ = error "Not an int"
 
 getStringLit :: TokenL -> Text
@@ -87,13 +92,13 @@ addVDef vDefs ((n, sr), d) = do
 
 hmTryInsert :: (Hashable k, Eq k) => SrcRange -> k -> v -> HashMap k v -> ParseM (HashMap k v)
 hmTryInsert sr key !val m = do
-  when (isJust $ HM.lookup key m) $ throwError ("Duplicate name", sr)
+  when (isJust $ HM.lookup key m) $ parseError' ("Duplicate name", sr)
   pure $ HM.insert key val m
 
 mkExprStmnt :: A.Expr -> ParseM A.Statement
 mkExprStmnt (A.AFnCallExpr f, sr) = pure (A.FnCallStmnt (f, sr), sr)
 mkExprStmnt (A.BubbleExpr e, sr) = pure (A.BubbleStmnt e, sr)
-mkExprStmnt (_, sr) = throwError ("Expected function call", sr)
+mkExprStmnt (_, sr) = parseError' ("Expected function call", sr)
 
 getPrefixOpExpr :: OpName' -> A.Expr -> A.Expr'
 getPrefixOpExpr (OpName "-", _) (A.FloatLitExpr i, _) =
@@ -109,7 +114,7 @@ getParams :: [Either a SrcRange] -> ParseM ([a], Bool)
 getParams xs = do
   isVarArgs <- case findWithIndex isRight xs of
     Just (Right sr, i) -> do
-      unless (length xs > 1 && i == (length xs - 1)) $ throwError ("Var-args (...) must be after parameters", sr)
+      unless (length xs > 1 && i == (length xs - 1)) $ parseError' ("Var-args (...) must be after parameters", sr)
       pure True
     _ ->
       pure False

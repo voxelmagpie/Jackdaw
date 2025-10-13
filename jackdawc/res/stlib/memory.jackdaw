@@ -1,3 +1,9 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+// ! These functions do not respect move semantics !
+
 import "c" as C ()
 
 @Unsafe
@@ -33,22 +39,22 @@ fn free (p: *void) {
 
 // Use memCopyUnaliased only when the 2 buffers do not overlap
 @Unsafe
-fn memCopyUnaliased (dst: *void, src: *void, n: ISize) {
-    C.memcpy(dst, src, n);
+fn copyUnaliased [T] (dst: *T, src: *T, n: ISize) {
+    C.memcpy(dst, src, n * sizeOf[T]);
 }
 
 // Use memCopy if the buffers might overlap
 @Unsafe
-fn memCopy (dst: *void, src: *void, n: ISize) {
-    C.memmove(dst, src, n);
+fn copy [T] (dst: *T, src: *T, n: ISize) {
+    C.memmove(dst, src, n * sizeOf[T]);
 }
 
 @Unsafe
-fn memCmp (dst: *void, src: *void, n: ISize): I32 {
-    return C.memcmp(dst, src, n);
+fn compare [T] (dst: *T, src: *T, n: ISize): I32 {
+    return C.memcmp(dst, src, n * sizeOf[T]);
 }
 
 @Unsafe
-fn memSet (dst: *void, x: U8, n: ISize) {
-    C.memset(dst, x, n);
+fn set [T] (dst: *T, x: U8, n: ISize) {
+    C.memset(dst, x, n * sizeOf[T]);
 }

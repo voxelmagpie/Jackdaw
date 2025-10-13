@@ -4,7 +4,7 @@
 
 import "@stlib/raw_slice"
 import "@stlib/range"
-import "@stlib/memory"
+import "@stlib/memory" as M
 
 struct List [A] {
     // Do not reorder these fields, the compiler relies on the order when generating/using const lists
@@ -95,7 +95,7 @@ struct List [A] {
 
         var x = self.ptr.(i);
 
-        memCopy(self.ptr + i, self.ptr + i + 1, (self._length - i - 1) * sizeOf[A]);
+        M.copy[A](self.ptr + i, self.ptr + i + 1, self._length - i - 1);
         self._length -= 1;
 
         return x;
@@ -121,7 +121,7 @@ struct List [A] {
             drop[A](self.ptr.(i+j));
         }
 
-        memCopy(self.ptr.(i), self.ptr.(i+n), self._length - i - n);
+        M.copy[A](self.ptr.(i), self.ptr.(i+n), self._length - i - n);
         self._length -= n;
     }
 
@@ -134,7 +134,7 @@ struct List [A] {
         }
 
         var n_ = min[ISize](n, self.length - i - n);
-        memCopyUnaliased(self.ptr.(i), self.ptr.(self._length - n_), n_);
+        M.copyUnaliased[A](self.ptr.(i), self.ptr.(self._length - n_), n_);
         self._length -= n;
     }
 
@@ -149,7 +149,7 @@ struct List [A] {
 
         var newLength = self._length + 1;
         self.reserve(newLength);
-        memCopy(self.ptr + i + 1, self.ptr + i, (self._length - i) * sizeOf[A]);
+        M.copy[A](self.ptr + i + 1, self.ptr + i, self._length - i);
         self.ptr.(i) = x;
         self._length = newLength;
     }
@@ -166,8 +166,8 @@ struct List [A] {
         self.reserve(newLength);
         var i = clamp[ISize](i, 0, self._length);
 
-        memCopy(self.ptr + i + xs.length, self.ptr + i, (self._length - i) * sizeOf[A]);
-        memCopy(self.ptr + i, xs.ptr, xs.length * sizeOf[A]);
+        M.copy[A](self.ptr + i + xs.length, self.ptr + i, self._length - i);
+        M.copy[A](self.ptr + i, xs.ptr, xs.length);
         
         self._length = newLength;
     }
@@ -177,10 +177,10 @@ struct List [A] {
         self.reserve(newLength);
         var i = clamp[ISize](i, 0, self._length);
 
-        memCopy(self.ptr + i + xs.length(), self.ptr + i, (self._length - i) * sizeOf[A]);
+        M.copy[A](self.ptr + i + xs.length(), self.ptr + i, self._length - i);
 
         if const typeIsCopyable[A] {
-            memCopyUnaliased(self.ptr + i, xs.asRawSlice().ptr, xs.length() * sizeOf[A]);
+            M.copyUnaliased[A](self.ptr + i, xs.asRawSlice().ptr, xs.length());
         }
         else {
             for (var j: ISize = 0; j < xs.length(); j += 1) {
@@ -211,7 +211,7 @@ struct List [A] {
     fn clone (self: Self): Self unsafe {
         var p = alloc[A](self._length);
         if const typeIsCopyable[A] {
-            memCopyUnaliased(p, self.ptr, self._length * sizeOf[A]);
+            M.copyUnaliased[A](p, self.ptr, self._length);
         }
         else {
             for (var i: ISize = 0; i < self._length; i += 1) {

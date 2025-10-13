@@ -164,6 +164,6 @@ struct String {
             return false;
         }
 
-        return M.memCmp(self.utf8Data.ptr, prefix.utf8Data.ptr, prefix.utf8Data.length() - 1) == 0;
+        return M.compare[U8](self.utf8Data.ptr, prefix.utf8Data.ptr, prefix.utf8Data.length() - 1) == 0;
     }
 }

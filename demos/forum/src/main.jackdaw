@@ -59,13 +59,29 @@ fn handleReq (ref conn: Connection, ref db: Db, var req: Request) {
     var headers = List[(String, String)].new();
 
     if uri == "/" {
-        // var template = MMapFile.new2("res/index.html");
-        var html = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Forum</title><link href=\"style.css\" rel=\"stylesheet\" /></head><body>".clone();
+        var template = readTextFile("res/templates/main_page.html");
+
+        var html: String;
+        var html2: String;
+        {
+            var i: ISize = 0;
+            foreach x in template.utf8Slice().iter() {
+                if x == '`' {
+                    break;
+                }
+                else {
+                    i += 1;
+                }
+            }
+            html = template.subString(0, i);
+            html2 = template.subString(i+1, template.length() - i - 1);
+        }
+
         var posts = db.select("SELECT * FROM Posts");
         foreach fields in posts.iterRows() {
             html ++= "<div class=\"post\">" ++ fields.at(1) ++ "</div>";
         }
-        html ++= "</body></html>";
+        html ++= html2;
         conn.sendString(html, headers.asSlice(), head);
     }
     else {

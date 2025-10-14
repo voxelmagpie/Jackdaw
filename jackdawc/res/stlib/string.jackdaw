@@ -5,6 +5,7 @@
 import "hash"
 import "utf8"
 import "raw_slice"
+import "range"
 import "memory" as M ()
 
 struct String {
@@ -96,7 +97,7 @@ struct String {
         return self.utf8Data.length();
     }
 
-    // Does not include null terminator
+    // The length in bytes, *not* counting the null terminator byte
     fn length (self: Self): ISize unsafe {
         return self.utf8Data.length() - 1;
     }
@@ -180,5 +181,45 @@ struct String {
         }
 
         return M.compare[U8](self.utf8Data.ptr, prefix.utf8Data.ptr, prefix.utf8Data.length() - 1) == 0;
+    }
+
+    fn subString (self: Self, var i: ISize, var n: ISize): String unsafe {
+        putRangeInBounds(self.length(), i, n);
+
+        for (; self.utf8Data.at(i) >> 6 == 0b10;) {
+            // Continuation byte
+            i += 1;
+            n -= 1;
+            if n < 1 { return String.new(); }
+        }
+        
+        if self.utf8Data.at(i+n-1) >> 6 == 0b10 {
+            // Continuation byte
+            var continuationBytes = 0;
+            for (; self.utf8Data.at(i+n-1-continuationBytes) >> 6 == 0b10; continuationBytes += 1) {}
+            var c0 = self.utf8Data.at(i+n-1-continuationBytes);
+            var n: I32;
+            if c0 >> 5 == 0b110 {
+                n = 1;
+            }
+            else if c0 >> 4 == 0b1110 {
+                n = 2;
+            }
+            else if c0 >> 3 == 0b11110 {
+                n = 3;
+            }
+            else { throw &""; }
+            if n != continuationBytes {
+                n -= continuationBytes + 1;
+                if n < 1 { return String.new(); }
+            }
+        }
+        
+        var utf8Data = List[U8].new();
+        utf8Data.reserve(n+1);
+        utf8Data.append(self.utf8Data.asSlice().subSlice(i, n));
+        utf8Data.push(0);
+
+        return .{utf8Data};
     }
 }

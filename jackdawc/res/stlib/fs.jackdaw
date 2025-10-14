@@ -6,6 +6,7 @@ import "@stlib/os_string"
 import "@stlib/io"
 import "@stlib/posix"
 import "@stlib/raw_slice"
+import "@stlib/utf8"
 
 @Unsafe fn fopen (path: *CChar, mode: *CChar): *void
 @Unsafe fn fclose (*void)
@@ -190,6 +191,7 @@ fn readTextFile (path: OsString): String unsafe {
     if bytesRead < 0 { ioError("fread"); }
     if bytesRead != sz { throw &"Incomplete fread (readTextFile)"; }
     utf8Data._length = bytesRead;
+    if !isValidUtf8(utf8Data.asSlice()) { throw &"Invalid UTF8"; }
     utf8Data.push(0);
     return String{utf8Data};
 }

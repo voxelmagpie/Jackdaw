@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Forum</title>
+    <link href="style.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div class="sep"></div>
+    <div id="content">
+        `
+        <div id="new_post_div">
+            <textarea name="text" minlength="1" maxlength="5000" placeholder="Add to the conversation..."
+                spellcheck="true" id="new_post_text"></textarea>
+            <button id="add_post">Add Post</button>
+        </div>
+        <div class="sep"></div>
+        <div id="buttons">
+            <button id="first" class="sep" disabled>&lt&lt First</button>
+            <button id="prev" class="sep" disabled>&lt Prev</button>
+            <button id="next" class="sep" disabled>Next &gt</button>
+            <button id="last" class="sep" disabled>Last &gt&gt</button>
+        </div>
+        <div id="page_no">Page 1 of 999</div>
+    </div>
+    <div class="sep"></div>
+</body>
+
+</html>

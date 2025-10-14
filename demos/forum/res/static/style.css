@@ -1,22 +1,129 @@
+body {
+    background-color: #f5f7ff;
+    display: flex;
+    flex-direction: row;
+    height: 100%;
+    width: 100%;
+    position: absolute;
+    margin: 0;
+    padding: 0;
+    justify-content: space-between;
+}
+
+#content {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-top: 20px;
+    padding-bottom: 15px;
+    box-sizing: border-box;
+    width: min(95%, 800px);
+    min-height: 100%;
+    margin: 0;
+}
+
+.sep {
+    flex-grow: 1;
+}
+
 .post {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 15px;
+    padding-left: 25px;
+    padding-right: 25px;
     background-color: white;
-    padding: 20px;
-    width: 70vw;
+    color: black;
     font-family: sans-serif;
     font-size: 16px;
     line-height: 1.5;
     border: none;
-    border-bottom: solid hsl(199, 20%, 90%) 2px;
-    min-height: 150px;
-    max-height: 300px;
-    overflow: auto;
+    margin-bottom: 20px;
 }
 
-body {
-    background-color: #f5f7ff;
+#new_post_div {
+    width: 100%;
     display: flex;
     align-items: center;
     flex-direction: column;
-    margin-top: 30px;
+    padding-bottom: 10px;
+    gap: 10px;
+    margin: 0;
+    margin-top: 20px;
+}
+
+#new_post_text {
+    padding: 15px;
+    padding-left: 25px;
+    padding-right: 25px;
+    background-color: white;
+    color: black;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    border: none;
+    border-top: solid hsl(199, 20%, 90%) 3px;
+    border-left: solid hsl(199, 20%, 90%) 3px;
+    height: 150px;
+    overflow: auto;
+    resize: none;
+    margin: 0;
+    margin-bottom: 5px;
+}
+
+#add_post {
+    width: 100%;
+}
+
+#buttons {
     margin-bottom: 15px;
+    width: 100%;
+    display: flex;
+    gap: 5px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    justify-content: space-between;
+}
+
+#page_no {
+    font-family: sans-serif;
+    font-size: 14px;
+    text-align: center;
+    text-wrap: nowrap;
+    padding-bottom: 10px;
+}
+
+
+
+button {
+    border: none;
+    border-bottom: solid hsl(240 100% 20%) 3px;
+    background-color: hsl(220 100% 30%);
+    color: white;
+
+    font-weight: bold;
+    font-family: sans-serif;
+    font-size: 16px;
+
+    padding: 10px;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+button:disabled {
+    background-color: hsl(200, 5%, 30%);
+    border-bottom: solid hsl(200, 0%, 00%) 3px;
+    color: #d8d8d8;
+}
+
+button:hover:enabled {
+    background-color: hsl(220 100% 35%);
+    border-bottom: solid hsl(240 100% 30%) 3px;
+}
+
+button:active:enabled {
+    background-color: hsl(240 100% 20%);
+    border-bottom: solid hsl(240 100% 20%) 3px;
 }

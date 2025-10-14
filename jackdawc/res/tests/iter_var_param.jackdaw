@@ -1,0 +1,21 @@
+//! # 3\n0
+
+struct X {
+    a: I32
+
+    fn onDrop (ref self: Self) {
+        writeI32(0);
+    }
+}
+
+iterator iter (var x: X): I32 {
+    yield x.a;
+}
+
+fn start () {
+    var x = X{a=3};
+    foreach a in iter(x) {
+        writeI32(a);
+    }
+}
+

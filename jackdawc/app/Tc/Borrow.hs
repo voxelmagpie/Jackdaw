@@ -694,17 +694,17 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
         pure (H.YieldStmnt e'' toDrop, False)
   I.AForEachLoopStmnt s -> do
     b <- copyBorrowState
-    prevVarsList <- copyVarsList
 
     -- Get fn expr and drop functions for the yielded value
-    (args, mode, dropFns') <- case snd s.fn of
+    (args, mode, dropFns', prevVarsList) <- case snd s.fn of
       H.AnIteratorType f -> do
         let paramsModes = f.params <&> fst
         argsAndNewBorrows <- getArgsExprAndBorrows ctx $ zip paramsModes s.args
         applyArgsBorrows $ concatMap snd argsAndNewBorrows
 
+        prevVarsList <- copyVarsList
         dropFns' <- borrowCheckDestructure ctx s.var
-        pure (Left $ fst <$> argsAndNewBorrows, Move, dropFns')
+        pure (Left $ fst <$> argsAndNewBorrows, Move, dropFns', prevVarsList)
       H.AnAccessorIteratorType f -> do
         when (s.varMode == Move) $ throw sr "Cannot move from accessor"
 
@@ -728,7 +728,8 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
 
         addDestructureRefs ctx to (s.varMode == Shared) s.var
 
-        pure (Right (selfParamMode, selfExpr, fst <$> otherArgsAndNewBorrows), s.varMode, [])
+        prevVarsList <- copyVarsList
+        pure (Right (selfParamMode, selfExpr, fst <$> otherArgsAndNewBorrows), s.varMode, [], prevVarsList)
       _ -> error "Not an iterator function type"
 
     -- Get body
@@ -738,8 +739,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
     let dropFns = flip filter dropFns' $ \(uid, _) ->
           -- The yielded values may be moved within the loop body
           let v = must $ find (\v' -> v'.uid == uid) varsAfter in not v.moved
-    restoreVarsList prevVarsList
-
+    restoreVarsList prevVarsList -- Remove variable(s) for the yielded value
     restoreBorrowState b
 
     onThrowDropFns <- if s.iterFnIsNoThrow then pure Nothing else getThrowDropFns ctx <&> Just

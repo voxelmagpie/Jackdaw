@@ -1,0 +1,104 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+@Unsafe struct MYSQL { dummy: I8 }
+@Unsafe struct MYSQL_RES { dummy: I8 }
+@Unsafe alias MYSQL_ROW = **I8
+
+@Unsafe @NoThrow fn mysql_server_init()
+@Unsafe @NoThrow fn mysql_init (mysql: *MYSQL): *MYSQL
+@Unsafe @NoThrow fn mysql_real_connect (mysql: *MYSQL, host: *I8, user: *I8, passwd: *I8, db: *I8, port: U32, unix_socket: *I8, clientflag: U64): *MYSQL
+@Unsafe @NoThrow fn mysql_error (mysql: *MYSQL): *I8
+@Unsafe @NoThrow fn mysql_real_query (mysql: *MYSQL, q: *I8, length: U64): I32
+@Unsafe @NoThrow fn mysql_store_result (mysql: *MYSQL): *MYSQL_RES
+@Unsafe @NoThrow fn mysql_num_fields (res: *MYSQL_RES): U32
+@Unsafe @NoThrow fn mysql_fetch_row (result: *MYSQL_RES): MYSQL_ROW
+@Unsafe @NoThrow fn mysql_free_result (result: *MYSQL_RES)
+@Unsafe @NoThrow fn mysql_close (sock: *MYSQL)
+
+@Unsafe
+fn traceMariaDbError(con: *MYSQL) {
+    traceCStr(mysql_error(con));
+}
+
+fn dbInit () unsafe {
+    mysql_server_init();
+}
+
+struct Db {
+    @Unsafe 
+    con: *MYSQL
+
+    fn connect (user: String, pw: String): Self unsafe {
+        var con = mysql_init(nullptr);
+        if con == nullptr { throw &"mysql_init error"; }
+
+        if (mysql_real_connect(con, nullptr, user.getCPtr(), pw.getCPtr(), "forum".getCPtr(), 0, nullptr, 0) == nullptr) {
+            traceMariaDbError(con);
+            throw &"mysql_real_connect error";
+        }  
+
+        return .{con};
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        mysql_close(self.con);
+    }
+
+    fn select (ref self: Self, query: String): QueryResult unsafe {
+        if (mysql_real_query(self.con, query.getCPtr(), query.length() as U64) != 0) {
+            traceMariaDbError(self.con);
+            throw &"mysql_real_query error";
+        }
+
+        var result = mysql_store_result(self.con);
+        if result == nullptr { 
+            traceMariaDbError(self.con);
+            throw &"mysql_init error"; 
+        }
+
+        var numFields = mysql_num_fields(result) as I32;
+
+        return .{ result, numFields };
+    }
+}
+
+struct QueryResult {
+    @Unsafe
+    result: *MYSQL_RES,
+
+    @Unsafe
+    numFields: I32
+
+    fn nextRow (ref self: Self): Maybe[List[String]] unsafe {
+        var row = mysql_fetch_row(self.result);
+        if row == nullptr { return .none; }
+
+        var strings = List[String].new();
+        for (var i = 0; i < self.numFields; i += 1) {
+            var f = row.(i);
+            if f == nullptr {
+                strings.push(.new());
+            }
+            else {
+                strings.push(String.copyFromCString(f));
+            }
+        }
+
+        return .some(strings);
+    }
+
+    iterator iterRows (var self: Self): List[String] {
+        loop {
+            match self.nextRow() {
+                .none { break; }
+                .some(x) { yield x; }
+            }
+        }
+    }
+
+    fn onDrop (ref self: Self) unsafe {
+        mysql_free_result(self.result);
+    }
+}

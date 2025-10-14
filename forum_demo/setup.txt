@@ -2,8 +2,11 @@ sudo apt install mariadb-server mariadb-client libmariadb-dev
 sudo service mariadb start
 sudo mysql_secure_installation
 sudo mariadb forum < forum.sql
-udo mariadb forum < test_data.sql
+sudo mariadb forum < test_data.sql
 sudo mariadb
 	CREATE USER 'abc'@localhost IDENTIFIED BY 'PASSWORD';
 	GRANT ALL PRIVILEGES ON forum.* TO 'abc'@'localhost';
 	FLUSH PRIVILEGES;
+
+Create 'user' and 'pw' files in the same directory as this setup.txt file
+containing the database username and password respectively.

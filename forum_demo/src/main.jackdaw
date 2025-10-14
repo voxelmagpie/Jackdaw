@@ -11,84 +11,26 @@ import "@stlib/os_string"
 import "@http/http"
 import "@http/server" (Server, Connection, Request)
 import "@http/uri"
-
-struct MYSQL { dummy: I8 }
-struct MYSQL_RES { dummy: I8 }
-
-@Unsafe fn mysql_server_init()
-@Unsafe fn mysql_init (mysql: *MYSQL): *MYSQL
-@Unsafe fn mysql_real_connect (mysql: *MYSQL, host: *I8, user: *I8, passwd: *I8, db: *I8, port: U32, unix_socket: *I8, clientflag: U64): *MYSQL
-@Unsafe fn mysql_error (mysql: *MYSQL): *I8
-@Unsafe fn mysql_real_query (mysql: *MYSQL, q: *I8, length: U64): I32
-@Unsafe fn mysql_store_result (mysql: *MYSQL): *MYSQL_RES
-@Unsafe fn mysql_num_fields (res: *MYSQL_RES): U32
-@Unsafe alias MYSQL_ROW = **I8
-@Unsafe fn mysql_fetch_row (result: *MYSQL_RES): MYSQL_ROW
-@Unsafe fn mysql_free_result (result: *MYSQL_RES)
-@Unsafe fn mysql_close (sock: *MYSQL)
-
-@Unsafe
-fn traceMariaDbError(con: *MYSQL) {
-    traceCStr(mysql_error(con));
-}
-
-fn mariadbTest() unsafe {
-    mysql_server_init();
-
-    var con = mysql_init(nullptr);
-    if con == nullptr { throw &"mysql_init error"; }
-
-    if (mysql_real_connect(con, nullptr, "abc".getCPtr(), "PASSWORD".getCPtr(), "forum".getCPtr(), 0, nullptr, 0) == nullptr) {
-        traceMariaDbError(con);
-        throw &"mysql_real_connect error";
-    }  
-
-    var query = &"SELECT * FROM Posts";
-    if (mysql_real_query(con, query.*.getCPtr(), query.*.length() as U64) != 0) {
-        traceMariaDbError(con);
-        throw &"mysql_real_query error";
-    }
-
-    var result = mysql_store_result(con);
-    if result == nullptr { 
-        traceMariaDbError(con);
-        throw &"mysql_init error"; 
-    }
-
-    var num_fields = mysql_num_fields(result);
-
-    loop {
-        var row = mysql_fetch_row(result);
-        if row == nullptr { break; }
-
-        var s = String.new();
-        for (var i: U32 = 0; i < num_fields; i += 1) {
-            var f = row.(i);
-            if f == nullptr {
-                s ++= "NULL";
-            }
-            else {
-                s.appendCString(f);
-            }
-            if i < num_fields-1 { s ++= ", "; }
-        }
-        trace(s);
-    }
-
-    mysql_free_result(result);
-    mysql_close(con);
-}
+import "db"
 
 fn start (Args, var streams: IoStreams) {
-    // mariadbTest();
-    // return;
+    dbInit();
 
-    var server = Server.new(25565);
+    var user = readTextFile("user");
+    user.trimEnd();
+    var pw = readTextFile("pw");
+    pw.trimEnd();
+
+    // Test connection
+    _ = Db.connect(user, pw);
+
+    var server = Server.new(25566);
     streams.stdOut.writeLine("Listening on port " ++ server.server.port.toString());
     loop {
         match server.acceptFork() {
             .none {}
             .some(conn) {
+                var db = Db.connect(user, pw);
                 loop {
                     match conn.nextRequest() {
                         .closed { 
@@ -99,7 +41,7 @@ fn start (Args, var streams: IoStreams) {
                         }
                         .request(r) {
                             var closeAfter = !r.keepAlive;
-                            handleReq(conn, r);
+                            handleReq(conn, db, r);
                             if closeAfter { break; }
                         }
                     }
@@ -109,21 +51,25 @@ fn start (Args, var streams: IoStreams) {
     }
 }
 
-fn handleReq (ref conn: Connection, var req: Request) {
+fn handleReq (ref conn: Connection, ref db: Db, var req: Request) {
     var .{ head, uri, keepAlive:_, headers:_ } = req;
-    trace(uri);
+    // trace(uri);
 
     // TODO Better way of creating empty slices
     var headers = List[(String, String)].new();
 
-    if uri == "/test" {
-        conn.sendString("Hello :)", headers.asSlice(), head);
-    }
-    else if uri == "/" {
-        conn.sendFile("/var/www/index.html", headers.asSlice(), head);
+    if uri == "/" {
+        // var template = MMapFile.new2("res/index.html");
+        var html = "<!DOCTYPE html><html lang=\"en\"><head><meta charset=\"utf-8\"><title>Forum</title><link href=\"style.css\" rel=\"stylesheet\" /></head><body>".clone();
+        var posts = db.select("SELECT * FROM Posts");
+        foreach fields in posts.iterRows() {
+            html ++= "<div class=\"post\">" ++ fields.at(1) ++ "</div>";
+        }
+        html ++= "</body></html>";
+        conn.sendString(html, headers.asSlice(), head);
     }
     else {
-        var path = OsString.fromString("/var/www" ++ uri);
+        var path = OsString.fromString("res/static" ++ uri);
         conn.sendFile(path, headers.asSlice(), head);
     }
 }

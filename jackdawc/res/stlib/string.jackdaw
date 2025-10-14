@@ -25,12 +25,22 @@ struct String {
     }
 
     @Unsafe
-    fn appendCString (ref self: Self, c: *CChar) unsafe {
+    fn appendCString (ref self: Self, c: *CChar) {
         var sl = RawSlice[U8]{ ptr = c as *U8, length = strlen(c) as ISize };
         if !isValidUtf8(sl) { throw &"C string is not valid UTF-8"; }
         sl.length += 1; // Add null terminator back
         _ = self.utf8Data.pop();
         self.utf8Data ++= sl;
+    }
+
+    @Unsafe
+    fn copyFromCString (c: *CChar): Self {
+        var sl = RawSlice[U8]{ ptr = c as *U8, length = strlen(c) as ISize };
+        if !isValidUtf8(sl) { throw &"C string is not valid UTF-8"; }
+        sl.length += 1; // Add null terminator back
+        var utf8Data = List[U8].new();
+        utf8Data ++= sl;
+        return .{utf8Data};
     }
 
     fn ++ join (self: Self, other: String): String unsafe {
@@ -112,11 +122,16 @@ struct String {
         return self.getUtf8RawSliceNoNull();
     } 
 
+    // Only handles ASCII space characters for now
     fn trimEnd (ref self: Self) unsafe {
         var atEnd: ISize = 0;
         for (var i: ISize = self.utf8Data.length()-2; i >= 0; i -= 1) {
             var c = self.utf8Data.at(i);
-            if c == ' ' or c == '\t' { atEnd += 1; } else { break; }
+            if c == ' ' or c == '\t' or c == '\n' or c == '\r' or c == 11  or c == 12 { 
+                atEnd += 1; 
+            } else { 
+                break; 
+            }
         }
 
         if atEnd > 0 {

@@ -5,8 +5,8 @@ CC ?= cc
 
 all:
 	mkdir -p build
-	$(JACKDAWC) build src --add-package stlib $(STLIB) --add-package http ../http --exe $(EXE) --cc $(CC) +RTS -N
-# -lmariadbclient
+	$(JACKDAWC) build src --add-package stlib $(STLIB) --add-package http ../http --exe $(EXE) --cc $(CC) -lmariadbclient +RTS -N
+
 
 clean:
 	-rm -r build 

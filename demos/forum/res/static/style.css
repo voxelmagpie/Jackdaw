@@ -1,5 +1,5 @@
 body {
-    background-color: #f5f7ff;
+    background-color: white;
     display: flex;
     flex-direction: row;
     height: 100%;
@@ -26,19 +26,20 @@ body {
     flex-grow: 1;
 }
 
-.post {
+.post_inner {
     width: 100%;
     box-sizing: border-box;
-    padding: 15px;
-    padding-left: 25px;
-    padding-right: 25px;
+    padding: 30px;
+    padding-left: 10px;
+    padding-right: 10px;
     background-color: white;
     color: black;
     font-family: sans-serif;
     font-size: 16px;
     line-height: 1.5;
     border: none;
-    margin-bottom: 20px;
+    border-bottom: solid lightgray 1px;
+    min-height: 100px;
 }
 
 #new_post_div {
@@ -53,9 +54,7 @@ body {
 }
 
 #new_post_text {
-    padding: 15px;
-    padding-left: 25px;
-    padding-right: 25px;
+    padding: 10px;
     background-color: white;
     color: black;
     width: 100%;

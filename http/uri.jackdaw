@@ -24,3 +24,7 @@ fn uriIsValid (uri: String): Bool {
 
     return true;
 }
+
+fn isUriSafeChar (c: U8): Bool {
+    return (c >= 'a' and c <= 'z') or (c >= 'A' and c <= 'Z') or c == '$' or c == '-' or c == '_' or c == '.' or c == '*';
+}

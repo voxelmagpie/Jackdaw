@@ -2,9 +2,74 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
+import "@stlib/memory" as M ()
+
 @Unsafe struct MYSQL { dummy: I8 }
 @Unsafe struct MYSQL_RES { dummy: I8 }
+@Unsafe struct MYSQL_STMT { dummy: I8 }
 @Unsafe alias MYSQL_ROW = **I8
+
+union RowPtrOrIndicator {
+	row_ptr(*U8),
+	indicator(*I8)
+}
+
+alias EnumFieldTypes = I32
+@Unsafe const _MYSQL_TYPE_DECIMAL: EnumFieldTypes = 0
+@Unsafe const _MYSQL_TYPE_TINY: EnumFieldTypes = 1
+@Unsafe const _MYSQL_TYPE_SHORT: EnumFieldTypes = 2
+@Unsafe const _MYSQL_TYPE_LONG: EnumFieldTypes = 3
+@Unsafe const _MYSQL_TYPE_FLOAT: EnumFieldTypes = 4
+@Unsafe const _MYSQL_TYPE_DOUBLE: EnumFieldTypes = 5
+@Unsafe const _MYSQL_TYPE_NULL: EnumFieldTypes = 6
+@Unsafe const _MYSQL_TYPE_TIMESTAMP: EnumFieldTypes = 7
+@Unsafe const _MYSQL_TYPE_LONGLONG: EnumFieldTypes = 8
+@Unsafe const _MYSQL_TYPE_INT24: EnumFieldTypes = 9
+@Unsafe const _MYSQL_TYPE_DATE: EnumFieldTypes = 10
+@Unsafe const _MYSQL_TYPE_TIME: EnumFieldTypes = 11
+@Unsafe const _MYSQL_TYPE_DATETIME: EnumFieldTypes = 12
+@Unsafe const _MYSQL_TYPE_YEAR: EnumFieldTypes = 13
+@Unsafe const _MYSQL_TYPE_NEWDATE: EnumFieldTypes = 14
+@Unsafe const _MYSQL_TYPE_VARCHAR: EnumFieldTypes = 15
+@Unsafe const _MYSQL_TYPE_BIT: EnumFieldTypes = 16
+@Unsafe const _MYSQL_TYPE_TIMESTAMP2: EnumFieldTypes = 17
+@Unsafe const _MYSQL_TYPE_DATETIME2: EnumFieldTypes = 18
+@Unsafe const _MYSQL_TYPE_TIME2: EnumFieldTypes = 19
+@Unsafe const _MYSQL_TYPE_JSON: EnumFieldTypes = 245
+@Unsafe const _MYSQL_TYPE_NEWDECIMAL: EnumFieldTypes = 246
+@Unsafe const _MYSQL_TYPE_ENUM: EnumFieldTypes = 247
+@Unsafe const _MYSQL_TYPE_SET: EnumFieldTypes = 248
+@Unsafe const _MYSQL_TYPE_TINY_BLOB: EnumFieldTypes = 249
+@Unsafe const _MYSQL_TYPE_MEDIUM_BLOB: EnumFieldTypes = 250
+@Unsafe const _MYSQL_TYPE_LONG_BLOB: EnumFieldTypes = 251
+@Unsafe const _MYSQL_TYPE_BLOB: EnumFieldTypes = 252
+@Unsafe const _MYSQL_TYPE_VAR_STRING: EnumFieldTypes = 253
+@Unsafe const _MYSQL_TYPE_STRING: EnumFieldTypes = 254
+@Unsafe const _MYSQL_TYPE_GEOMETRY: EnumFieldTypes = 255
+@Unsafe const _MAX_NO_FIELD_TYPES: EnumFieldTypes = 256
+
+@Unsafe
+struct MYSQL_BIND {
+	length: *U64,
+	is_null: *I8,
+	buffer: *void,
+	error: *I8,
+	u: RowPtrOrIndicator,
+	store_param_func: *void,
+	fetch_result: *void,
+	skip_result: *void,
+	buffer_length: U64,
+	offset: U64,
+	length_value: U64,
+	flags: U32,
+	pack_length: U32,
+	buffer_type: EnumFieldTypes,
+	error_value: I8,
+	is_unsigned: I8,
+	long_data_used: I8,
+	is_null_value: I8,
+	extension: *void
+}
 
 @Unsafe @NoThrow fn mysql_server_init()
 @Unsafe @NoThrow fn mysql_init (mysql: *MYSQL): *MYSQL
@@ -16,6 +81,13 @@
 @Unsafe @NoThrow fn mysql_fetch_row (result: *MYSQL_RES): MYSQL_ROW
 @Unsafe @NoThrow fn mysql_free_result (result: *MYSQL_RES)
 @Unsafe @NoThrow fn mysql_close (sock: *MYSQL)
+@Unsafe @NoThrow fn mysql_stmt_init (mysql: *MYSQL): *MYSQL_STMT
+@Unsafe @NoThrow fn mysql_stmt_close (stmt: *MYSQL_STMT): I8
+@Unsafe @NoThrow fn mysql_stmt_prepare (stmt: *MYSQL_STMT, query: *I8, length: U64): I32
+@Unsafe @NoThrow fn mysql_stmt_param_count (stmt: *MYSQL_STMT): U64
+@Unsafe @NoThrow fn mysql_stmt_bind_param (stmt: *MYSQL_STMT, bnd: *MYSQL_BIND): I8
+@Unsafe @NoThrow fn mysql_stmt_execute (stmt: *MYSQL_STMT): I32
+@Unsafe @NoThrow fn mysql_stmt_affected_rows (stmt: *MYSQL_STMT): U64
 
 @Unsafe
 fn traceMariaDbError(con: *MYSQL) {
@@ -26,9 +98,18 @@ fn dbInit () unsafe {
     mysql_server_init();
 }
 
+enum DbValue {
+    int(I32),
+    uint(U32),
+    null,
+    string(String)
+} 
+
+struct StatementId { x: I32 }
+
 struct Db {
-    @Unsafe 
-    con: *MYSQL
+    @Unsafe con: *MYSQL,
+    @Unsafe stmts: List[Statement]
 
     fn connect (user: String, pw: String): Self unsafe {
         var con = mysql_init(nullptr);
@@ -39,15 +120,15 @@ struct Db {
             throw &"mysql_real_connect error";
         }  
 
-        return .{con};
+        return .{ con, stmts = .new() };
     }
 
     fn onDrop (ref self: Self) unsafe {
         mysql_close(self.con);
     }
 
-    fn select (ref self: Self, query: String): QueryResult unsafe {
-        if (mysql_real_query(self.con, query.getCPtr(), query.length() as U64) != 0) {
+    fn select (ref self: Self, query: *const String): QueryResult unsafe {
+        if (mysql_real_query(self.con, query.*.getCPtr(), query.*.length() as U64) != 0) {
             traceMariaDbError(self.con);
             throw &"mysql_real_query error";
         }
@@ -61,6 +142,99 @@ struct Db {
         var numFields = mysql_num_fields(result) as I32;
 
         return .{ result, numFields };
+    }
+
+    fn prepareStatement (ref self: Self, query: *const String): StatementId unsafe {
+        var stmt = mysql_stmt_init(self.con);
+        if stmt == nullptr { 
+            traceMariaDbError(self.con);
+            throw &"mysql_stmt_init error"; 
+        }
+
+        if mysql_stmt_prepare(stmt, query.*.getCPtr(), query.*.length() as U64) != 0 {
+            traceMariaDbError(self.con);
+            throw &"mysql_stmt_prepare error"; 
+        }
+
+        var paramCount = mysql_stmt_param_count(stmt) as ISize;
+
+        var binds = List[MYSQL_BIND].new();
+        binds.reserve(paramCount);
+        var lengths = List[USize].new();
+        binds.reserve(paramCount);
+
+        self.stmts.push(.{ con = self.con, stmt, paramCount, binds, lengths });
+        return .{ x = self.stmts.length() as I32 - 1 };
+    }
+
+    accessor stmt (ref self: Self, id: StatementId): Statement unsafe {
+        return self.stmts.at(id.x);
+    }
+}
+
+struct Statement {
+    @Unsafe con: *MYSQL,
+    @Unsafe stmt: *MYSQL_STMT,
+    @Unsafe paramCount: ISize,
+    @Unsafe binds: List[MYSQL_BIND],
+    @Unsafe lengths: List[USize]
+
+    fn onDrop (ref self: Self) unsafe {
+        mysql_stmt_close(self.stmt);
+    }
+
+    fn execute (ref self: Self, params: Slice[DbValue]): I64 unsafe {
+        if params.length() != self.paramCount {
+            throw &"Wrong number of parameters for prepared statement";
+        }
+
+        self.binds.clear();
+        self.lengths.clear();
+
+        foreach p in params.iter() {
+            var b: MYSQL_BIND;
+            M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
+
+            match p {
+                .int(x) {
+                    b.buffer_type = _MYSQL_TYPE_LONG; 
+                    b.buffer = &x;
+                    b.buffer_length = 4;
+                    self.lengths.push(0);
+                }
+                .uint(x) {
+                    b.buffer_type = _MYSQL_TYPE_LONG; 
+                    b.buffer = &x;
+                    b.buffer_length = 4;
+                    b.is_unsigned = 1;
+                }
+                .null {
+                    b.buffer_type = _MYSQL_TYPE_NULL; 
+                }
+                .string(s) {
+                    b.buffer_type = _MYSQL_TYPE_STRING; 
+                    b.buffer = s.getCPtr();
+                    b.buffer_length = s.length() as USize;
+                    // The length has to be specified twice for non-primitives and this one is a pointer
+                    // The list won't reallocate as the size was reserved in prepareStatement so this is safe
+                    self.lengths.push(s.length() as USize);
+                    b.length = &self.lengths.at(self.lengths.length()-1);
+                }
+            }
+            self.binds.push(b);
+        }
+
+        if mysql_stmt_bind_param(self.stmt, &self.binds.at(0)) != 0 {
+            traceMariaDbError(self.con);
+            throw &"mysql_stmt_bind_param error";
+        }
+
+        if mysql_stmt_execute(self.stmt) != 0 {
+            traceMariaDbError(self.con);
+            throw &"mysql_stmt_execute error";
+        }
+
+        return mysql_stmt_affected_rows(self.stmt) as I64;
     }
 }
 

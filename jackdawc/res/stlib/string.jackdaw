@@ -8,6 +8,8 @@ import "raw_slice"
 import "range"
 import "memory" as M ()
 
+@Unsafe @NoThrow fn strtoll (str: *CChar, str_end: **CChar, base: I32): I64
+
 struct String {
     @Unsafe 
     utf8Data: List[U8] // Null terminated
@@ -23,6 +25,20 @@ struct String {
     fn ++= appendString (ref self: Self, other: String) unsafe {
         _ = self.utf8Data.pop();
         self.utf8Data.append(other.utf8Data.asSlice());
+    }
+
+    fn fromByteList (var utf8Data: List[U8]): Maybe[Self] unsafe {
+        var l = utf8Data.length();
+        var isNullTerminated = l > 0 and utf8Data.at(l - 1) == 0;
+        if isNullTerminated {
+            if !isValidUtf8(utf8Data.asSlice().subSlice(0, l-1)) { return .none; }
+            return .some(.{utf8Data});
+        }
+        else {
+            if !isValidUtf8(utf8Data.asSlice()) { return .none; }
+            utf8Data.push(0);
+            return .some(.{utf8Data});
+        }
     }
 
     @Unsafe
@@ -221,5 +237,14 @@ struct String {
         utf8Data.push(0);
 
         return .{utf8Data};
+    }
+
+    fn parseInt (self: String): Maybe[I64] unsafe {
+        var end: *I8;
+        var x = strtoll(self.getCPtr(), &end, 10);
+        if end == self.getCPtr() {
+            return .none;
+        }
+        return .some(x);
     }
 }

@@ -11,7 +11,18 @@ import "@stlib/os_string"
 import "@http/http"
 import "@http/server" (Server, Connection, Request)
 import "@http/uri"
+import "@http/form" (parseFormData)
 import "db"
+
+struct Statements {
+    insertPost: StatementId
+
+    fn create (ref db: Db): Self {
+        return .{
+            insertPost = db.prepareStatement(&"INSERT INTO Posts (text) VALUES (?)")
+        };
+    }
+}
 
 fn start (Args, var streams: IoStreams) {
     dbInit();
@@ -21,8 +32,8 @@ fn start (Args, var streams: IoStreams) {
     var pw = readTextFile("pw");
     pw.trimEnd();
 
-    // Test connection
-    _ = Db.connect(user, pw);
+    // Test connection & queries
+    _ = Statements.create(Db.connect(user, pw));
 
     var server = Server.new(25566);
     streams.stdOut.writeLine("Listening on port " ++ server.server.port.toString());
@@ -31,17 +42,13 @@ fn start (Args, var streams: IoStreams) {
             .none {}
             .some(conn) {
                 var db = Db.connect(user, pw);
+                var statements = Statements.create(db);
                 loop {
                     match conn.nextRequest() {
-                        .closed { 
-                            break;
-                        }
-                        .invalid {
-                            conn.sendBadRequest400();
-                        }
+                        .closed { break; }
                         .request(r) {
                             var closeAfter = !r.keepAlive;
-                            handleReq(conn, db, r);
+                            handleReq(conn, db, statements, r);
                             if closeAfter { break; }
                         }
                     }
@@ -51,14 +58,21 @@ fn start (Args, var streams: IoStreams) {
     }
 }
 
-fn handleReq (ref conn: Connection, ref db: Db, var req: Request) {
-    var .{ head, uri, keepAlive:_, headers:_ } = req;
+fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request) {
+    var .{ head, reqType, uri, keepAlive:_, headers:reqHeaders, body } = req;
     // trace(uri);
 
+
     // TODO Better way of creating empty slices
-    var headers = List[(String, String)].new();
+    var respHeaders = List[(String, String)].new();
 
     if uri == "/" {
+        match reqType {
+            .head {}
+            .get {}
+            .post { conn.sendBadRequest400(); return; }
+        }
+
         var template = readTextFile("res/templates/main_page.html");
 
         var html: String;
@@ -77,15 +91,43 @@ fn handleReq (ref conn: Connection, ref db: Db, var req: Request) {
             html2 = template.subString(i+1, template.length() - i - 1);
         }
 
-        var posts = db.select("SELECT * FROM Posts");
+        var posts = db.select(&"SELECT * FROM Posts");
         foreach fields in posts.iterRows() {
-            html ++= "<div class=\"post\">" ++ fields.at(1) ++ "</div>";
+            html ++= "<div class=\"post_outer\"><div class =\"post_inner\">" ++ fields.at(1) ++ "</div></div>";
         }
         html ++= html2;
-        conn.sendString(html, headers.asSlice(), head);
+        conn.sendString(html, respHeaders.asSlice(), head);
+    }
+    else if uri == "/add_post" {
+        match reqType {
+            .post {}
+            _ { conn.sendBadRequest400(); return; }
+        }
+
+        if !reqHeaders.contains("content-type") or reqHeaders.get("content-type") != "application/x-www-form-urlencoded" {
+            conn.sendBadRequest400(); return; 
+        }
+
+        var formData = parseFormData(body).orThrow();
+        foreach (k, v) in formData.iter() {
+            if k == "text" {
+                var values = Array[DbValue, 1].singleton(.string(v.clone()));
+                db.stmt(statements.insertPost).execute(values.asSlice());
+                conn.sendRedirect303("/");
+                break;   
+            }
+        }
+
+        conn.sendBadRequest400();
     }
     else {
+        match reqType {
+            .head {}
+            .get {}
+            .post { conn.sendBadRequest400(); return; }
+        }
+
         var path = OsString.fromString("res/static" ++ uri);
-        conn.sendFile(path, headers.asSlice(), head);
+        conn.sendFile(path, respHeaders.asSlice(), head);
     }
 }

@@ -4,8 +4,8 @@ sudo mysql_secure_installation
 sudo mariadb forum < forum.sql
 sudo mariadb forum < test_data.sql
 sudo mariadb
-	CREATE USER 'abc'@localhost IDENTIFIED BY 'PASSWORD';
-	GRANT ALL PRIVILEGES ON forum.* TO 'abc'@'localhost';
+	CREATE USER 'USER'@localhost IDENTIFIED BY 'PASSWORD';
+	GRANT ALL PRIVILEGES ON forum.* TO 'USER'@'localhost';
 	FLUSH PRIVILEGES;
 
 Create 'user' and 'pw' files in the same directory as this setup.txt file

@@ -78,6 +78,12 @@ struct List [A] {
         self.capacity = newCap;
     }
 
+    fn shrink (ref self: Self) unsafe {
+        if self._length >= self.capacity { return; }
+        self.ptr = M.realloc[A](self.ptr, self._length);
+        self.capacity = self._length;
+    }
+
     fn pop (ref self: Self): A unsafe {
         if self._length < 1 { throw &"List is empty"; }
         self._length -= 1;

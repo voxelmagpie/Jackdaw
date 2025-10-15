@@ -1,0 +1,60 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "http" (HttpResult, asciiHexCharToInt)
+import "uri"
+
+fn parseFormData (s: List[U8]): HttpResult[List[(String, String)]] {
+    var fields = List[(String, String)].new();
+    var i: ISize = 0;
+    loop {
+        if i >= s.length() { break;}
+        fields.push(readKeyValue(s, i)!);
+        if i >= s.length() { break;}
+        if s.at(i) != '&' { return .err(&"Expected '&'"); }
+        i += 1;
+    }
+    return .ok(fields);
+}
+
+fn readKeyValue (s: List[U8], ref i: ISize): HttpResult[(String, String)] {
+    var key = readWord(s, i)!;
+    if i >= s.length() or s.at(i) != '=' { return .err(&"Expected '='"); }
+    i += 1;
+    var value = readWord(s, i)!;
+    return .ok((key, value));
+}
+
+fn readWord (s: List[U8], ref i: ISize): HttpResult[String] {
+    var bytes = List[U8].new();
+    loop {
+        if i >= s.length() { break;}
+        var c = s.at(i);
+        if c == '+' {
+            bytes.push(' ');
+            i += 1;
+        }
+        else if isUriSafeChar(c) {
+            bytes.push(c);
+            i += 1;
+        }
+        else if c == '%' {
+            if i+2 >= s.length() { return .err(&"EOF in URI"); }
+            var hi = asciiHexCharToInt(s.at(i+1))!;
+            var lo = asciiHexCharToInt(s.at(i+2))!;
+            var c = (hi << 4) | lo;
+            if c == 0 { return .err(&"Null byte in URI"); }
+            i += 3;
+            bytes.push(c as U8);
+        }
+        else if c == '&' or c == '=' {
+            break;
+        }
+        else {
+            return .err(&"Invalid character in URI");
+        }
+    }
+
+    return String.fromByteList(bytes).toResult[*const String](&"Invalid UTF8 in URI");
+}

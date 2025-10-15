@@ -816,7 +816,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
       pure x
     _ -> do
       unless (length (A.tsDefCommon astDef).genericParams == length gArgs)
-        $ throw userCtx.et sr "Wrong number of arguments to type"
+        $ throw userCtx.et sr "Wrong number of generic arguments to type"
 
       checkTemplateArgs userCtx (A.tsDefCommon astDef).genericParams gArgs
 

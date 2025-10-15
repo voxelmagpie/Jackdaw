@@ -31,16 +31,17 @@ struct Server {
 }
 
 enum NextRequest {
-    invalid, // Request was invalid, caller should call sendBadRequest400
     closed, // Socket closed, no more requests
     request(Request) // Request received, response needed
 }
 
 struct Request {
     head: Bool,
+    reqType: HttpRequestType,
     uri: String,
     keepAlive: Bool,
-    headers: HashMap[String, String]
+    headers: HashMap[String, String],
+    body: List[U8]
 }
 
 struct Connection {
@@ -51,13 +52,33 @@ struct Connection {
 
         var .{ reqType, uri, keepAliveDefault:keepAlive } = HttpRequest.read(self.s).orThrow();
 
+        if !uriIsValid(uri) { 
+            throw &"URI invalid";
+        }
+
         var headers = readHttpHeaders(self.s).orThrow();
         if headers.contains("connection") {
             keepAlive = headers.get("connection") != "close";
         }
 
-        if !uriIsValid(uri) { 
-            return .invalid;
+        var contentLength = 0;
+        if headers.contains("content-length") {
+            var l = headers.get("content-length").parseInt().orThrowMsg(&"Content-Length format error");
+            if l > 1024*1024 {
+                throw &"Content-length too large in request";
+            }
+            contentLength = l as I32;
+        }
+
+        var body = List[U8].new();
+        if contentLength > 0 {
+            match reqType {
+                .head { throw &"HEAD cannot have body";}
+                .get { throw &"GET cannot have body";}
+                .post {
+                    body = self.s.readBytesList(contentLength);
+                }
+            }
         }
         
         var head: Bool;
@@ -66,7 +87,7 @@ struct Connection {
             _ { head = false; }
         }
 
-        return .request(.{ head, uri, keepAlive, headers });
+        return .request(.{ reqType, head, uri, keepAlive, headers, body });
     }
 
     fn sendBadRequest400 (ref self: Self) {
@@ -89,6 +110,14 @@ struct Connection {
         self.s.flush();
     }
 
+    // For redirecting after a POST request
+    fn sendRedirect303 (ref self: Self, to: String) {
+        self.s.writeString("HTTP/1.1 303 See Other\r\nContent-Length: 0\r\nLocation: ");
+        self.s.writeString(to.toString());
+        self.s.writeString("\r\n\r\n");
+        self.s.flush();
+    }
+
     fn sendTempRedirect307 (ref self: Self, to: String) {
         self.s.writeString("HTTP/1.1 307 Temporary Redirect\r\nContent-Length: 0\r\nLocation: ");
         self.s.writeString(to.toString());
@@ -100,6 +129,11 @@ struct Connection {
         self.s.writeString("HTTP/1.1 308 Permanent Redirect\r\nContent-Length: 0\r\nLocation: ");
         self.s.writeString(to.toString());
         self.s.writeString("\r\n\r\n");
+        self.s.flush();
+    }
+
+    fn sendOk200 (ref self: Self) {
+        self.s.writeString("HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n");
         self.s.flush();
     }
 

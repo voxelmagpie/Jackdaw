@@ -257,6 +257,49 @@ struct Socket {
         return true;
     }
 
+    fn readBytesOrThrow (ref self: Self, ref out: Slice[U8]) {
+        // TODO memcpy from read buffer and do direct reads
+        for (var i: ISize = 0; i < out.length(); i += 1) {
+            match self.readByte() {
+                .none { throw &"EOF"; }
+                .some(x) {
+                    out.at(i) = x;
+                }
+            }
+        }
+    }
+
+    fn readBytesListOrThrow (ref self: Self, n: ISize): List[U8] unsafe {
+        var l = List[U8].new();
+        l.reserve(n);
+        self.readBytesOrThrow(RawSlice[U8]{ ptr = l.ptr, length=n });
+        l._length = n;
+        return l;
+    }
+
+    fn readBytes (ref self: Self, ref out: Slice[U8]): ISize {
+        // TODO memcpy from read buffer and do direct reads
+        var i: ISize = 0;
+        for (; i < out.length(); i += 1) {
+            match self.readByte() {
+                .none { break; }
+                .some(x) {
+                    out.at(i) = x;
+                }
+            }
+        }
+        return i;
+    }
+
+    fn readBytesList (ref self: Self, n: ISize): List[U8] unsafe {
+        var l = List[U8].new();
+        l.reserve(n);
+        var read = self.readBytes(RawSlice[U8]{ ptr = l.ptr, length=n });
+        l._length = read;
+        l.shrink();
+        return l;
+    }
+
     fn readByte (ref self: Self): Maybe[U8] {
         for (; self.rRing.count() < 1;) {
             if !self._readToRingBuffer() { return .none; }

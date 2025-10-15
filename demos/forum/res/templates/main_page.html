@@ -5,6 +5,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
     <title>Forum</title>
     <link href="style.css" rel="stylesheet" />
 </head>
@@ -13,11 +14,13 @@
     <div class="sep"></div>
     <div id="content">
         `
-        <div id="new_post_div">
-            <textarea name="text" minlength="1" maxlength="5000" placeholder="Add to the conversation..."
-                spellcheck="true" id="new_post_text"></textarea>
-            <button id="add_post">Add Post</button>
-        </div>
+        <form action="add_post" method="post">
+            <div id="new_post_div">
+                <textarea name="text" minlength="1" maxlength="5000" placeholder="Add to the conversation..."
+                    spellcheck="true" id="new_post_text"></textarea>
+                <button id="add_post" type="submit">Add Post</button>
+            </div>
+        </form>
         <div class="sep"></div>
         <div id="buttons">
             <button id="first" class="sep" disabled>&lt&lt First</button>
@@ -25,7 +28,7 @@
             <button id="next" class="sep" disabled>Next &gt</button>
             <button id="last" class="sep" disabled>Last &gt&gt</button>
         </div>
-        <div id="page_no">Page 1 of 999</div>
+        <div id="page_no">Page 1 of 1</div>
     </div>
     <div class="sep"></div>
 </body>

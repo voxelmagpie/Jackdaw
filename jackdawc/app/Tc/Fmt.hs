@@ -79,7 +79,7 @@ formatType showFqn = \case
   I.PtrType x -> case x of
     Just y -> ("*" <>) <$> formatType showFqn y
     _ -> pure "*void"
-  I.ConstPtrType y -> ("*" <>) <$> formatType showFqn y
+  I.ConstPtrType y -> ("*const " <>) <$> formatType showFqn y
   I.ArrayType t n -> do
     t' <- formatType showFqn t
     pure $ "Array[" <> t' <> "," <> tShow n <> "]"

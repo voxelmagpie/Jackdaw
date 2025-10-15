@@ -15,7 +15,7 @@ enum Maybe [A] {
     }
 
     fn orElse (var self: Self, var x: A): A {
-        match self {
+        match var self {
             .some(y) { return y; }
             _ {}
         }
@@ -23,21 +23,21 @@ enum Maybe [A] {
     }
 
     fn toResult [E] (var self: Self, var e: E): Result[A, E] {
-        match self {
+        match var self {
             .some(x) { return .ok(x); }
             _ { return .err(e); }
         }
     }
 
     fn orThrow (var self: Self): A {
-        match self {
+        match var self {
             .some(x) { return x; }
             _ { throw &"Maybe was None"; }
         }
     }
 
     fn orThrowMsg (var self: Self, msg: *const String): A {
-        match self {
+        match var self {
             .some(x) { return x; }
             _ { throw msg; }
         }

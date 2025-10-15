@@ -136,14 +136,14 @@ checkMovedInitedVarsAndGetDropFns sr varsBefore updatedVarsLists = do
 getArgsExprAndBorrows ::
   (MonadBrwChk m) => Ctx -> [(AccessMode, (I.Expr, Maybe I.VDefId))] -> m [(H.FnArg, Borrows)]
 getArgsExprAndBorrows ctx args =
-  forM args $ \(argMode', (argExpr, dropFn)) -> do
+  forM args $ \(argMode, (argExpr, dropFn)) -> do
     isCopy <- getTypeIsCopyableFn >>= \f -> f $ snd3 argExpr
     -- Moving a copyable value is just copying. Access it by shared reference then copy
-    let argMode = if argMode' == Move && isCopy then Shared else argMode'
+    let argMode' = if argMode == Move && isCopy then Shared else argMode
 
     -- Borrow check the arg, get the new borrows, restore the borrow state
     b <- copyBorrowState
-    argExpr'@(argExprOrAccExpr, _) <- borrowCheckExpr ctx argMode argExpr
+    argExpr'@(argExprOrAccExpr, _) <- borrowCheckExpr ctx argMode' argExpr
     b' <- copyBorrowState
     let newBws = take (length b' - length b) b'
     restoreBorrowState b

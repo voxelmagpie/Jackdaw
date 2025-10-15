@@ -7,14 +7,8 @@ import "@stlib/hash_map"
 
 enum HttpRequestType {
     get,
-    head
-
-    fn toString (self: Self): String {
-        match self {
-            .get { return "GET".clone(); }
-            .head { return "HEAD".clone(); }
-        }
-    }
+    head,
+    post
 }
 
 fn readWord (ref s: Socket): String {
@@ -179,6 +173,9 @@ struct HttpRequest {
         }
         else if reqStr == "HEAD" {
             reqType = HttpRequestType.head;
+        }
+        else if reqStr == "POST" {
+            reqType = HttpRequestType.post;
         }
         else {
             return .err(&"Unknown request type");

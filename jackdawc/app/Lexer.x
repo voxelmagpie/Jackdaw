@@ -96,7 +96,7 @@ tokens :-
   
   \" ([^\"] | (\\\"))* \" { \i@(AlexPn _ row _, _, _, _) l -> tok' (mkStringTok row) i l }
   
-  \' \\ [^\'] \' { \i@(AlexPn _ row _, _, _, _) l -> tok' (mkEscapeCharLit row) i l }
+  \' \\ . \' { \i@(AlexPn _ row _, _, _, _) l -> tok' (mkEscapeCharLit row) i l }
   \' [^\'\\] \' { tok $ CharLiteral . T.head . stripQuotes }
 
 {

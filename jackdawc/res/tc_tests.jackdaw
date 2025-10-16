@@ -264,7 +264,6 @@ fn start () {
     var x = Json.new();
 }
 
-
 // --- //
 
 import "@stlib/list" as Json ()
@@ -273,3 +272,9 @@ import "@stlib/json" as Json ()
 fn start () {
     var x = Json.new();
 }
+
+// --- //
+
+fn f (): String { return 3; }
+
+fn start() {}

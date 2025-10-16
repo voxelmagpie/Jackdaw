@@ -58,6 +58,54 @@ fn start (Args, var streams: IoStreams) {
     }
 }
 
+fn filterHtml (src: String): Maybe[String] {
+    var dst = List[U8].new();
+    borrow src = src.utf8Slice();
+    var i: ISize = 0;
+
+    loop {
+        // Get any number of unescaped characters
+        var j: ISize = 0;
+        loop {
+            if i+j >= src.length() { break; }
+            var c = src.at(i+j);
+            if c == '<' or c == '>' or c == '&' or c == '"' or c == '\'' {
+                break;
+            }
+            else {
+                j += 1;
+            }
+        }
+        if i == 0 and j == src.length() { return .none; } // No characters to escape
+        dst ++= src.subSlice(i, j);
+        i += j;
+
+        // Escape character
+
+        if i >= src.length() { break; }
+        var x = src.at(i);
+        i += 1;
+
+        if x == '<' {
+            dst ++= "&lt;".utf8Slice();
+        }
+        else if x == '>' {
+            dst ++= "&gt;".utf8Slice();
+        }
+        else if x == '&' {
+            dst ++= "&amp;".utf8Slice();
+        }
+        else if x == '"' {
+            dst ++= "&quot;".utf8Slice();
+        }
+        else {
+            dst ++= "&apos;".utf8Slice();
+        }
+    }
+
+    return .some(String.fromByteListUnchecked(dst));
+}
+
 fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request) {
     var .{ head, reqType, uri, keepAlive:_, headers:reqHeaders, body } = req;
     // trace(uri);
@@ -93,7 +141,12 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
 
         var posts = db.select(&"SELECT * FROM Posts");
         foreach fields in posts.iterRows() {
-            html ++= "<div class=\"post_outer\"><div class =\"post_inner\">" ++ fields.at(1) ++ "</div></div>";
+            html ++= "<div class=\"post_outer\"><div class =\"post_inner\">";
+            match filterHtml(fields.at(1)) {
+                .some(x) { html ++= x; }
+                .none { html ++= fields.at(1); }
+            }
+            html ++= "</div></div>";
         }
         html ++= html2;
         conn.sendString(html, respHeaders.asSlice(), head);

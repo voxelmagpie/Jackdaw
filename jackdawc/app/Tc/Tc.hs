@@ -164,7 +164,7 @@ getGenericBuiltinType ctx ns name gArgs = do
 -- If this is a member function then the context includes generic parameters from containing type as well as the function
 -- 'userCtx' is the context of the code that is accessing this definition
 -- 'outerCtx' is the context of the source file or type that the definition is within
-makeVDefCtx :: 
+makeVDefCtx ::
   (MonadHirRead' m) => Ctx -> Ctx -> [I.GenericArg] -> [A.GenericParameter] -> Bool -> Bool -> VName' -> Bool -> SrcLoc' -> m Ctx
 makeVDefCtx _userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsafe srcLoc = do
   let gp = zip astGp genericArgs
@@ -2029,8 +2029,13 @@ getReturnStmnt ctx sr e = do
         Just r -> do
           e''@(_, actualType, _) <- getExpr ctx (TypeHint r) e' >>= if ctx.inAccessor then pure else iCast r
 
+          let dontMatch = do
+                (exp', act') <- format2Types r actualType
+                addError ctx.et e' $ "Expression type does not match function return type\nExpected " <> exp' <> ", got " <> act'
+
           if actualType == r || not ctx.inAccessor
-            then
+            then do
+              unless (actualType == r) dontMatch
               pure e''
             else do
               let isAccRawPtr = actualType == I.PtrType (Just r)
@@ -2041,8 +2046,7 @@ getReturnStmnt ctx sr e = do
                   pure $ c.fqn == TFqn "@stlib/raw_slice:RawSlice" && (c.genericArgs !! 0) == I.TypeGenericArg t
                 _ -> pure False
 
-              unless (isAccRawPtr || isAccRawSlice)
-                $ addError ctx.et e' "Expression type does not match function return type"
+              unless (isAccRawPtr || isAccRawSlice) dontMatch
 
               pure $ if isAccRawPtr then (I.PtrDerefExpr e'', r, sr) else (I.RawSliceToSliceExpr e'', r, sr)
         _ -> do

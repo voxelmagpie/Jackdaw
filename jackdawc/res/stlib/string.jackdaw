@@ -41,6 +41,15 @@ struct String {
         }
     }
 
+    fn fromByteListUnchecked (var utf8Data: List[U8]): Self unsafe {
+        var l = utf8Data.length();
+        var isNullTerminated = l > 0 and utf8Data.at(l - 1) == 0;
+        if !isNullTerminated {
+            utf8Data.push(0);
+        }
+        return .{utf8Data};
+    }
+
     @Unsafe
     fn appendCString (ref self: Self, c: *CChar) {
         var sl = RawSlice[U8]{ ptr = c as *U8, length = strlen(c) as ISize };
@@ -159,6 +168,16 @@ struct String {
 
     fn toString (self: Self): String {
         return self.clone();
+    }
+
+    iterator iterCodePoints (self: Self): U32 {
+        var i: ISize = 0;
+        loop {
+            if i >= self.length() { break; }
+            var (cp, j) = self.codePointAt(i);
+            yield cp;
+            i += j;
+        }   
     }
 
     fn findStartOfCodePoint (self: Self, var i: ISize): ISize unsafe {

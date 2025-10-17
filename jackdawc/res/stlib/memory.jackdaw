@@ -32,7 +32,9 @@ fn realloc [T] (old: *T, n: ISize): *T {
 
 @Unsafe
 fn free (p: *void) {
-    C.free(p);
+    if p != nullptr {
+        C.free(p);
+    }
 }
 
 

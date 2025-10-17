@@ -15,10 +15,12 @@ import "@http/form" (parseFormData)
 import "db"
 
 struct Statements {
+    getPosts: StatementId,
     insertPost: StatementId
 
     fn create (ref db: Db): Self {
         return .{
+            getPosts = db.prepareStatement(&"SELECT * FROM Posts"),
             insertPost = db.prepareStatement(&"INSERT INTO Posts (text) VALUES (?)")
         };
     }
@@ -139,12 +141,18 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
             html2 = template.subString(i+1, template.length() - i - 1);
         }
 
-        var posts = db.select(&"SELECT * FROM Posts");
-        foreach fields in posts.iterRows() {
+        var emptySqlParams = List[DbValue].new();
+        db.stmt(statements.getPosts).query(emptySqlParams.asSlice());
+        foreach fields in db.stmt(statements.getPosts).iterRows() {
             html ++= "<div class=\"post_outer\"><div class =\"post_inner\">";
-            match filterHtml(fields.at(1)) {
-                .some(x) { html ++= x; }
-                .none { html ++= fields.at(1); }
+            match fields.at(1) {
+                .some(.string(s)) {
+                    match filterHtml(s) {
+                        .some(s2) { html ++= s2; }
+                        .none { html ++= s; }
+                    }
+                }
+                _ { throw &"DB schema error"; }
             }
             html ++= "</div></div>";
         }

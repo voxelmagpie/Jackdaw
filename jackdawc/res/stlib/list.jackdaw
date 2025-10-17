@@ -25,6 +25,12 @@ struct List [A] {
         return Self{ ptr=nullptr, _length=0, capacity=0 };
     }
 
+    fn newWithCapacity (cap: ISize): Self {
+        var x = Self.new();
+        x.reserve(cap);
+        return x;
+    }
+
     fn singleton (var x: A): Self unsafe {
         var ptr = alloc[A](1);
         ptr.* = x;
@@ -74,7 +80,13 @@ struct List [A] {
         var newCap = max[ISize](self.capacity + (self.capacity / 2), minCap);
         if newCap <= self.capacity { return; }
 
-        self.ptr = realloc[A](self.ptr, newCap);
+        if self._length == 0 {
+            free(self.ptr);
+            self.ptr = alloc[A](newCap);
+        }
+        else {
+            self.ptr = realloc[A](self.ptr, newCap);
+        }
         self.capacity = newCap;
     }
 

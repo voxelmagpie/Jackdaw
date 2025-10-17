@@ -1035,19 +1035,20 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
   H.MatchStmnt _ e branches -> do
     afterBlk <- reserveBlockId
 
-    (e', matchExprType, tag) <- case e of
+    (e', matchExprType, ptr, ptrType) <- case e of
       Left e' -> do
         (e'', t) <- visitExpr' ctx e'
-        pure (e'', t, L.LStructUnionElem e'' 0)
+        varId <- mkVarId t ""
+        addInstr sr $ L.ISetVar varId (L.ILExpr e'')
+        pure (e'', t, L.LGetVarPtr varId, L.PtrType (Just t))
       Right e' -> do
         (e'', t) <- visitAccessorExpr' ctx e'
-        (tag, _) <- addValInstrLExpr sr (L.NumPrimType i32t) $ L.IPtrRead $ L.IStructUnionElemPtr (L.ILExpr e'') 0
-        pure (e'', t, tag)
+        pure (e'', t, e'', t)
 
     caseBlocks <- replicateM (length branches) reserveBlockId
 
     forM_ (zip (toList branches) caseBlocks) $ \(br, block) -> do
-      addMatchPatternBranch sr tag block br.pattern
+      addMatchPatternBranch sr (ptr, ptrType) block br.pattern
     addInstr sr $ L.IPanic "Match cases not exhaustive"
 
     forM_ (zip (toList branches) caseBlocks) $ \(br, block) -> do
@@ -1181,27 +1182,44 @@ patternNonConditional = \case
   H.PatternName {} -> True
   _ -> False
 
-addMatchPatternBranch :: (MonadLo m) => SrcRange -> L.LExpr -> L.BlockId -> H.Pattern -> m ()
-addMatchPatternBranch sr tag block = \case
+matchPatternBranchGetTag :: (MonadLo m) => SrcRange -> L.LExpr -> m L.LExpr
+matchPatternBranchGetTag sr e = do
+  (x, _) <- addValInstrLExpr sr (L.NumPrimType i32t) $ L.IPtrRead $ L.IStructUnionElemPtr (L.ILExpr e) 0
+  pure x
+
+addMatchPatternBranch :: (MonadLo m) => SrcRange -> (L.LExpr, L.Type) -> L.BlockId -> H.Pattern -> m ()
+addMatchPatternBranch sr (e, t) block = \case
   H.PatternAny _ -> addInstr sr $ L.IGoTo block
   H.PatternName {} -> addInstr sr $ L.IGoTo block
   H.PatternDataCons0 i -> do
+    tag <- matchPatternBranchGetTag sr e
     (isEq, _) <- addValInstrLExpr sr L.BoolType $ L.ILExpr $ L.LEq tag $ L.IntLit $ fromIntegral i
     nextBlock <- reserveBlockId
     addInstr sr $ L.IGoToIfElse (L.ILExpr isEq) block nextBlock
     addBlock' nextBlock
+  -- .x(_)
   H.PatternDataCons1 i p | patternNonConditional p -> do
+    tag <- matchPatternBranchGetTag sr e
     (isEq, _) <- addValInstrLExpr sr L.BoolType $ L.ILExpr $ L.LEq tag $ L.IntLit $ fromIntegral i
     nextBlock <- reserveBlockId
     addInstr sr $ L.IGoToIfElse (L.ILExpr isEq) block nextBlock
     addBlock' nextBlock
+  -- .x(.y)
   H.PatternDataCons1 i p -> do
+    tag <- matchPatternBranchGetTag sr e
     (isEq, _) <- addValInstrLExpr sr L.BoolType $ L.ILExpr $ L.LEq tag $ L.IntLit $ fromIntegral i
     nextCheck <- reserveBlockId
     nextBlock <- reserveBlockId
     addInstr sr $ L.IGoToIfElse (L.ILExpr isEq) nextCheck nextBlock
     addBlock' nextCheck
-    addMatchPatternBranch sr tag block p
+    let (e', t') = case t of
+          L.PtrType (Just (L.UnionType (List1 _tag xs))) ->
+            case xs !! i of
+              L.StructType (List1 _tag [t'']) -> 
+                (L.LStructUnionElemPtr (L.LStructUnionElemPtr e (i + 1)) 1, t'')
+              _ -> undefined
+          _ -> undefined
+    addMatchPatternBranch sr (e', t') block p
     addInstr sr $ L.IGoTo nextBlock
     addBlock' nextBlock
 

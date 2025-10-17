@@ -14,6 +14,9 @@ union RowPtrOrIndicator {
 	indicator(*I8)
 }
 
+@Unsafe const _MYSQL_DATA_TRUNCATED: I32 = 101
+@Unsafe const _MYSQL_NO_DATA: I32 = 100
+
 alias EnumFieldTypes = I32
 @Unsafe const _MYSQL_TYPE_DECIMAL: EnumFieldTypes = 0
 @Unsafe const _MYSQL_TYPE_TINY: EnumFieldTypes = 1
@@ -71,6 +74,31 @@ struct MYSQL_BIND {
 	extension: *void
 }
 
+@Unsafe
+struct MYSQL_FIELD {
+	name: *I8,
+	org_name: *I8,
+	table: *I8,
+	org_table: *I8,
+	db: *I8,
+	catalog: *I8,
+	def: *I8,
+	length: U64,
+	max_length: U64,
+	name_length: U32,
+	org_name_length: U32,
+	table_length: U32,
+	org_table_length: U32,
+	db_length: U32,
+	catalog_length: U32,
+	def_length: U32,
+	flags: U32,
+	decimals: U32,
+	charsetnr: U32,
+	_type: EnumFieldTypes,
+	extension: *void
+}
+
 @Unsafe @NoThrow fn mysql_server_init()
 @Unsafe @NoThrow fn mysql_init (mysql: *MYSQL): *MYSQL
 @Unsafe @NoThrow fn mysql_real_connect (mysql: *MYSQL, host: *I8, user: *I8, passwd: *I8, db: *I8, port: U32, unix_socket: *I8, clientflag: U64): *MYSQL
@@ -88,11 +116,13 @@ struct MYSQL_BIND {
 @Unsafe @NoThrow fn mysql_stmt_bind_param (stmt: *MYSQL_STMT, bnd: *MYSQL_BIND): I8
 @Unsafe @NoThrow fn mysql_stmt_execute (stmt: *MYSQL_STMT): I32
 @Unsafe @NoThrow fn mysql_stmt_affected_rows (stmt: *MYSQL_STMT): U64
-
-@Unsafe
-fn traceMariaDbError(con: *MYSQL) {
-    traceCStr(mysql_error(con));
-}
+@Unsafe @NoThrow fn mysql_stmt_result_metadata (stmt: *MYSQL_STMT): *MYSQL_RES
+@Unsafe @NoThrow fn mysql_stmt_bind_result (stmt: *MYSQL_STMT, bnd: *MYSQL_BIND): I8
+@Unsafe @NoThrow fn mysql_fetch_fields (res: *MYSQL_RES): *MYSQL_FIELD
+@Unsafe @NoThrow fn mysql_stmt_store_result (stmt: *MYSQL_STMT): I32
+@Unsafe @NoThrow fn mysql_stmt_fetch (stmt: *MYSQL_STMT): I32
+@Unsafe @NoThrow fn mysql_stmt_fetch_column (stmt: *MYSQL_STMT, bind_arg: *MYSQL_BIND, column: U32, offset: U64): I32
+@Unsafe @NoThrow fn mysql_stmt_error (stmt: *MYSQL_STMT): *I8
 
 fn dbInit () unsafe {
     mysql_server_init();
@@ -100,9 +130,12 @@ fn dbInit () unsafe {
 
 enum DbValue {
     int(I32),
-    uint(U32),
-    null,
     string(String)
+} 
+
+enum DbValueType {
+    int,
+    string
 } 
 
 struct StatementId { x: I32 }
@@ -116,7 +149,7 @@ struct Db {
         if con == nullptr { throw &"mysql_init error"; }
 
         if (mysql_real_connect(con, nullptr, user.getCPtr(), pw.getCPtr(), "forum".getCPtr(), 0, nullptr, 0) == nullptr) {
-            traceMariaDbError(con);
+            traceCStr(mysql_error(con));
             throw &"mysql_real_connect error";
         }  
 
@@ -127,16 +160,16 @@ struct Db {
         mysql_close(self.con);
     }
 
-    fn select (ref self: Self, query: *const String): QueryResult unsafe {
+    fn select (ref self: Self, query: *const String): QueryResultString unsafe {
         if (mysql_real_query(self.con, query.*.getCPtr(), query.*.length() as U64) != 0) {
-            traceMariaDbError(self.con);
+            traceCStr(mysql_error(self.con));
             throw &"mysql_real_query error";
         }
 
         var result = mysql_store_result(self.con);
         if result == nullptr { 
-            traceMariaDbError(self.con);
-            throw &"mysql_init error"; 
+            traceCStr(mysql_error(self.con));
+            throw &"mysql_store_result error"; 
         }
 
         var numFields = mysql_num_fields(result) as I32;
@@ -147,23 +180,28 @@ struct Db {
     fn prepareStatement (ref self: Self, query: *const String): StatementId unsafe {
         var stmt = mysql_stmt_init(self.con);
         if stmt == nullptr { 
-            traceMariaDbError(self.con);
+            traceCStr(mysql_error(self.con));
             throw &"mysql_stmt_init error"; 
         }
 
         if mysql_stmt_prepare(stmt, query.*.getCPtr(), query.*.length() as U64) != 0 {
-            traceMariaDbError(self.con);
+            traceCStr(mysql_error(self.con));
             throw &"mysql_stmt_prepare error"; 
         }
 
         var paramCount = mysql_stmt_param_count(stmt) as ISize;
 
-        var binds = List[MYSQL_BIND].new();
-        binds.reserve(paramCount);
-        var lengths = List[USize].new();
-        binds.reserve(paramCount);
-
-        self.stmts.push(.{ con = self.con, stmt, paramCount, binds, lengths });
+        self.stmts.push(.{
+            con = self.con,
+            stmt,
+            paramCount,
+            binds = .newWithCapacity(paramCount),
+            lengths = .newWithCapacity(paramCount),
+            resultBinds = .new(),
+            resultLengths = .new(),
+            resultIsNulls = .new(),
+            partialResults = .new()
+        });
         return .{ x = self.stmts.length() as I32 - 1 };
     }
 
@@ -175,17 +213,29 @@ struct Db {
 struct Statement {
     @Unsafe con: *MYSQL,
     @Unsafe stmt: *MYSQL_STMT,
+
     @Unsafe paramCount: ISize,
     @Unsafe binds: List[MYSQL_BIND],
-    @Unsafe lengths: List[USize]
+    @Unsafe lengths: List[USize],
+
+    @Unsafe resultBinds: List[MYSQL_BIND],
+    @Unsafe resultLengths: List[USize],
+    @Unsafe resultIsNulls: List[I8],
+
+    // Values for integers but not strings
+    @Unsafe partialResults: List[DbValue]
 
     fn onDrop (ref self: Self) unsafe {
         mysql_stmt_close(self.stmt);
     }
 
-    fn execute (ref self: Self, params: Slice[DbValue]): I64 unsafe {
+    fn _bindParams (ref self: Self, params: Slice[DbValue]) unsafe {
         if params.length() != self.paramCount {
             throw &"Wrong number of parameters for prepared statement";
+        }
+
+        if self.paramCount == 0 {
+            return;
         }
 
         self.binds.clear();
@@ -200,16 +250,6 @@ struct Statement {
                     b.buffer_type = _MYSQL_TYPE_LONG; 
                     b.buffer = &x;
                     b.buffer_length = 4;
-                    self.lengths.push(0);
-                }
-                .uint(x) {
-                    b.buffer_type = _MYSQL_TYPE_LONG; 
-                    b.buffer = &x;
-                    b.buffer_length = 4;
-                    b.is_unsigned = 1;
-                }
-                .null {
-                    b.buffer_type = _MYSQL_TYPE_NULL; 
                 }
                 .string(s) {
                     b.buffer_type = _MYSQL_TYPE_STRING; 
@@ -225,20 +265,172 @@ struct Statement {
         }
 
         if mysql_stmt_bind_param(self.stmt, &self.binds.at(0)) != 0 {
-            traceMariaDbError(self.con);
+            traceCStr(mysql_error(self.con));
             throw &"mysql_stmt_bind_param error";
         }
+    }
+
+    fn execute (ref self: Self, params: Slice[DbValue]): I64 unsafe {
+        self._bindParams(params);
 
         if mysql_stmt_execute(self.stmt) != 0 {
-            traceMariaDbError(self.con);
+            traceCStr(mysql_error(self.con));
             throw &"mysql_stmt_execute error";
         }
 
         return mysql_stmt_affected_rows(self.stmt) as I64;
     }
+
+    fn query (ref self: Self, params: Slice[DbValue]) unsafe {
+        // Run query
+
+        self._bindParams(params);
+
+        if mysql_stmt_execute(self.stmt) != 0 {
+            traceCStr(mysql_stmt_error(self.stmt));
+            throw &"mysql_stmt_execute error";
+        }
+
+        // Get metadata
+
+        var metadata = mysql_stmt_result_metadata(self.stmt);
+        if metadata == nullptr {
+            throw &"Query does not return data";
+        }
+
+        self.partialResults.clear();
+        var fieldsCount = mysql_num_fields(metadata) as I32;
+        var fields = mysql_fetch_fields(metadata);
+
+        // Create results list to store integer results into
+        for (var i = 0; i < fieldsCount; i += 1) {
+            var f = &fields.(i);
+            if f.*._type == _MYSQL_TYPE_LONG {
+                self.partialResults.push(.int(0));
+            }
+            else if f.*._type == _MYSQL_TYPE_BLOB {
+                if f.*.charsetnr == 63 {
+                    throw &"TODO: Blob";
+                }
+                // This String value is never used
+                self.partialResults.push(.string(.new()));
+            }
+            else {
+                trace("Field type: " ++ f.*._type.toString());
+                throw &"Unknown field type";
+            }
+        }
+        mysql_free_result(metadata);
+
+        // Bind result buffers
+
+        self.resultBinds.clear();
+        self.resultBinds.reserve(fieldsCount);
+        self.resultLengths.clear();
+        self.resultLengths.reserve(fieldsCount);
+        self.resultIsNulls.clear();
+        self.resultIsNulls.reserve(fieldsCount);
+
+        for (var i: ISize = 0; i < fieldsCount; i += 1) {
+            var b: MYSQL_BIND;
+            M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
+
+            self.resultLengths.push(0);
+            b.length = &self.resultLengths.at(self.resultLengths.length() - 1);
+            self.resultIsNulls.push(0);
+            b.is_null = &self.resultIsNulls.at(self.resultIsNulls.length() - 1);
+
+            match ref self.partialResults.at(i) {
+                .int(x) {
+                    b.buffer_type = _MYSQL_TYPE_LONG;
+                    b.buffer = &x;
+                    b.buffer_length = 4;
+                }
+                .string(_) {
+                    b.buffer_type = _MYSQL_TYPE_BLOB;
+                    // Don't load strings, only get the lengths
+                }
+            }
+
+            self.resultBinds.push(b);
+        }
+
+        if mysql_stmt_bind_result(self.stmt, &self.resultBinds.at(0)) != 0 {
+            traceCStr(mysql_stmt_error(self.stmt));
+            throw &"mysql_stmt_bind_result error";
+        }
+
+        // Preload data from db server (optional)
+
+        if mysql_stmt_store_result(self.stmt) != 0 { 
+            traceCStr(mysql_stmt_error(self.stmt));
+            throw &"mysql_store_result error"; 
+        }
+    }
+
+    fn nextRow (ref self: Self): Maybe[List[Maybe[DbValue]]] unsafe {
+        if self.partialResults.length() == 0 { return .none; }
+
+        var err = mysql_stmt_fetch(self.stmt);
+        if err == _MYSQL_NO_DATA {
+            self.partialResults.clear();
+            return .none;
+        }
+        else if err != 0 and err != _MYSQL_DATA_TRUNCATED {
+            traceCStr(mysql_stmt_error(self.stmt));
+            throw &"mysql_stmt_fetch error"; 
+        }
+
+        var results = List[Maybe[DbValue]].new();
+        results.reserve(self.partialResults.length());
+
+        for (var i: ISize = 0; i < self.partialResults.length(); i += 1) {
+            if self.resultIsNulls.at(i) != 0 {
+                results.push(.none);
+                continue;
+            }
+
+            match self.partialResults.at(i) {
+                .int(x) {
+                    results.push(.some(.int(x)));
+                }
+                .string(_) {
+                    var l = self.resultLengths.at(i);
+                    if l > 65535 { throw &"String too large"; }
+                    var l = l as ISize;
+                    var bytes = List[U8]{ ptr = M.alloc[U8](l+1), _length=l+1, capacity=l+1 };
+                    var b: MYSQL_BIND;
+                    M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
+                    b.buffer_type = _MYSQL_TYPE_BLOB;
+                    b.buffer = bytes.ptr;
+                    b.buffer_length = l as U64;
+                    if mysql_stmt_fetch_column(self.stmt, &b, i as U32, 0) != 0 {
+                        traceCStr(mysql_stmt_error(self.stmt));
+                        throw &"mysql_stmt_fetch_column error"; 
+                    }
+                    bytes.at(l) = 0;
+                    var s = String.fromByteList(bytes).orThrowMsg(&"Text is not valid UTF8");
+                    results.push(.some(.string(s)));
+                }
+            }
+        }
+        return .some(results);
+    }
+
+    iterator iterRows (ref self: Self): List[Maybe[DbValue]] {
+        loop {
+            match self.nextRow() {
+                .none { break; }
+                .some(x) {
+                    yield x;
+                }
+            }
+        }
+    }
 }
 
-struct QueryResult {
+
+struct QueryResultString {
     @Unsafe
     result: *MYSQL_RES,
 
@@ -263,7 +455,7 @@ struct QueryResult {
         return .some(strings);
     }
 
-    iterator iterRows (var self: Self): List[String] {
+    iterator iterRows (ref self: Self): List[String] {
         loop {
             match self.nextRow() {
                 .none { break; }

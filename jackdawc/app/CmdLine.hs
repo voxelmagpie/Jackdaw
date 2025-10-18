@@ -114,6 +114,8 @@ extractArgs xs = case runState (runExceptT go1) (xs', def) of
                   _ -> throwError $ ArgsException "Expected path"
 
               modify' $ second $ \s -> s {packages = (name, path) : s.packages}
+            "--no-exceptions" ->
+              modify' $ second $ \s -> s {noExceptions = True}
             _ -> throwError $ ArgsException $ "Unknown configuration option: " <> T.pack option
           go2
         _ -> pure ()
@@ -146,6 +148,7 @@ data Config = Config
     uncheckedArithmetic :: Bool,
     outputTimings :: Bool,
     singleThreaded :: Bool,
-    packages :: [(String, FilePath)]
+    packages :: [(String, FilePath)],
+    noExceptions :: Bool
   }
   deriving (Show, Eq, Generic, Default)

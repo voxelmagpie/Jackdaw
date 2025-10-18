@@ -75,7 +75,7 @@ compileAndRunTestProgram cfg cPreludePath cPreludeHSrc stLib name = do
 
   startTime <- getCurrentTime
 
-  (c, testTimings1) <- compileToC stLib srcPath (Just src) outputDir (name == "stlib_test") False cfg.uncheckedArithmetic
+  (c, testTimings1) <- compileToC stLib srcPath (Just src) outputDir (name == "stlib_test") False cfg.uncheckedArithmetic cfg.noExceptions
 
   let cFilePath = (outputDir </> name') <.> ".c"
   withFile cFilePath WriteMode $ \h -> do
@@ -377,8 +377,8 @@ findSrcFiles dir pkg dumpDir = do
 getPackageAsts :: String -> FilePath -> IO ([(Namespace, A.Ast)], Timings)
 getPackageAsts name path = findSrcFiles path (T.pack name) (name <> "_asts")
 
-compileToC :: [(Namespace, A.Ast)] -> FilePath -> Maybe Text -> FilePath -> Bool -> Bool -> Bool -> IO (Text, Timings)
-compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers uncheckedArithmetic = do
+compileToC :: [(Namespace, A.Ast)] -> FilePath -> Maybe Text -> FilePath -> Bool -> Bool -> Bool -> Bool -> IO (Text, Timings)
+compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers uncheckedArithmetic noExceptions = do
   startTime <- getCurrentTime
 
   (files, tt) <-
@@ -414,7 +414,7 @@ compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers u
       pure (hir, diffUTCTime typeCheckingEndTime typeCheckingStartTime)
 
   transpilingStartTime <- getCurrentTime
-  c <- runLowerer hir addDbgLineNumbers
+  c <- runLowerer hir addDbgLineNumbers noExceptions
   transpilingEndTime <- getCurrentTime
   when printStagesDone $ putStrLn "Transpiling done"
   let transpilingTime = diffUTCTime transpilingEndTime transpilingStartTime
@@ -456,7 +456,7 @@ compile cfg srcPath exePathMaybe outputTimings packages = do
 
   let outputDir = takeDirectory exePath
   startTime <- getCurrentTime
-  (c, timings1) <- compileToC (concatMap snd3 packages') srcPath Nothing outputDir False addDbgLineNumbers cfg.uncheckedArithmetic
+  (c, timings1) <- compileToC (concatMap snd3 packages') srcPath Nothing outputDir False addDbgLineNumbers cfg.uncheckedArithmetic cfg.noExceptions
   let cPreludePath = stLibDir </> "prelude.c"
   let cPreludeHPath = stLibDir </> "prelude.h"
   cPreludeHSrc <- BS.readFile cPreludeHPath >>= byteStringToTextOrThrow

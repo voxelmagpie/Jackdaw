@@ -76,6 +76,11 @@ static inline noreturn void panic_(void) {
     __panic("");
 }
 
+// Takes *const String
+// This function definitions assumes the structure of String and List
+static inline noreturn void _panic_String_ptr (void * s) {
+    _panic(*(void**)s);
+}
 
 
 

@@ -36,7 +36,8 @@ data Ctx = Ctx
     breakBlock :: Maybe L.BlockId,
     catchBlock :: Maybe L.BlockId,
     inNoThrowFn :: Bool,
-    returnType :: Maybe H.Type
+    returnType :: Maybe H.Type,
+    noExceptions :: Bool
   }
 
 -- If varType is VarRefPtr then lirType is a pointer or slice struct
@@ -49,16 +50,16 @@ data VarType = VarVal | VarSmallConstRefVal | VarRefPtr
 findVar :: (HasCallStack) => Ctx -> H.LocalVarUid -> Variable
 findVar ctx uid = find (\(id, _) -> id == uid) ctx.vars & must' (uid, ctx.vars) & snd
 
-runLowerer :: H.Ir -> Bool -> IO Text
-runLowerer hir addDbgLineNumbers = do
+runLowerer :: H.Ir -> Bool -> Bool -> IO Text
+runLowerer hir addDbgLineNumbers noExceptions = do
   state <- newLowererState hir addDbgLineNumbers
-  runReaderT lower state
+  runReaderT (lower noExceptions) state
   case state.trState of
     Left cSt -> runReaderT CTr.extract cSt
     _ -> error "TODO: LLVM"
 
-lower :: (MonadLo m) => m ()
-lower = do
+lower :: (MonadLo m) => Bool -> m ()
+lower noExceptions = do
   let go :: (MonadLo m) => H.VDefId -> m ()
       go id = do
         d <- H.getVDef id
@@ -67,7 +68,7 @@ lower = do
           H.AFnDef f -> when f.c.reachableFromStart $ do
             deps <- H.getFnDeps id
             forM_ deps go
-            visitFn id f
+            visitFn id f noExceptions
   H.loopOverVDefs go
 
 getFnCName :: H.VDefId -> Text -> L.FnName
@@ -120,8 +121,8 @@ getFn' vDefId vDef = do
       addFnToCache vDefId x
       pure x
 
-visitFn :: (MonadLo m) => H.VDefId -> H.FnDef -> m ()
-visitFn vDefId vDef = do
+visitFn :: (MonadLo m) => H.VDefId -> H.FnDef -> Bool -> m ()
+visitFn vDefId vDef noExceptions = do
   (params, cName, cFnType) <- getFn' vDefId vDef
 
   bodyMaybe <- H.getFnDefBodyMaybe vDefId
@@ -161,7 +162,7 @@ visitFn vDefId vDef = do
         --
 
         inNoThrowFn <- H.getVDef vDefId <&> (H.vDefCommon >>> (.attributes) >>> (Attribute "NoThrow" `elem`))
-        _ <- visitStmnt (Ctx vars Nothing Nothing Nothing inNoThrowFn vDef.returnType) ss []
+        _ <- visitStmnt (Ctx vars Nothing Nothing Nothing inNoThrowFn vDef.returnType noExceptions) ss []
 
         blocksOrder <- getBlocksOrderRev <&> reverse
 
@@ -321,11 +322,12 @@ visitAccessorExpr ctx (hirExpr, sr) = case hirExpr of
     forM_ argsDropFns $ addInstr sr
 
     forM_ e.dropFnsIfMayThrow $ \ds -> do
-      successBlk <- reserveBlockId
-      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
-      addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
-      addBlock' successBlk
+      unless ctx.noExceptions $ do
+        successBlk <- reserveBlockId
+        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
+        addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
+        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
+        addBlock' successBlk
 
     pure $ first L.ILExpr x
   H.DataConsUnsafeAccessorExpr e i -> do
@@ -411,11 +413,12 @@ visitExpr ctx (hirExpr, sr) = case hirExpr of
     forM_ argsDropFns $ addInstr sr
 
     forM_ e.dropFnsIfMayThrow $ \ds -> do
-      successBlk <- reserveBlockId
-      (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
-      addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-      when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
-      addBlock' successBlk
+      unless ctx.noExceptions $ do
+        successBlk <- reserveBlockId
+        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
+        addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
+        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
+        addBlock' successBlk
 
     pure $ first L.ILExpr x
   H.ACondOpExpr e -> do
@@ -814,11 +817,12 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
 
     case e.dropFnsIfMayThrow of
       Just ds -> do
-        successBlk <- reserveBlockId
-        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
-        addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
-        addBlock' successBlk
+        unless ctx.noExceptions $ do
+          successBlk <- reserveBlockId
+          (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
+          addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
+          when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
+          addBlock' successBlk
       _ -> pure ()
 
     visitStmnt ctx ss dropVars
@@ -962,11 +966,12 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
 
     case x.onIterThrowDropFns of
       Just ds -> do
-        successBlk <- reserveBlockId
-        (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
-        addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
-        when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
-        addBlock' successBlk
+        unless ctx.noExceptions $ do
+          successBlk <- reserveBlockId
+          (throwBlk, needGenOnThrow) <- getOnThrowBlockId (ctx.inNoThrowFn, ctx.catchBlock, ds)
+          addInstr sr (L.ICheckForException' $ L.ICheckForException throwBlk successBlk)
+          when needGenOnThrow $ mkOnThrowBlk ctx throwBlk ds sr
+          addBlock' successBlk
       _ ->
         -- Iterator is @NoThrow
         pure ()
@@ -1066,7 +1071,12 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
   H.ThrowStmnt e dropVars' -> do
     (e', _) <- visitExpr ctx e
     runDropFns ctx sr dropVars'
-    addInstr sr $ L.IThrow e'
+    if ctx.noExceptions
+      then do
+        e'' <- instrVToLExpr sr (L.PtrType Nothing) e'
+        addInstr sr $ L.ICallVoid' $ L.ICallVoid (L.ConstName $ L.CName "_panic_String_ptr") [e''] True
+      else
+        addInstr sr $ L.IThrow e'
     pure True
   H.TryCatchStmnt tryStmnt varMaybe catchStmnt -> do
     catchBlk <- reserveBlockId
@@ -1074,17 +1084,17 @@ visitStmnt ctx ((s', sr) : ss) dropVars = case s' of
     _ <- visitStmnt ctx {catchBlock = Just catchBlk} [tryStmnt] []
     addInstr sr $ L.IGoTo afterBlk
     addBlock' catchBlk
-    case varMaybe of
-      Just (uid, name, hirType) -> do
-        t <- convertType hirType
-        varId <- mkVarId t $ un name
-        addInstr sr $ L.ISetVar varId L.ITakeException
-        let ctx' = ctx {vars = (uid, Variable {varId = varId, lirType = t, varType = VarVal}) : ctx.vars}
-        void $ visitStmnt ctx' [catchStmnt] []
-        addInstr sr $ L.IGoTo afterBlk
-      _ -> do
-        void $ visitStmnt ctx [catchStmnt] []
-        addInstr sr $ L.IGoTo afterBlk
+    unless ctx.noExceptions
+      $ case varMaybe of
+        Just (uid, name, hirType) -> do
+          t <- convertType hirType
+          varId <- mkVarId t $ un name
+          addInstr sr $ L.ISetVar varId L.ITakeException
+          let ctx' = ctx {vars = (uid, Variable {varId = varId, lirType = t, varType = VarVal}) : ctx.vars}
+          void $ visitStmnt ctx' [catchStmnt] []
+        _ ->
+          void $ visitStmnt ctx [catchStmnt] []
+    addInstr sr $ L.IGoTo afterBlk
     addBlock' afterBlk
     visitStmnt ctx ss dropVars
   H.BubbleStmnt e dropFns -> do
@@ -1215,7 +1225,7 @@ addMatchPatternBranch sr (e, t) block = \case
     let (e', t') = case t of
           L.PtrType (Just (L.UnionType (List1 _tag xs))) ->
             case xs !! i of
-              L.StructType (List1 _tag [t'']) -> 
+              L.StructType (List1 _tag [t'']) ->
                 (L.LStructUnionElemPtr (L.LStructUnionElemPtr e (i + 1)) 1, t'')
               _ -> undefined
           _ -> undefined

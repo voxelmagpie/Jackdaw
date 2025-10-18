@@ -10,6 +10,10 @@ import "@stlib/memory"
 
 const uncheckedArithmetic: Bool
 
+// This is wrong for 32-bit Windows
+alias CLong = ISize
+alias CULong = USize
+
 //
 // Compile-time reflection
 //

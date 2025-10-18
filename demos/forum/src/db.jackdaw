@@ -53,7 +53,7 @@ alias EnumFieldTypes = I32
 
 @Unsafe
 struct MYSQL_BIND {
-	length: *U64,
+	length: *CULong,
 	is_null: *I8,
 	buffer: *void,
 	error: *I8,
@@ -61,9 +61,9 @@ struct MYSQL_BIND {
 	store_param_func: *void,
 	fetch_result: *void,
 	skip_result: *void,
-	buffer_length: U64,
-	offset: U64,
-	length_value: U64,
+	buffer_length: CULong,
+	offset: CULong,
+	length_value: CULong,
 	flags: U32,
 	pack_length: U32,
 	buffer_type: EnumFieldTypes,
@@ -83,8 +83,8 @@ struct MYSQL_FIELD {
 	db: *I8,
 	catalog: *I8,
 	def: *I8,
-	length: U64,
-	max_length: U64,
+	length: CULong,
+	max_length: CULong,
 	name_length: U32,
 	org_name_length: U32,
 	table_length: U32,
@@ -101,9 +101,9 @@ struct MYSQL_FIELD {
 
 @Unsafe @NoThrow fn mysql_server_init()
 @Unsafe @NoThrow fn mysql_init (mysql: *MYSQL): *MYSQL
-@Unsafe @NoThrow fn mysql_real_connect (mysql: *MYSQL, host: *I8, user: *I8, passwd: *I8, db: *I8, port: U32, unix_socket: *I8, clientflag: U64): *MYSQL
+@Unsafe @NoThrow fn mysql_real_connect (mysql: *MYSQL, host: *I8, user: *I8, passwd: *I8, db: *I8, port: U32, unix_socket: *I8, clientflag: CULong): *MYSQL
 @Unsafe @NoThrow fn mysql_error (mysql: *MYSQL): *I8
-@Unsafe @NoThrow fn mysql_real_query (mysql: *MYSQL, q: *I8, length: U64): I32
+@Unsafe @NoThrow fn mysql_real_query (mysql: *MYSQL, q: *I8, length: CULong): I32
 @Unsafe @NoThrow fn mysql_store_result (mysql: *MYSQL): *MYSQL_RES
 @Unsafe @NoThrow fn mysql_num_fields (res: *MYSQL_RES): U32
 @Unsafe @NoThrow fn mysql_fetch_row (result: *MYSQL_RES): MYSQL_ROW
@@ -111,17 +111,17 @@ struct MYSQL_FIELD {
 @Unsafe @NoThrow fn mysql_close (sock: *MYSQL)
 @Unsafe @NoThrow fn mysql_stmt_init (mysql: *MYSQL): *MYSQL_STMT
 @Unsafe @NoThrow fn mysql_stmt_close (stmt: *MYSQL_STMT): I8
-@Unsafe @NoThrow fn mysql_stmt_prepare (stmt: *MYSQL_STMT, query: *I8, length: U64): I32
-@Unsafe @NoThrow fn mysql_stmt_param_count (stmt: *MYSQL_STMT): U64
+@Unsafe @NoThrow fn mysql_stmt_prepare (stmt: *MYSQL_STMT, query: *I8, length: CULong): I32
+@Unsafe @NoThrow fn mysql_stmt_param_count (stmt: *MYSQL_STMT): CULong
 @Unsafe @NoThrow fn mysql_stmt_bind_param (stmt: *MYSQL_STMT, bnd: *MYSQL_BIND): I8
 @Unsafe @NoThrow fn mysql_stmt_execute (stmt: *MYSQL_STMT): I32
-@Unsafe @NoThrow fn mysql_stmt_affected_rows (stmt: *MYSQL_STMT): U64
+@Unsafe @NoThrow fn mysql_stmt_affected_rows (stmt: *MYSQL_STMT): USize
 @Unsafe @NoThrow fn mysql_stmt_result_metadata (stmt: *MYSQL_STMT): *MYSQL_RES
 @Unsafe @NoThrow fn mysql_stmt_bind_result (stmt: *MYSQL_STMT, bnd: *MYSQL_BIND): I8
 @Unsafe @NoThrow fn mysql_fetch_fields (res: *MYSQL_RES): *MYSQL_FIELD
 @Unsafe @NoThrow fn mysql_stmt_store_result (stmt: *MYSQL_STMT): I32
 @Unsafe @NoThrow fn mysql_stmt_fetch (stmt: *MYSQL_STMT): I32
-@Unsafe @NoThrow fn mysql_stmt_fetch_column (stmt: *MYSQL_STMT, bind_arg: *MYSQL_BIND, column: U32, offset: U64): I32
+@Unsafe @NoThrow fn mysql_stmt_fetch_column (stmt: *MYSQL_STMT, bind_arg: *MYSQL_BIND, column: U32, offset: CULong): I32
 @Unsafe @NoThrow fn mysql_stmt_error (stmt: *MYSQL_STMT): *I8
 
 fn dbInit () unsafe {
@@ -161,7 +161,7 @@ struct Db {
     }
 
     fn select (ref self: Self, query: *const String): QueryResultString unsafe {
-        if (mysql_real_query(self.con, query.*.getCPtr(), query.*.length() as U64) != 0) {
+        if (mysql_real_query(self.con, query.*.getCPtr(), query.*.length() as CULong) != 0) {
             traceCStr(mysql_error(self.con));
             throw &"mysql_real_query error";
         }
@@ -184,7 +184,7 @@ struct Db {
             throw &"mysql_stmt_init error"; 
         }
 
-        if mysql_stmt_prepare(stmt, query.*.getCPtr(), query.*.length() as U64) != 0 {
+        if mysql_stmt_prepare(stmt, query.*.getCPtr(), query.*.length() as CULong) != 0 {
             traceCStr(mysql_error(self.con));
             throw &"mysql_stmt_prepare error"; 
         }
@@ -270,7 +270,7 @@ struct Statement {
         }
     }
 
-    fn execute (ref self: Self, params: Slice[DbValue]): I64 unsafe {
+    fn execute (ref self: Self, params: Slice[DbValue]): ISize unsafe {
         self._bindParams(params);
 
         if mysql_stmt_execute(self.stmt) != 0 {
@@ -278,7 +278,7 @@ struct Statement {
             throw &"mysql_stmt_execute error";
         }
 
-        return mysql_stmt_affected_rows(self.stmt) as I64;
+        return mysql_stmt_affected_rows(self.stmt) as ISize;
     }
 
     fn query (ref self: Self, params: Slice[DbValue]) unsafe {
@@ -403,7 +403,7 @@ struct Statement {
                     M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
                     b.buffer_type = _MYSQL_TYPE_BLOB;
                     b.buffer = bytes.ptr;
-                    b.buffer_length = l as U64;
+                    b.buffer_length = l as CULong;
                     if mysql_stmt_fetch_column(self.stmt, &b, i as U32, 0) != 0 {
                         traceCStr(mysql_stmt_error(self.stmt));
                         throw &"mysql_stmt_fetch_column error"; 

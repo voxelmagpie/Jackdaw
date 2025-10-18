@@ -39,7 +39,7 @@
 			"patterns": [
 				{
 					"name": "keyword.other.jackdaw",
-					"match": "\\b(require|uninitialised|unsafe)\\b"
+					"match": "\\b(require|uninitialised|unsafe|import)\\b"
 				},
 				{
 					"name": "keyword.operator.expression.jackdaw",
@@ -50,16 +50,12 @@
 					"match": "\\b(true|false|nullptr)\\b"
 				},
 				{
-					"name": "keyword.control.import.jackdaw",
-					"match": "\\b(import)\\b"
-				},
-				{
 					"name": "keyword.control.jackdaw",
 					"match": "\\b((if|for|foreach)[\\s]+const)\\b"
 				},
 				{
 					"name": "keyword.control.jackdaw",
-					"match": "\\b(case|of|if|else|for|foreach|in|loop|break|continue|return|yield|match|and|or|try|catch|throw)\\b"
+					"match": "\\b(of|if|else|for|foreach|in|loop|break|continue|return|yield|match|and|or|try|catch|throw)\\b"
 				},
 				{
 					"name": "storage.type.jackdaw",

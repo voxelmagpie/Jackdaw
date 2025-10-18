@@ -175,7 +175,7 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
                 var values = Array[DbValue, 1].singleton(.string(v.clone()));
                 db.stmt(statements.insertPost).execute(values.asSlice());
                 conn.sendRedirect303("/");
-                break;   
+                return;   
             }
         }
 

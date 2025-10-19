@@ -7,16 +7,15 @@ import "@stlib/array_list"
 @Unsafe fn snprintf_f32(buffer: *CChar, bufsz: USize, F32): I32
 @Unsafe fn snprintf_f64(buffer: *CChar, bufsz: USize, F64): I32
 
-fn floatToString [A, f] (var i: A): String unsafe {
+fn floatAddToString [A, f] (var i: A, ref s: String) unsafe {
 	// TODO require f == snprintf_f32 or f == snprintf_f64;
-
-	var utf8Data = List[U8].new();
-	utf8Data.reserve(32);
-	utf8Data._length = f(utf8Data.ptr as *CChar, 32, i) + 1;
-	return String{utf8Data};
+	var utf8Data: Array[CChar, 32] = uninitialised;
+	var l = f(&utf8Data.at(0), 32, i) + 1;
+	utf8Data.at(l) = 0;
+	s.appendCStringUnchecked(&utf8Data.at(0));
 }
 
-fn intToString [A] (var i: A): String {
+fn intAddToString [A] (var i: A, ref s: String) {
     var signFlip: A = i < 0 ? (-1) as A : 1;
 	var chars = ArrayList[U8, 20].new();
 
@@ -26,18 +25,14 @@ fn intToString [A] (var i: A): String {
 		if i == 0 { break; }
 	}
 
-	var s = String.new();
-    s.reserve((i < 0 ? 1 : 0) + chars.count());
-
 	if signFlip < 0 {
 		s ++= "-";
 	}
 
 	for (var i = chars.count()-1; i >= 0; i -= 1) {
-		s.pushCodePoint(chars.at(i));
+		s.pushAsciiChar(chars.at(i));
 	}
 
-	return s;
 }
 
 fn toString [A] (x: A): String {
@@ -45,7 +40,97 @@ fn toString [A] (x: A): String {
         return x.toString();
     }
 	else {
-		// TODO Proper toString implementation using reflection
-		return typeName[A].clone();
+		var s = String.new();
+		x.addToString(s);
+		return s;
+	}
+}
+
+fn addToString [A] (x: A, ref s: String) {
+	if const hasMember[A, "addToString"] {
+		x.addToString(x, s);
+	}
+    else if const hasMember[A, "toString"] {
+		s.append(x.toString());
+    }
+	else {
+		match const typeInfo[A] {
+			.struct_ {
+				s ++= typeName[A];
+				s ++= "{";
+				for const (var i = 0; i < fieldsCount[A]; i += 1) {
+					s ++= getFields[A].at(i);
+					s ++= "=";
+					getField[A, i](x).addToString(s);
+					if i != fieldsCount[A] - 1 { s ++= ","; }
+				}
+				s ++= "}";
+			}
+			.enum_ {
+				unsafe {
+					s ++= ".";
+					var active = getEnumActiveIndex[A](x);
+					s ++= getDataCons[A].at(active);
+					unsafe {
+						for const (var i = 0; i < enumDataConsCount[A]; i += 1) {
+							if const dataConsTakesType[A, i] {
+								if active == i {
+									s ++= "(";
+									getEnumIndexUnsafe[A, i](x).addToString(s);
+									s ++= ")";
+								}
+							}
+						}
+					}
+				}
+			}
+			.union_ {
+				s ++= "<union>";
+			}
+			.tuple {
+				s ++= "(";
+				for const (var i = 0; i < fieldsCount[A]; i += 1) {
+					getField[A, i](x).addToString(s);
+					if i != fieldsCount[A] - 1 { s ++= ","; }
+				}
+				s ++= ")";
+			}
+			.fn_ {
+				s ++= "<function>";
+			}
+			.ptr {
+				if x == nullptr {
+					s ++= "nullptr";
+				}
+				else {
+					s ++= "<pointer>";
+				}
+			}
+			.constPtr {
+				x.*.addToString(s);
+			}
+			.array {
+				s ++= "{";
+				for (var i = 0; i < arrayLength[A]; i += 1) {
+					x.at(i).addToString(s);
+					if i != arrayLength[A] - 1 { s ++= ","; }
+				}
+				s ++= "}";
+			}
+			.number {
+				s ++= x.toString();
+			}
+			.boolType {
+				s ++= x.toString();
+			}
+			.slice {
+				s ++= "{";
+					for (var i: ISize = 0; i < x.length(); i += 1) {
+						x.at(i).addToString(s);
+						if i != x.length() - 1 { s ++= ","; }
+					}
+				s ++= "}";
+			}
+		}
 	}
 }

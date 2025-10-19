@@ -26,6 +26,7 @@ data TcInputs = TcInputs
     hashFn :: A.AnyVDef,
     addToHashFn :: A.AnyVDef,
     toStringFn :: A.AnyVDef,
+    addToStringFn :: A.AnyVDef,
     uncheckedArithmetic :: Bool
   }
   deriving (Show)
@@ -45,6 +46,7 @@ data Ctx = Ctx
     inAccessor :: Bool,
     inLoop :: Bool,
     inUnsafeCode :: Bool,
+    dbgName :: Text,
     et :: [(Text, SrcLoc')] -- Error trace
   }
   deriving (Show)
@@ -66,6 +68,7 @@ mkFileCtx namespace (thisAst, thisAstImports) tcIn =
       inAccessor = False,
       inLoop = False,
       inUnsafeCode = True, -- Disables unsafe errors when checking definitions
+      dbgName = "",
       et = []
     }
 

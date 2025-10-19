@@ -288,7 +288,7 @@ data Statement'
   | YieldStmnt Expr
   | ForLoopStmnt [(Destructure, Expr)] Expr [Statement] Bool Statement
   | ARequireStmnt RequireStmnt
-  | MatchStmnt AccessMode Expr (List1 MatchBranch)
+  | MatchStmnt Bool AccessMode Expr (List1 MatchBranch)
   | UnsafeStmnt Statement
   | ThrowStmnt Expr
   | TryCatchStmnt Statement (Maybe VName, SrcRange) Statement

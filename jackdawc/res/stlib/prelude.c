@@ -45,12 +45,6 @@ int32_t snprintf_f64(int8_t* buf, size_t n, double x) { return snprintf((const c
 
 
 
-const AString _assert_msg = {"Assertion error", 16, 0};
-
-void _assert(bool x) {
-    if (unlikely(!x)) { thrownException = &_assert_msg; }
-}
-
 // int32_t, int8_t**
 int _kStart(int32_t, void*);
 

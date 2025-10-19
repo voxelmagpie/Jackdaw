@@ -57,13 +57,13 @@ formatType showFqn = \case
     p <- forM x.params $ \(mode, t) -> do
       let mode' = case mode of Shared -> ""; Exclusive -> "ref "; Move -> "var "
       formatType showFqn t <&> (mode' <>)
-    pure $ T.concat [if x.isNullable then "?" else "", "fn (", T.intercalate ", " p, ")", maybe "" (" => " <>) r]
+    pure $ T.concat [if x.isNullable then "?" else "", "fn (", T.intercalate ", " p, ")", maybe "" (": " <>) r]
   I.AnAccessorType x -> do
     r <- formatType showFqn x.ret
     p <- forM (toList x.params) $ \(mode, t) -> do
       let mode' = case mode of Shared -> ""; Exclusive -> "ref "; Move -> "var "
       formatType showFqn t <&> (mode' <>)
-    pure $ T.concat ["accessor (", T.intercalate ", " p, ") => ", r]
+    pure $ T.concat ["accessor (", T.intercalate ", " p, "): ", r]
   I.AnIteratorType x -> do
     r <- formatType showFqn x.ret
     p <- forM x.params $ \(mode, t) -> do
@@ -75,7 +75,7 @@ formatType showFqn = \case
     p <- forM (toList x.params) $ \(mode, t) -> do
       let mode' = case mode of Shared -> ""; Exclusive -> "ref "; Move -> "var "
       formatType showFqn t <&> (mode' <>)
-    pure $ T.concat ["accessor iterator (", T.intercalate ", " p, ") => ", r]
+    pure $ T.concat ["accessor iterator (", T.intercalate ", " p, "): ", r]
   I.PtrType x -> case x of
     Just y -> ("*" <>) <$> formatType showFqn y
     _ -> pure "*void"

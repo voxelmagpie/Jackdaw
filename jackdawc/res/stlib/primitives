@@ -26,7 +26,7 @@ type F32 {
 	f(_f32)
 
 	fn % rem (x: Self, y: Self): Self { return remainderf(x, y); }
-	fn toString (x: Self): String unsafe { return floatToString[Self, snprintf_f32](x); }
+	fn addToString (x: Self, ref s: String) unsafe { floatAddToString[Self, snprintf_f32](x, s); }
 	fn sqrt (x: Self): Self { return sqrtf(x); }
 }
 
@@ -34,7 +34,7 @@ type F64 {
 	f(_f64)
 
 	fn % rem (x: Self, y: Self): Self { return remainder(x, y); }
-	fn toString (x: Self): String unsafe { return floatToString[Self, snprintf_f64](x); }
+	fn addToString (x: Self, ref s: String) unsafe { floatAddToString[Self, snprintf_f64](x, s); }
 	fn sqrt (x: Self): Self { return sqrt(x); }
 }
 
@@ -58,7 +58,14 @@ type Bool {
 	fn * mul (x: Self, y: Self): Bool { return _and_bool(x, y); }
 	fn + add (x: Self, y: Self): Bool { return _or_bool(x, y); }
 
-	fn toString (self: Self): String { return self ? "true".clone() : "false".clone(); }
+	fn addToString (self: Self, ref s: String) { 
+		if self {
+			s ++= "true";
+		}
+		else {
+			s ++= "false";
+		}
+	}
 
 	fn addToHash (self: Self, ref h: Hash) unsafe { 
 		var x: U8 = self ? 1 : 0;
@@ -95,7 +102,7 @@ type Bool {
 	fn ~    not (x: Self): Self { return _not##t(x); } _NL \
 	fn safeDiv (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .none; } return .some(_div##t(x, y)); } _NL \
 	fn safeRem (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .none; } return .some(_rem##t(x, y)); } _NL \
-	fn toString (x: Self): String { return intToString[Self](x); } _NL \
+	fn addToString (x: Self, ref s: String) { intAddToString[Self](x, s); } _NL \
 	fn addToHash (self: Self, ref h: Hash) unsafe { addHashBytes(h, RawSlice[U8]{ ptr = &self as *U8, length = sizeOf[Self] }); }
 
 #define ineg(t) \

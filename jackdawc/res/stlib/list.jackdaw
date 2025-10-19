@@ -51,7 +51,7 @@ struct List [A] {
 	}
     
     accessor at (self: Self, i: ISize): A unsafe { 
-        assert(i >= 0 and i < self._length);
+        if i < 0 or i >= self._length { throw &"Index out of bounds"; }
         return self.ptr.(i); 
     }
 

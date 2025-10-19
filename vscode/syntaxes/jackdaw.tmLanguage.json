@@ -51,7 +51,7 @@
 				},
 				{
 					"name": "keyword.control.jackdaw",
-					"match": "\\b((if|for|foreach)[\\s]+const)\\b"
+					"match": "\\b((if|for|foreach|match)[\\s]+const)\\b"
 				},
 				{
 					"name": "keyword.control.jackdaw",

@@ -71,7 +71,8 @@ typeCheck allAsts forceCheckStLib uncheckedArithmetic = do
   let hashFn = must $ HM.lookup (VName "hash") (fst hashAst).astVDefs.defs
   let addToHashFn = must $ HM.lookup (VName "addToHash") (fst hashAst).astVDefs.defs
   let toStringFn = must $ HM.lookup (VName "toString") (fst toStringAst).astVDefs.defs
-  let tcIn = TcInputs allAsts' primitivesAst stLibAst hashAst toStringAst dropFnAst equalFn notEqualFn cloneFn hashFn addToHashFn toStringFn uncheckedArithmetic
+  let addToStringFn = must $ HM.lookup (VName "addToString") (fst toStringAst).astVDefs.defs
+  let tcIn = TcInputs allAsts' primitivesAst stLibAst hashAst toStringAst dropFnAst equalFn notEqualFn cloneFn hashFn addToHashFn toStringFn addToStringFn uncheckedArithmetic
 
   -- Functions reachable from _kStart
   do
@@ -173,7 +174,8 @@ makeVDefCtx _userCtx outerCtx genericArgs astGp isIterator isAccessor name isUns
   let newValParams =
         mapMaybe (\case (A.ValueGenericParameter n, I.ValueGenericArg v) -> Just (fst n, v); _ -> Nothing) gp
   gArgsText <- forM genericArgs $ formatGenArg False
-  let dbgName = if null genericArgs then un (fst name) else un (fst name) <> "[" <> T.intercalate "," gArgsText <> "]"
+  let dbgName' = if null genericArgs then un (fst name) else un (fst name) <> "[" <> T.intercalate "," gArgsText <> "]"
+  let dbgName = if T.null outerCtx.dbgName then dbgName' else outerCtx.dbgName <> "." <> dbgName'
   pure
     $ outerCtx
       { genericParams = outerCtx.genericParams <> genericArgs,
@@ -182,6 +184,7 @@ makeVDefCtx _userCtx outerCtx genericArgs astGp isIterator isAccessor name isUns
         inIterator = isIterator,
         inAccessor = isAccessor,
         inUnsafeCode = isUnsafe,
+        dbgName = dbgName,
         et = if null genericArgs then outerCtx.et else (dbgName, srcLoc) : outerCtx.et
       }
 
@@ -210,6 +213,7 @@ makeTSDefCtx _userCtx outerCtx fqn astGp genericArgs typ name isUnsafe srcLoc = 
         inAccessor = False,
         inLoop = False,
         inUnsafeCode = isUnsafe,
+        dbgName = dbgName,
         et = [(dbgName, srcLoc) | notNull genericArgs]
       }
 
@@ -256,6 +260,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
       pure (id, (I.vDefCommon d).typ, d)
     _ -> do
       let (VName name, sr') = (A.vDefCommon astDef).name
+      let dbgName = ctx.dbgName
 
       vDefVisited fqn ctx.genericParams >>= flip when (throw ctx.et sr' $ "Infinite loop getting type of " <> name)
       markVDefVisited fqn ctx.genericParams
@@ -324,35 +329,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                   _ -> pure []
                 --
                 stringType <- getBuiltinType ctx (Namespace "@stlib/string") (TName "String")
-                listStringType <-
-                  getGenericBuiltinType
-                    ctx
-                    (Namespace "@stlib/list")
-                    (TName "List")
-                    [(I.TypeGenericArg stringType, undefined)]
-
-                -- Build a constant List[String]
-
-                let l = length fields
-                let ptr =
-                      if l == 0
-                        then
-                          I.ConstNullPtr
-                        else
-                          I.ConstAddrOfArray0
-                            ( I.ConstArray stringType $ must $ listToList1 fields,
-                              I.ArrayType stringType $ fromIntegral l
-                            )
-
-                pure
-                  $ Just
-                    ( I.ConstStructOrTuple
-                        [ (ptr, I.PtrType $ Just stringType),
-                          (I.ConstInt $ fromIntegral l, i64),
-                          (I.ConstInt 0, i64)
-                        ],
-                      listStringType
-                    )
+                Just <$> makeConstListLit ctx stringType fields
               "@stlib/stlib:fieldsCount" -> do
                 let t' = typeGArg 0
 
@@ -381,6 +358,19 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                   _ -> pure 0
 
                 pure $ Just (I.ConstInt i, i32)
+              "@stlib/stlib:getDataCons" -> do
+                fields <- case typeGArg 0 of
+                  I.ANamedType id -> do
+                    tDef <- checkTDef2 id
+                    case tDef of
+                      I.AnEnumDef2 ed -> do
+                        let dcs = un <$> Ins.keys ed.dataCons
+                        forM dcs $ makeConstStringLit ctx NoHint >>> fmap fst
+                      _ -> pure def
+                  _ -> pure []
+                --
+                stringType <- getBuiltinType ctx (Namespace "@stlib/string") (TName "String")
+                Just <$> makeConstListLit ctx stringType fields
               "@stlib/stlib:dataConsTakesType" -> do
                 let t' = typeGArg 0
                 i <- case ctx.genericParams !! 1 of
@@ -405,6 +395,40 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                   _ -> throw userCtx.et (gArgs !! 0) "Not an array"
               "@stlib/stlib:typesEq" -> do
                 pure $ Just (I.ConstBool $ typeGArg 0 == typeGArg 1, bool)
+              "@stlib/stlib:typeInfo" -> do
+                let t' = typeGArg 0
+                typeMetaType <- getBuiltinType userCtx (Namespace "@stlib/stlib") (TName "TypeMeta")
+                -- enum TypeMeta {
+                --     0:struct_,
+                --     1:enum_,
+                --     2:union_,
+                --     3:tuple,
+                --     4:fn_,
+                --     5:ptr,
+                --     6:constPtr,
+                --     7:array,
+                --     8:number,
+                --     9:boolType,
+                --     10:slice
+                -- }
+                idx <- case t' of
+                  I.ANamedType id -> do
+                    getTDef id <&> \case
+                      I.AStructDef _ -> 0
+                      I.AnEnumDef _ -> 1
+                      I.AUnionDef _ -> 2
+                  I.TupleType _ -> pure 3
+                  I.AFnType _ -> pure 4
+                  I.AnAccessorType _ -> pure 4
+                  I.AnIteratorType _ -> pure 4
+                  I.AnAccessorIteratorType _ -> pure 4
+                  I.PtrType _ -> pure 5
+                  I.ConstPtrType _ -> pure 6
+                  I.ArrayType _ _ -> pure 7
+                  I.NumPrimType _ -> pure 8
+                  I.BoolType -> pure 9
+                  I.SliceType _ -> pure 10
+                pure $ Just (I.ConstEnum idx, typeMetaType)
               _ -> do
                 unless (null ctx.genericParams) $ throw userCtx.et userSr "Unknown generic builtin"
                 pure Nothing
@@ -422,6 +446,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                     { c =
                         I.VDefCommon
                           { name = constDef.c.name,
+                            dbgName = dbgName,
                             fqn = fqn,
                             typ = t,
                             genericArgs = ctx.genericParams,
@@ -498,6 +523,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
                     { c =
                         I.VDefCommon
                           { name = fnDef.c.name,
+                            dbgName = dbgName,
                             fqn = fqn,
                             typ = fnType,
                             genericArgs = ctx.genericParams,
@@ -1091,6 +1117,37 @@ checkForDepLoops ctx sr id deps = do
 -- Expressions
 --
 
+makeConstListLit :: (MonadTc m) => Ctx -> I.Type -> [I.Constant'] -> m I.Constant
+makeConstListLit ctx t cs = do
+  listType <-
+    getGenericBuiltinType
+      ctx
+      (Namespace "@stlib/list")
+      (TName "List")
+      [(I.TypeGenericArg t, undefined)]
+
+  -- Build a constant List[String]
+
+  let l = length cs
+  let ptr =
+        if l == 0
+          then
+            I.ConstNullPtr
+          else
+            I.ConstAddrOfArray0
+              ( I.ConstArray t $ must $ listToList1 cs,
+                I.ArrayType t $ fromIntegral l
+              )
+
+  pure
+    ( I.ConstStructOrTuple
+        [ (ptr, I.PtrType $ Just t),
+          (I.ConstInt $ fromIntegral l, i64),
+          (I.ConstInt 0, i64)
+        ],
+      listType
+    )
+
 makeConstStringLit :: (MonadTc m) => Ctx -> TypeHint -> Text -> m I.Constant
 makeConstStringLit ctx hint str = do
   -- Use type hint to choose between string types
@@ -1523,58 +1580,64 @@ getMemberFnCallExpr ::
   m (Either I.Expr I.Statement)
 getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsExprs expectIterator = do
   lhs@(_, lhsType, _) <- getExpr ctx NoHint lhsAstExpr
-  case lhsType of
+  let getOnlyGArg = case argsExprs of [x] -> pure x; _ -> throw ctx.et sr "Wrong number of arguments"
+  resultMaybe <- case (lhsType, null fnAstGArgs) of
     -- Member functions for types without definitions written in jackdaw code
-    I.AFnType _ -> do
-      unless (null fnAstGArgs) $ throw ctx.et sr "No such function is defined for function pointers"
-      argAstExpr <- case argsExprs of [x] -> pure x; _ -> throw ctx.et sr "Wrong number of arguments"
+    (I.AFnType _, True) -> do
       case () of
         _ | vOrOpName == Left (VName "eq") || vOrOpName == Right (OpName "==") -> do
+          argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
           unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
-          pure $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
+          pure $ Just $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
         _ | vOrOpName == Left (VName "neq") || vOrOpName == Right (OpName "!=") -> do
+          argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
           unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
-          pure $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
-        _ -> throw ctx.et sr "No such member function is defined for function pointers"
-    I.PtrType pointeeType -> do
-      unless (null fnAstGArgs) $ throw ctx.et sr "No such function is defined for pointers"
-      argAstExpr <- case argsExprs of [x] -> pure x; _ -> throw ctx.et sr "Wrong number of arguments"
+          pure $ Just $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
+        _ -> pure Nothing
+    (I.PtrType pointeeType, True) -> do
       case () of
         _ | vOrOpName == Left (VName "add") || vOrOpName == Right (OpName "+") -> do
+          argAstExpr <- getOnlyGArg
           when (isNothing pointeeType) $ throw ctx.et sr "Operation not valid on void pointers"
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint i64) argAstExpr >>= iCast i64
           unless (argType == i64) $ addError ctx.et argSr "Pointer addition expects an I64"
-          pure $ Left (I.APtrAddExpr $ I.PtrAddExpr {expr = lhs, index = argExpr}, lhsType, sr)
+          pure $ Just $ Left (I.APtrAddExpr $ I.PtrAddExpr {expr = lhs, index = argExpr}, lhsType, sr)
         _ | vOrOpName == Left (VName "sub") || vOrOpName == Right (OpName "-") -> do
+          argAstExpr <- getOnlyGArg
           when (isNothing pointeeType) $ throw ctx.et sr "Operation not valid on void pointers"
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint i64) argAstExpr >>= iCast i64
           unless (argType == i64) $ addError ctx.et argSr "Pointer subtraction expects an I64"
-          pure $ Left (I.APtrSubExpr $ I.PtrSubExpr {expr = lhs, index = argExpr}, lhsType, sr)
+          pure $ Just $ Left (I.APtrSubExpr $ I.PtrSubExpr {expr = lhs, index = argExpr}, lhsType, sr)
         _ | vOrOpName == Left (VName "eq") || vOrOpName == Right (OpName "==") -> do
+          argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
           unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
-          pure $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
+          pure $ Just $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
         _ | vOrOpName == Left (VName "neq") || vOrOpName == Right (OpName "!=") -> do
+          argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
           unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
-          pure $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
-        _ -> throw ctx.et sr "No such member function is defined for pointers"
-    I.ConstPtrType _ -> do
-      unless (null fnAstGArgs) $ throw ctx.et sr "No such function is defined for const pointers"
-      argAstExpr <- case argsExprs of [x] -> pure x; _ -> throw ctx.et sr "Wrong number of arguments"
+          pure $ Just $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
+        _ -> pure Nothing
+    (I.ConstPtrType _, True) -> do
       case () of
         _ | vOrOpName == Left (VName "eq") || vOrOpName == Right (OpName "==") -> do
+          argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
           unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
-          pure $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
+          pure $ Just $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
         _ | vOrOpName == Left (VName "neq") || vOrOpName == Right (OpName "!=") -> do
+          argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
           unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
-          pure $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
-        _ -> throw ctx.et sr "No such member function is defined for const pointers"
-    -- Member functions for types with an in-code definition
+          pure $ Just $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
+        _ -> pure Nothing
+    _ -> pure Nothing
+
+  case resultMaybe of
+    Just x -> pure x
     _ -> do
       -- Get list of member functions
       (memberFns, memberFnOps, lhsTFqn) <-
@@ -1634,6 +1697,9 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
             _ | vOrOpName == Left (VName "toString") -> do
               let ctx' = mkFileCtx (Namespace "@stlib/to_string") ctx.tcIn.toStringAst ctx.tcIn
               pure $ Right (ctx', "@stlib/to_string:toString", ctx.tcIn.toStringFn)
+            _ | vOrOpName == Left (VName "addToString") -> do
+              let ctx' = mkFileCtx (Namespace "@stlib/addToString") ctx.tcIn.toStringAst ctx.tcIn
+              pure $ Right (ctx', "@stlib/to_string:addToString", ctx.tcIn.addToStringFn)
             _ -> throw ctx.et nameSr $ "No such member function: " <> vOrOpName'
         [] -> throw ctx.et nameSr $ "No such member function: " <> vOrOpName'
         [x] -> pure $ Left x
@@ -2265,15 +2331,19 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
   A.ARequireStmnt e -> do
     checkRequireStmnt ctx e
     getCodeBlockStmnt ctx astStmnts hirStmnts
-  A.MatchStmnt mode astExpr arms -> do
+  A.MatchStmnt False mode astExpr arms -> do
     e@(_, t, _) <- getExpr ctx NoHint astExpr
-    checkTypeHasRuntimeRepr ctx.et (snd astExpr) t
     arms' <- forM arms $ \b -> do
       -- TODO Check for exhaustiveness
       (ctx', p) <- getMatchBranchCtx ctx b.pattern t
       code <- getCodeBlockStmnt ctx' [b.code] []
       pure $ I.MatchBranch p (snd b.pattern) code
     getCodeBlockStmnt ctx astStmnts $ (I.MatchStmnt mode e arms', sr) : hirStmnts
+  A.MatchStmnt True mode astExpr arms -> do
+    unless (mode == Shared) $ throw ctx.et sr "Access mode must be shared for compile-time match"
+    c <- getConstLitExpr ctx NoHint astExpr
+    s' <- visitConstMatchBranch ctx sr c (toList arms)
+    getCodeBlockStmnt ctx astStmnts (s' : hirStmnts)
   A.UnsafeStmnt s' -> do
     s'' <- getCodeBlockStmnt ctx {inUnsafeCode = True} [s'] []
     getCodeBlockStmnt ctx astStmnts (s'' : hirStmnts)
@@ -2355,6 +2425,21 @@ makeLocalVar ctx typ name@(_, sr) = do
   id <- newLocalVarUid
   pure (ctx {variables = Variable name (Left id) typ : ctx.variables}, id)
 
+getEnumDef2OrError :: (MonadTc m) => Ctx -> SrcRange -> I.Type -> m I.EnumDef2
+getEnumDef2OrError ctx sr t = do
+  case t of
+    I.ANamedType tDefId -> do
+      checkTDef2 tDefId >>= \case
+        I.AnEnumDef2 x -> pure x
+        _ -> throw ctx.et sr "Not an enum"
+    _ -> throw ctx.et sr "Not an enum"
+
+findDataCons :: (MonadTcError m) => Ctx -> SrcRange -> I.EnumDef2 -> VName -> m (Maybe I.Type, Int)
+findDataCons ctx sr enumDef name =
+  case Ins.lookupWithIndex name enumDef.dataCons of
+    Just x -> pure x
+    _ -> throw ctx.et sr $ "No such data constructor: " <> un name
+
 -- Similar to makeDestructure but for pattern matching
 getMatchBranchCtx :: (MonadTc m) => Ctx -> A.Pattern -> I.Type -> m (Ctx, I.Pattern)
 getMatchBranchCtx ctx (A.PatternAny, sr) typ = do
@@ -2365,32 +2450,65 @@ getMatchBranchCtx ctx (A.PatternName name, sr) typ = do
   dropFn <- getDropFn ctx.tcIn typ sr
   pure (ctx', I.PatternName uid name dropFn)
 getMatchBranchCtx ctx (A.PatternDataCons0 consName, sr) enumType = do
-  enumDef <- case enumType of
-    I.ANamedType tDefId -> do
-      checkTDef2 tDefId >>= \case
-        I.AnEnumDef2 x -> pure x
-        _ -> throw ctx.et sr "Not an enum"
-    _ -> throw ctx.et sr "Not an enum"
-  (consActualTypeMaybe, consIdx) <- case Ins.lookupWithIndex consName enumDef.dataCons of
-    Just x -> pure x
-    _ -> throw ctx.et sr $ "No such data constructor: " <> un consName
+  enumDef <- getEnumDef2OrError ctx sr enumType
+  (consActualTypeMaybe, consIdx) <- findDataCons ctx sr enumDef consName
   when (isJust consActualTypeMaybe) $ throw ctx.et sr "Data constructor holds a value"
   pure (ctx, I.PatternDataCons0 consIdx)
 getMatchBranchCtx ctx (A.PatternDataCons1 consName innerPattern, sr) enumType = do
-  enumDef <- case enumType of
-    I.ANamedType tDefId -> do
-      checkTDef2 tDefId >>= \case
-        I.AnEnumDef2 x -> pure x
-        _ -> throw ctx.et sr "Not an enum"
-    _ -> throw ctx.et sr "Not an enum"
-  (consActualTypeMaybe, consIdx) <- case Ins.lookupWithIndex (fst consName) enumDef.dataCons of
-    Just x -> pure x
-    _ -> throw ctx.et consName $ "No such data constructor: " <> un (fst consName)
+  enumDef <- getEnumDef2OrError ctx sr enumType
+  (consActualTypeMaybe, consIdx) <- findDataCons ctx sr enumDef (fst consName)
   consActualType <- case consActualTypeMaybe of
     Just x -> pure x
     _ -> throw ctx.et consName "Data constructor does not hold a value"
   (ctx', p) <- getMatchBranchCtx ctx innerPattern consActualType
   pure (ctx', I.PatternDataCons1 consIdx p)
+
+visitConstMatchPattern :: (MonadTc m) => Ctx -> I.Constant -> A.Pattern -> m (Maybe Ctx)
+visitConstMatchPattern ctx (c, t) (p, sr) = case p of
+  A.PatternAny ->
+    pure $ Just ctx
+  A.PatternName name ->
+    pure $ Just $ ctx {variables = Variable name (Right c) t : ctx.variables}
+  A.PatternDataCons0 consName -> do
+    enumDef <- getEnumDef2OrError ctx sr t
+    (consActualTypeMaybe, consIdx) <- findDataCons ctx sr enumDef consName
+    when (isJust consActualTypeMaybe) $ throw ctx.et sr "Data constructor holds a value"
+    case c of
+      I.ConstEnum actualIdx ->
+        if actualIdx == consIdx
+          then
+            pure $ Just ctx
+          else
+            pure Nothing
+      _ -> throw ctx.et sr "Not an enum"
+  A.PatternDataCons1 consName p' -> do
+    enumDef <- getEnumDef2OrError ctx sr t
+    (consActualTypeMaybe, consIdx) <- findDataCons ctx sr enumDef (fst consName)
+    consActualType <- case consActualTypeMaybe of
+      Just x -> pure x
+      _ -> throw ctx.et consName "Data constructor does not hold a value"
+    case c of
+      I.ConstEnum actualIdx ->
+        if actualIdx == consIdx
+          then do
+            -- TODO Don't have constant enums with data constructors yet
+            x <- undefined
+            visitConstMatchPattern ctx (x, consActualType) p'
+          else
+            pure Nothing
+      _ -> throw ctx.et sr "Not an enum"
+
+visitConstMatchBranch :: (MonadTc m) => Ctx -> SrcRange -> I.Constant -> [A.MatchBranch] -> m I.Statement
+visitConstMatchBranch ctx sr _ [] = throw ctx.et sr "Match was not exhaustive"
+visitConstMatchBranch ctx sr c (b : bs) = do
+  newCtxMaybe <- visitConstMatchPattern ctx c b.pattern
+  case newCtxMaybe of
+    Just ctx' -> do
+      -- Match
+      getCodeBlockStmnt ctx' [b.code] []
+    _ -> do
+      -- Next
+      visitConstMatchBranch ctx sr c bs
 
 getMkTupleExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> List2 A.Expr -> m I.Expr
 getMkTupleExpr ctx hint sr xs = do
@@ -2525,6 +2643,7 @@ getTypeAccessExprConst ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = 
               let c =
                     I.VDefCommon
                       { name = (VName $ "_" <> un name, sr),
+                        dbgName = "_" <> un name,
                         fqn = fqn,
                         genericArgs = defCommon.genericArgs,
                         typ = fnType,

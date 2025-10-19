@@ -60,6 +60,29 @@ struct String {
     }
 
     @Unsafe
+    fn appendCStringUnchecked (ref self: Self, c: *CChar) {
+        var sl = RawSlice[U8]{ ptr = c as *U8, length = strlen(c) as ISize };
+        sl.length += 1; // Add null terminator back
+        _ = self.utf8Data.pop();
+        self.utf8Data ++= sl;
+    }
+
+    fn appendUtf8 (ref self: Self, xs: Slice[U8]) unsafe {
+        if !isValidUtf8(xs) { throw &"Byte slice is not valid UTF-8"; }
+        self.appendUtf8Unchecked(xs);
+    }
+
+    fn appendUtf8Unchecked (ref self: Self, xs: Slice[U8]) unsafe {
+        _ = self.utf8Data.pop();
+        self.utf8Data ++= xs;
+        self.utf8Data.push(0);
+    }
+
+    fn append (ref self: Self, x: String) {
+        self.appendUtf8Unchecked(x.utf8Slice());
+    }
+
+    @Unsafe
     fn copyFromCString (c: *CChar): Self {
         var sl = RawSlice[U8]{ ptr = c as *U8, length = strlen(c) as ISize };
         if !isValidUtf8(sl) { throw &"C string is not valid UTF-8"; }
@@ -166,8 +189,10 @@ struct String {
         }
     }
 
-    fn toString (self: Self): String {
-        return self.clone();
+    fn addToString (self: Self, ref s: String) {
+        s.pushAsciiChar('"');
+        s ++= self;
+        s.pushAsciiChar('"');
     }
 
     iterator iterCodePoints (self: Self): U32 {

@@ -174,7 +174,7 @@ visitFn vDefId vDef noExceptions = do
 
         let f =
               L.Function
-                { dbgName = un $ fst vDef.c.name,
+                { dbgName = vDef.c.dbgName,
                   dbgFile = let SrcRange path _ _ = snd vDef.c.name in T.pack path,
                   sr = snd vDef.c.name,
                   cName = cName,

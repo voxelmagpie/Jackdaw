@@ -525,7 +525,7 @@ Statement :: {A.Statement}
     | 'for' Maybe('const') '(' ';' Expr ';' List(AssignmentStmnt, ',') ')' CodeBlockStmnt {(A.ForLoopStmnt [] $5 $7 (isJust $2) $9, srcRangeOf $1 $9)}
     | 'for' Maybe('const') '(' 'var' List(ForVar, ',') ';' Expr ';' List(AssignmentStmnt, ',') ')' CodeBlockStmnt {(A.ForLoopStmnt $5 $7 $9 (isJust $2) $11, srcRangeOf $1 $11)}
     | RequireStmnt ';' {(A.ARequireStmnt $ fst $1, srcRangeOf $1 $2)}
-    | 'match' AccessMode Expr '{' ManyNe(MatchBranch) '}' {(A.MatchStmnt $2 $3 (List1 (head $5) $ tail $5), srcRangeOf $1 $6)}
+    | 'match' Maybe('const') AccessMode Expr '{' ManyNe(MatchBranch) '}' {(A.MatchStmnt (isJust $2) $3 $4 (List1 (head $6) $ tail $6), srcRangeOf $1 $7)}
     | 'unsafe' CodeBlockStmnt {(A.UnsafeStmnt $2, srcRangeOf $1 $2)}
     | 'throw' Expr ';' {(A.ThrowStmnt $2, srcRangeOf $1 $2)}
     | 'try' CodeBlockStmnt 'catch' VNameOrUnderscore CodeBlockStmnt {(A.TryCatchStmnt $2 $4 $5, srcRangeOf $1 $5)}

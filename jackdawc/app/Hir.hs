@@ -141,6 +141,7 @@ instance IsTypeDef AnyTDef2 where
 
 data VDefCommon = VDefCommon
   { name :: VName',
+    dbgName :: Text,
     fqn :: VFqn,
     genericArgs :: [GenericArg],
     typ :: Type,

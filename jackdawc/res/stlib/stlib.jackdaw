@@ -45,25 +45,27 @@ alias DataConsType [A, i] // Not valid for data constructors that do not take a 
 @NoThrow fn setEnumActiveIndexUnsafe [A] (ref A, i: I32)
 @NoThrow accessor getEnumIndexUnsafe [A, i] (A): DataConsType[A, i]
 @Unsafe @NoThrow fn getEnumIndexPtrUnsafe [A, i] (*A): *DataConsType[A, i]
+const getDataCons [A]: List[String]
 
 const isArrayType [A]: Bool
 alias ArrayElemType [A]
 const arrayLength [A]: I32
 const typesEq [A, B]: Bool
 
-// Gives field names, tuple/array lengths, parameter count
 enum TypeMeta {
-    struct_(List[String]),
-    enum_(List[String]),
-    tuple(I32),
-    fn_(I32),
+    struct_,
+    enum_,
+    union_,
+    tuple,
+    fn_,
     ptr,
-    array(I32),
+    constPtr,
+    array,
     number,
-    boolType
+    boolType,
+    slice
 }
 
-// TODO
 const typeInfo [A]: TypeMeta
 
 // enum FloatT {
@@ -253,9 +255,10 @@ fn toConstPtr [A] (var x: A): *const A unsafe {
 }
 
 
-fn _assert (x: Bool)
 fn assert (x: Bool) {
-    _assert(x);
+    if !x {
+        throw &"Assertion error";
+    }
 }
 
 @NoReturn @NoThrow

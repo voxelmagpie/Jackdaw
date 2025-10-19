@@ -231,3 +231,14 @@ void traceI32(int32_t x);
 // int8_t*
 void traceCStr(void* x);
 void traceUnformattedByte(uint8_t x);
+
+unsigned long strlen(const char* str);
+
+static inline uint64_t strlen_ (void * s) {
+    return strlen(s);
+}
+
+int printf (const char* restrict, ...);
+static inline int32_t printf_ (void * f, ...) {
+    return printf(f);    
+}

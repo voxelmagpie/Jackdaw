@@ -1,7 +1,7 @@
 //! 1 # a2
 
-@Unsafe fn printf (*I8, ...): I32
+@Unsafe fn printf_ (*I8, ...): I32
 
 fn start () unsafe {
-    printf("a%d".getCPtr(), readI32()+1);
+    printf_("a%d".getCPtr(), readI32()+1);
 }

@@ -329,7 +329,12 @@ struct IoStreams {
     stdOut: File
 }
 
-@Unsafe fn strlen(*CChar): USize
+@Unsafe fn strlen_(*CChar): CULong
+
+@Unsafe
+fn strlen (s: *CChar): USize {
+    return strlen_(s);
+}
 
 alias Args = List[OsString]
 

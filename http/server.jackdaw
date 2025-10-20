@@ -113,21 +113,21 @@ struct Connection {
     // For redirecting after a POST request
     fn sendRedirect303 (ref self: Self, to: String) {
         self.s.writeString("HTTP/1.1 303 See Other\r\nContent-Length: 0\r\nLocation: ");
-        self.s.writeString(to.toString());
+        self.s.writeString(to);
         self.s.writeString("\r\n\r\n");
         self.s.flush();
     }
 
     fn sendTempRedirect307 (ref self: Self, to: String) {
         self.s.writeString("HTTP/1.1 307 Temporary Redirect\r\nContent-Length: 0\r\nLocation: ");
-        self.s.writeString(to.toString());
+        self.s.writeString(to);
         self.s.writeString("\r\n\r\n");
         self.s.flush();
     }
 
     fn sendRedirect308 (ref self: Self, to: String) {
         self.s.writeString("HTTP/1.1 308 Permanent Redirect\r\nContent-Length: 0\r\nLocation: ");
-        self.s.writeString(to.toString());
+        self.s.writeString(to);
         self.s.writeString("\r\n\r\n");
         self.s.flush();
     }
@@ -163,7 +163,7 @@ struct Connection {
     }
 
     fn _sendContentLength (ref self: Self, l: ISize) {
-        // TODO self._sendHeaders(("Content-Length", data.length().toString()));
+        // TODO self._sendHeaders(("Content-Length", data.length()));
         self.s.writeString("Content-Length: ");
         self.s.writeString(l.toString());
         self.s.writeString("\r\n");

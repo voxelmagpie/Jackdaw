@@ -37,7 +37,7 @@ fn start (Args, var streams: IoStreams) {
     // Test connection & queries
     _ = Statements.create(Db.connect(user, pw));
 
-    var server = Server.new(25566);
+    var server = Server.new(8080);
     streams.stdOut.writeLine("Listening on port " ++ server.server.port.toString());
     loop {
         match server.acceptFork() {

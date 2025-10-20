@@ -6,6 +6,7 @@ module Tc.Error where
 
 import Control.Exception (Exception)
 import Control.Monad (when)
+import Data.Char (isAsciiLower, isAsciiUpper, isDigit)
 import Data.Text qualified as T
 import Prelude2
 import SrcLoc
@@ -37,15 +38,52 @@ class (Monad m) => MonadTcError m where
   addError :: (HasSrcRange r) => ErrorSeverity -> ErrorOrigin -> ErrorTrace -> r -> Text -> m ()
   addError sev o (ErrorTrace loc et) sr msg' = do
     let et' = take (length et - 1) et
-    let trace' = et' <&> \(wh, SrcRange fp l _) -> "In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line
-    let sev' = case sev of SevError -> "Error"; SevWarning -> "Warning"; SevHint -> "Hint"
+    let trace' = et' <&> \(loc', SrcRange fp l _) -> "In " <> fmtLoc loc' <> " at " <> srcLocColour <> T.pack fp <> ":" <> tShow l.line <> reset
+    let sev' = case sev of SevError -> errorColour <> "Error"; SevWarning -> warningColour <> "Warning"; SevHint -> noteColour <> "Note"
     let msg =
           T.intercalate "\n"
-            $ [sev' <> ": " <> msg']
-            ++ ["In " <> loc <> " at " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line | not (T.null loc)]
-            ++ ["At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line | T.null loc]
+            $ [sev' <> ": " <> msg' <> reset]
+            ++ ["In " <> fmtLoc loc <> " at " <> srcLocColour <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line <> reset | not (T.null loc)]
+            ++ ["At " <> srcLocColour <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line <> reset | T.null loc]
             ++ trace'
     consErr $ Error sev o (srcRangeOf sr sr) msg
 
     e <- getErrsListRev <&> filter (\(Error s _ _ _) -> s == SevError)
     when (length e > 100) $ throwTcException $ TcException ()
+
+typeColour :: Text
+typeColour = "\x1b[36;1m" -- Cyan, bold
+
+locColour :: Text
+locColour = "\x1b[0;1m" -- Bold
+
+srcLocColour :: Text
+srcLocColour = "\x1b[34;1m" -- Blue, bold
+
+errorColour :: Text
+errorColour = "\x1b[31;1m" -- Red, bold
+
+warningColour :: Text
+warningColour = "\x1b[33;1m" -- Yellow, bold
+
+noteColour :: Text
+noteColour = "\x1b[32;1m" -- Green, bold
+
+reset :: Text
+reset = "\x1b[0m"
+
+fmtLoc'' :: [Char] -> String -> String
+fmtLoc'' [] s = T.unpack (T.reverse reset) <> s
+fmtLoc'' (c : cs) s
+  | not (isAsciiLower c) && not (isAsciiUpper c) && (c /= '_') && not (isDigit c) =
+      fmtLoc' cs (c : (T.unpack (T.reverse locColour) <> s))
+fmtLoc'' (c : cs) s = fmtLoc'' cs (c : s)
+
+fmtLoc' :: [Char] -> String -> String
+fmtLoc' [] s = T.unpack (T.reverse reset) <> s
+fmtLoc' (c : cs) s | isAsciiUpper c = fmtLoc'' cs (c : (T.unpack (T.reverse typeColour) <> s))
+fmtLoc' (c : cs) s = fmtLoc' cs (c : s)
+
+-- Highlights Type names
+fmtLoc :: Text -> Text
+fmtLoc l = T.reverse $ T.pack $ fmtLoc' (T.unpack l) (T.unpack $ T.reverse locColour)

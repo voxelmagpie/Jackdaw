@@ -21,7 +21,7 @@ import Prelude2
 import SrcLoc (SrcRange)
 import Tables
 import Tc.Ctx (Ctx, ErrorTrace, TypeHint)
-import Tc.Error
+import Tc.Error (Error, MonadTcError (..))
 import Tc.TcIr qualified as I
 
 -- 0 = Not in loop

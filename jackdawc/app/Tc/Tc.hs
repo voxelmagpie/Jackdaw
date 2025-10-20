@@ -20,7 +20,7 @@ import Data.Char (ord)
 import Data.Either (isRight)
 import Data.HashMap.Strict qualified as HM
 import Data.List (elemIndex, find, init, uncons)
-import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, mapMaybe, maybeToList)
+import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing, maybeToList)
 import Data.Text qualified as T
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
 import HashMultiMap qualified as HMM
@@ -37,11 +37,13 @@ import Tc.Ctx qualified as C
 import Tc.Error (MonadTcError)
 import Tc.Error qualified as E
 import Tc.Fmt
+import Tc.MkCtx
 import Tc.Names
 import Tc.State
 import Tc.TcErr
 import Tc.TcIr qualified as I
 import Tc.TypeAttribs (typeIsUnsafe)
+import Tc.Hir
 
 data TypeHint = NoHint | TypeHint I.Type | FnReturningHint TypeHint
   deriving (Show, Eq)
@@ -161,89 +163,6 @@ getGenericBuiltinType ctx ns name gArgs = do
     (Just astTd) -> do
       getTSDefType ctx ctx' gArgs (snd (A.tsDefCommon astTd).name) (TFqn $ un ns <> ":" <> un name, astTd)
     _ -> error "Missing builtin type"
-
--- If this is a member function then the context includes generic parameters from containing type as well as the function
--- 'userCtx' is the context of the code that is accessing this definition
--- 'outerCtx' is the context of the source file or type that the definition is within
-makeVDefCtx ::
-  (MonadHirRead' m) => Ctx -> Ctx -> [I.GenericArg] -> [A.GenericParameter] -> Bool -> Bool -> VName -> Bool -> SrcRange -> m Ctx
-makeVDefCtx userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsafe sr = do
-  let gp = zip astGp genericArgs
-  let newTypeParams =
-        mapMaybe (\case (A.TypeGenericParameter n, I.TypeGenericArg t) -> Just (fst n, t); _ -> Nothing) gp
-  let newValParams =
-        mapMaybe (\case (A.ValueGenericParameter n, I.ValueGenericArg v) -> Just (fst n, v); _ -> Nothing) gp
-  gArgsText <- forM genericArgs $ formatGenArg False
-  let loc' = if null genericArgs then un name else un name <> "[" <> T.intercalate "," gArgsText <> "]"
-  let loc = if T.null outerCtx.et.location then loc' else outerCtx.et.location <> "." <> loc'
-  pure
-    $ outerCtx
-      { genericParams = outerCtx.genericParams <> genericArgs,
-        tNameToGp = HM.fromList $ HM.toList outerCtx.tNameToGp <> newTypeParams,
-        vNameToGp = HM.fromList $ HM.toList outerCtx.vNameToGp <> newValParams,
-        inIterator = isIterator,
-        inAccessor = isAccessor,
-        inUnsafeCode = isUnsafe,
-        et = ErrorTrace loc (if null genericArgs then [(userCtx.et.location, sr)] else (userCtx.et.location, sr) : userCtx.et.trace)
-      }
-
-makeTSDefCtx :: (MonadHirRead' m) => Ctx -> Ctx -> TFqn -> [A.GenericParameter] -> [I.GenericArg] -> Maybe I.Type -> TName -> Bool -> SrcRange -> m Ctx
-makeTSDefCtx userCtx outerCtx fqn astGp genericArgs typ name isUnsafe sr = do
-  let gp = zip astGp genericArgs
-  let newTypeParams =
-        mapMaybe (\case (A.TypeGenericParameter n, I.TypeGenericArg t) -> Just (fst n, t); _ -> Nothing) gp
-  let newValParams =
-        mapMaybe (\case (A.ValueGenericParameter n, I.ValueGenericArg v) -> Just (fst n, v); _ -> Nothing) gp
-  gArgsText <- forM genericArgs $ formatGenArg False
-  let loc' = if null genericArgs then un name else un name <> "[" <> T.intercalate "," gArgsText <> "]"
-  let loc = if T.null outerCtx.et.location then loc' else outerCtx.et.location <> "." <> loc'
-  pure
-    $ Ctx
-      { namespace = outerCtx.namespace,
-        thisAst = outerCtx.thisAst,
-        thisAstImports = outerCtx.thisAstImports,
-        tcIn = outerCtx.tcIn,
-        selfType = typ <&> (fqn,),
-        tNameToGp = HM.fromList newTypeParams,
-        vNameToGp = HM.fromList newValParams,
-        genericParams = genericArgs,
-        variables = [],
-        returnType = Nothing,
-        inIterator = False,
-        inAccessor = False,
-        inLoop = False,
-        inUnsafeCode = isUnsafe,
-        et = ErrorTrace loc (if null genericArgs then [(userCtx.et.location, sr)] else (userCtx.et.location, sr) : userCtx.et.trace)
-      }
-
--- If this type has a type definition in code (Xyz, Array, Slice, etc.) then this function gets the relevant context
-getTypeCtx :: (MonadTc m) => Ctx -> SrcRange -> I.Type -> m (Maybe Ctx)
-getTypeCtx ctx sr t = do
-  getCachedTypeCtx t >>= \case
-    Just x -> pure $ Just x
-    _ -> do
-      let outerCtx = mkFileCtx (Namespace "@stlib/primitives") ctx.tcIn.primitivesAst ctx.tcIn
-      ctx' <- case t of
-        I.ArrayType el n ->
-          let c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName "Array") & must & A.getTDefCommonMaybe & must
-              astGp = c.c.genericParams
-              gArgs = [I.TypeGenericArg el, I.ValueGenericArg (I.ConstInt $ fromIntegral n, i32)]
-           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Array") astGp gArgs (Just t) (TName "Array") False sr
-        I.SliceType el ->
-          let c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName "Slice") & must & A.getTDefCommonMaybe & must
-              astGp = c.c.genericParams
-              gArgs = [I.TypeGenericArg el]
-           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Slice") astGp gArgs (Just t) (TName "Slice") False sr
-        I.NumPrimType p ->
-          Just <$> makeTSDefCtx ctx outerCtx (TFqn $ "@stlib/primitives:" <> numPrimTypeToText p) [] [] (Just t) (TName $ numPrimTypeToText p) False sr
-        I.BoolType ->
-          Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Bool") [] [] (Just t) (TName "Bool") False sr
-        I.ANamedType _ ->
-          -- Named type context was made when the type definition (1) was visited
-          undefined
-        _ -> pure Nothing
-      forM_ ctx' $ addTypeCtx t
-      pure ctx'
 
 -- Gets the type of a function/constant without checking the function body
 -- This is only used by visitVDef
@@ -724,27 +643,6 @@ checkTemplateArgs ctx astGp gArgs = do
     (A.ValueGenericParameter _, (I.ValueGenericArg _, _)) -> pure ()
     (A.ValueGenericParameter _, (_, sr)) -> throw ctx.et sr "Expected a constant value"
 
-getAstTDefCommonFromType :: (MonadHirRead' m) => TcInputs -> I.Type -> m (Maybe A.TypeDefCommon)
-getAstTDefCommonFromType tcIn t = do
-  y <- getAstTDefFromType tcIn t
-  case y of
-    Just (A.ATypeDef x) -> pure $ Just x.c
-    Just (A.AStructDef x) -> pure $ Just x.c
-    Just (A.AnEnumDef x) -> pure $ Just x.c
-    _ -> pure Nothing
-
-getAstTDefFromType :: (MonadHirRead' m) => TcInputs -> I.Type -> m (Maybe A.AnyTSDef)
-getAstTDefFromType tcIn = \case
-  I.ANamedType tDefId -> do
-    d <- getTDef tDefId
-    let hirTDefCommon = I.tDefCommon d
-    let (ast, _) = must $ HM.lookup hirTDefCommon.namespace tcIn.allAsts
-    pure $ HM.lookup hirTDefCommon.name ast.tsDefs
-  I.ArrayType _ _ -> pure $ HM.lookup (TName "Array") (fst tcIn.primitivesAst).tsDefs
-  I.SliceType _ -> pure $ HM.lookup (TName "Slice") (fst tcIn.primitivesAst).tsDefs
-  I.NumPrimType x -> pure $ HM.lookup (TName $ numPrimTypeToText x) (fst tcIn.primitivesAst).tsDefs
-  I.BoolType -> pure $ HM.lookup (TName "Bool") (fst tcIn.primitivesAst).tsDefs
-  _ -> pure Nothing
 
 -- Gets the field / data constructor types, adds the StructDef2/EnumDef2 types to the HIR
 checkTDef2 :: (MonadTc m) => I.TDefId -> m I.AnyTDef2
@@ -2115,11 +2013,6 @@ getReturnStmnt ctx sr e = do
       unless (isNothing ctx.returnType || ctx.inIterator) $ addError ctx.et sr "Expected an expression"
       pure (I.ReturnStmnt Nothing, sr)
 
-fnIsNoThrow :: (MonadHirRead' m) => I.VDefId -> m Bool
-fnIsNoThrow id = do
-  d <- getVDef id
-  x <- getFnDefBodyMaybe id <&> ((<&> snd) >>> fromMaybe False)
-  pure $ x || Attribute "NoThrow" `elem` (Hir.vDefCommon d).attributes
 
 -- TODO Could this use fold instead of recursion?
 getCodeBlockStmnt :: (MonadTc m) => Ctx -> [A.Statement] -> [I.Statement] -> m I.Statement

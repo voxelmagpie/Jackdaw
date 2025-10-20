@@ -13,6 +13,7 @@ import Data.Char (ord)
 import Data.Foldable (find)
 import Data.HashTable.IO qualified as HT
 import Data.IORef (modifyIORef', readIORef, writeIORef)
+import Data.List (filter)
 import Data.Maybe (fromMaybe, isNothing, mapMaybe)
 import Data.Text qualified as T
 import GHC.IORef (IORef, newIORef)
@@ -348,11 +349,8 @@ processType s nameMaybe isParam xs deriv = processType' s nameMaybe xs >>= flip 
 
 processType' :: State -> Maybe Text -> [CTypeSpecifier NodeInfo] -> IO Text
 processType' s nameMaybe xs = do
-  -- unsigned xxx, signed xxx
-  let (xs', signed) = case head xs of
-        CSignedType _ -> (tail xs, True)
-        CUnsigType _ -> (tail xs, False)
-        _ -> (xs, True)
+  let signed = isNothing $ find (\case CUnsigType _ -> True; _ -> False) xs
+  let xs' = filter (\case CUnsigType _ -> False; CSignedType _ -> False; _ -> True) xs
 
   case (xs', signed) of
     ([CVoidType _], _) -> pure "void"

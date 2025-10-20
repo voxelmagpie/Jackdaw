@@ -21,7 +21,7 @@ executable jackdawc
   main-is:          Main.hs
   other-modules:
     Prelude2, Names, SrcLoc, Ast, Hir, Tables, IdTypes, InsOrdMap, HashMultiMap, CmdLine, Timings, Cc, Ex, Help,
-    Tc.Ctx, Tc.State, Tc.Tc, Tc.Names, Tc.TcIr, Tc.Borrow, Tc.TypeAttribs, Tc.TcErr, Tc.Builtins, Tc.Fmt, Tc.Casts, Tc.Error, Tc.MkCtx, Tc.Hir,
+    Tc.Ctx, Tc.State, Tc.Tc, Tc.Names, Tc.TcIr, Tc.Borrow, Tc.TypeAttribs, Tc.TcErr, Tc.Builtins, Tc.Fmt, Tc.Casts, Tc.Error, Tc.MkCtx, Tc.Hir, Tc.Expr,
     Tokens, Lexer, ParserHelperCode, Parser, AccessMode, Primitives,
     Lower, Lir, CTranspiler
   build-depends:

@@ -42,7 +42,8 @@ import System.Process (callProcess)
 import System.Process.Text (readProcessWithExitCode)
 import Tc.Borrow qualified as Bw
 import Tc.Error (Err (Err), ErrorOrigin (BorrowCheckerError, TypeCheckerError))
-import Tc.State (convertBwCheckFnTypeIO)
+import Tc.Expr (getCodeBlockStmnt, getConstLitExpr, getExpr)
+import Tc.State (TcFns (TcFns), convertBwCheckFnTypeIO)
 import Tc.Tc (runTc)
 import Timings
 import Tokens (prettyPrintToken)
@@ -237,7 +238,8 @@ testBorrowCheckFailure stLib = do
     ast <- case astMaybe of
       (Left (e, _)) -> throwIO $ CompileException $ "bw_chk_tests.jackdaw parser error:\n" <> e <> "\n" <> src
       (Right a) -> pure a
-    tcRes <- runTc (convertBwCheckFnTypeIO Bw.runBorrowChecker) (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
+    let fns = TcFns (convertBwCheckFnTypeIO Bw.runBorrowChecker) getConstLitExpr getExpr getCodeBlockStmnt
+    tcRes <- runTc fns (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
     case tcRes of
       Right _ -> throwIO $ CompileException $ "Borrow checker failure test did not fail:\n" <> src
       Left es -> do
@@ -269,7 +271,8 @@ testTypeCheckFailure stLib = do
     ast <- case astMaybe of
       (Left (e, _)) -> throwIO $ CompileException $ "tc_tests.jackdaw parser error:\n" <> e <> "\n" <> src
       (Right a) -> pure a
-    tcRes <- runTc (convertBwCheckFnTypeIO Bw.runBorrowChecker) (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
+    let fns = TcFns (convertBwCheckFnTypeIO Bw.runBorrowChecker) getConstLitExpr getExpr getCodeBlockStmnt
+    tcRes <- runTc fns (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
     case tcRes of
       Right _ -> throwIO $ CompileException $ "Type checker failure test did not fail:\n" <> src
       Left es -> do
@@ -400,7 +403,8 @@ compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers u
           <&> \(Err _ _ e) -> e
 
   typeCheckingStartTime <- getCurrentTime
-  tcRes <- runTc (convertBwCheckFnTypeIO Bw.runBorrowChecker) (HM.fromList $ files ++ depsAsts) forceCheckStLib uncheckedArithmetic
+  let fns = TcFns (convertBwCheckFnTypeIO Bw.runBorrowChecker) getConstLitExpr getExpr getCodeBlockStmnt
+  tcRes <- runTc fns (HM.fromList $ files ++ depsAsts) forceCheckStLib uncheckedArithmetic
   (hir, typeCheckingTime) <- case tcRes of
     Left errs ->
       printErrs errs

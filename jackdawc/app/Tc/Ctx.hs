@@ -11,6 +11,9 @@ import Prelude2
 import SrcLoc (SrcRange)
 import Tc.TcIr qualified as I
 
+data TypeHint = NoHint | TypeHint I.Type | FnReturningHint TypeHint
+  deriving (Show, Eq)
+
 type ImportsList = [(Namespace, Maybe TName, ImportNames)]
 
 data TcInputs = TcInputs

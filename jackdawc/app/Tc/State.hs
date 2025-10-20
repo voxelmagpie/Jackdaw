@@ -20,7 +20,7 @@ import Names
 import Prelude2
 import SrcLoc (SrcRange)
 import Tables
-import Tc.Ctx (Ctx, ErrorTrace)
+import Tc.Ctx (Ctx, ErrorTrace, TypeHint)
 import Tc.Error
 import Tc.TcIr qualified as I
 
@@ -57,7 +57,7 @@ convertBwCheckFnTypeIO f et a0 a1 a2 a3 = do
   liftIO $ runReaderT (f a0 a1 a2 a3) s'
 
 data TcState = TcState
-  { bwCheckFn :: BwCheckFnType' TcM,
+  { fns :: TcFns TcM,
     isCopyFn :: I.Type -> TcM Bool,
     hir :: H.Ir,
     hirVDefCache :: HashTable (VFqn, [H.GenericArg]) (H.VDefId, H.AnyVDef),
@@ -77,7 +77,20 @@ data TcState = TcState
   }
   deriving (Generic)
 
-newTcState :: BwCheckFnType' TcM -> (I.Type -> TcM Bool) -> IO TcState
+type GetConstLitExprType m = Ctx -> TypeHint -> A.Expr -> m I.Constant
+
+type GetExprType m = Ctx -> TypeHint -> A.Expr -> m I.Expr
+
+type GetCodeBlockStmntType m = Ctx -> [A.Statement] -> [I.Statement] -> m I.Statement
+
+data TcFns m = TcFns
+  { bwCheckFn :: BwCheckFnType' TcM,
+    getConstLitExprFn :: GetConstLitExprType TcM,
+    getExprFn :: GetExprType TcM,
+    getCodeBlockStmntFn :: GetCodeBlockStmntType TcM
+  }
+
+newTcState :: TcFns TcM -> (I.Type -> TcM Bool) -> IO TcState
 newTcState f cf =
   TcState f cf
     <$> H.emptyHir
@@ -125,6 +138,9 @@ class (Monad m) => MonadHirRead' m where
 
 class (MonadHirRead' m, MonadTcError m) => MonadTc m where
   getBwCheckFn :: m (BwCheckFnType' m)
+  getConstLitExprFn :: m (GetConstLitExprType m)
+  getExprFn :: m (GetExprType m)
+  getCodeBlockStmntFn :: m (GetCodeBlockStmntType m)
 
   addVDef :: H.AnyVDef -> m H.VDefId
   getCachedVDef :: VFqn -> [I.GenericArg] -> m (Maybe (H.VDefId, H.AnyVDef))
@@ -243,7 +259,11 @@ instance MonadTcError TcM where
   throwTcException x = liftIO $ throwIO x
 
 instance MonadTc TcM where
-  getBwCheckFn = asks (.bwCheckFn)
+  getBwCheckFn = asks (.fns.bwCheckFn)
+
+  getConstLitExprFn = asks (.fns.getConstLitExprFn)
+  getExprFn = asks (.fns.getExprFn)
+  getCodeBlockStmntFn = asks (.fns.getCodeBlockStmntFn)
 
   addVDef vDef = do
     let c = H.vDefCommon vDef

@@ -29,7 +29,7 @@ import InsOrdMap qualified as Ins
 import Names
 import Prelude2
 import Primitives
-import SrcLoc (SrcLoc', SrcRange, srcRangeOf, srcRangeToSrcLoc')
+import SrcLoc (SrcRange, srcRangeOf)
 import Tc.Builtins
 import Tc.Casts
 import Tc.Ctx
@@ -111,7 +111,7 @@ typeCheck allAsts forceCheckStLib uncheckedArithmetic = do
           unless isAlias $ do
             x <- getVDefsInType tcIn lhsType
             forM_ x $ \(memberFns, lhsTFqn) -> do
-              typeCtx <- getTypeCtx rootCtx lhsType <&> must -- Type has value defs and therefore has a context
+              typeCtx <- getTypeCtx rootCtx def lhsType <&> must -- Type has value defs and therefore has a context
               forM_ (HM.toList memberFns.defs) $ \(name', def') -> do
                 let c = A.vDefCommon def'
                 when (null c.genericParams)
@@ -166,16 +166,16 @@ getGenericBuiltinType ctx ns name gArgs = do
 -- 'userCtx' is the context of the code that is accessing this definition
 -- 'outerCtx' is the context of the source file or type that the definition is within
 makeVDefCtx ::
-  (MonadHirRead' m) => Ctx -> Ctx -> [I.GenericArg] -> [A.GenericParameter] -> Bool -> Bool -> VName' -> Bool -> SrcLoc' -> m Ctx
-makeVDefCtx _userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsafe srcLoc = do
+  (MonadHirRead' m) => Ctx -> Ctx -> [I.GenericArg] -> [A.GenericParameter] -> Bool -> Bool -> VName -> Bool -> SrcRange -> m Ctx
+makeVDefCtx userCtx outerCtx genericArgs astGp isIterator isAccessor name isUnsafe sr = do
   let gp = zip astGp genericArgs
   let newTypeParams =
         mapMaybe (\case (A.TypeGenericParameter n, I.TypeGenericArg t) -> Just (fst n, t); _ -> Nothing) gp
   let newValParams =
         mapMaybe (\case (A.ValueGenericParameter n, I.ValueGenericArg v) -> Just (fst n, v); _ -> Nothing) gp
   gArgsText <- forM genericArgs $ formatGenArg False
-  let dbgName' = if null genericArgs then un (fst name) else un (fst name) <> "[" <> T.intercalate "," gArgsText <> "]"
-  let dbgName = if T.null outerCtx.dbgName then dbgName' else outerCtx.dbgName <> "." <> dbgName'
+  let loc' = if null genericArgs then un name else un name <> "[" <> T.intercalate "," gArgsText <> "]"
+  let loc = if T.null outerCtx.et.location then loc' else outerCtx.et.location <> "." <> loc'
   pure
     $ outerCtx
       { genericParams = outerCtx.genericParams <> genericArgs,
@@ -184,19 +184,19 @@ makeVDefCtx _userCtx outerCtx genericArgs astGp isIterator isAccessor name isUns
         inIterator = isIterator,
         inAccessor = isAccessor,
         inUnsafeCode = isUnsafe,
-        dbgName = dbgName,
-        et = if null genericArgs then outerCtx.et else (dbgName, srcLoc) : outerCtx.et
+        et = ErrorTrace loc (if null genericArgs then [(userCtx.et.location, sr)] else (userCtx.et.location, sr) : userCtx.et.trace)
       }
 
-makeTSDefCtx :: (MonadHirRead' m) => Ctx -> Ctx -> TFqn -> [A.GenericParameter] -> [I.GenericArg] -> Maybe I.Type -> TName -> Bool -> SrcLoc' -> m Ctx
-makeTSDefCtx _userCtx outerCtx fqn astGp genericArgs typ name isUnsafe srcLoc = do
+makeTSDefCtx :: (MonadHirRead' m) => Ctx -> Ctx -> TFqn -> [A.GenericParameter] -> [I.GenericArg] -> Maybe I.Type -> TName -> Bool -> SrcRange -> m Ctx
+makeTSDefCtx userCtx outerCtx fqn astGp genericArgs typ name isUnsafe sr = do
   let gp = zip astGp genericArgs
   let newTypeParams =
         mapMaybe (\case (A.TypeGenericParameter n, I.TypeGenericArg t) -> Just (fst n, t); _ -> Nothing) gp
   let newValParams =
         mapMaybe (\case (A.ValueGenericParameter n, I.ValueGenericArg v) -> Just (fst n, v); _ -> Nothing) gp
   gArgsText <- forM genericArgs $ formatGenArg False
-  let dbgName = if null genericArgs then un name else un name <> "[" <> T.intercalate ", " gArgsText <> "]"
+  let loc' = if null genericArgs then un name else un name <> "[" <> T.intercalate "," gArgsText <> "]"
+  let loc = if T.null outerCtx.et.location then loc' else outerCtx.et.location <> "." <> loc'
   pure
     $ Ctx
       { namespace = outerCtx.namespace,
@@ -213,13 +213,12 @@ makeTSDefCtx _userCtx outerCtx fqn astGp genericArgs typ name isUnsafe srcLoc = 
         inAccessor = False,
         inLoop = False,
         inUnsafeCode = isUnsafe,
-        dbgName = dbgName,
-        et = [(dbgName, srcLoc) | notNull genericArgs]
+        et = ErrorTrace loc (if null genericArgs then [(userCtx.et.location, sr)] else (userCtx.et.location, sr) : userCtx.et.trace)
       }
 
 -- If this type has a type definition in code (Xyz, Array, Slice, etc.) then this function gets the relevant context
-getTypeCtx :: (MonadTc m) => Ctx -> I.Type -> m (Maybe Ctx)
-getTypeCtx ctx t = do
+getTypeCtx :: (MonadTc m) => Ctx -> SrcRange -> I.Type -> m (Maybe Ctx)
+getTypeCtx ctx sr t = do
   getCachedTypeCtx t >>= \case
     Just x -> pure $ Just x
     _ -> do
@@ -229,19 +228,16 @@ getTypeCtx ctx t = do
           let c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName "Array") & must & A.getTDefCommonMaybe & must
               astGp = c.c.genericParams
               gArgs = [I.TypeGenericArg el, I.ValueGenericArg (I.ConstInt $ fromIntegral n, i32)]
-           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Array") astGp gArgs (Just t) (TName "Array") False (srcRangeToSrcLoc' (snd c.c.name))
+           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Array") astGp gArgs (Just t) (TName "Array") False sr
         I.SliceType el ->
           let c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName "Slice") & must & A.getTDefCommonMaybe & must
               astGp = c.c.genericParams
               gArgs = [I.TypeGenericArg el]
-           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Slice") astGp gArgs (Just t) (TName "Slice") False (srcRangeToSrcLoc' (snd c.c.name))
+           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Slice") astGp gArgs (Just t) (TName "Slice") False sr
         I.NumPrimType p ->
-          let name = numPrimTypeToText p
-              c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName name) & must & A.getTDefCommonMaybe & must
-           in Just <$> makeTSDefCtx ctx outerCtx (TFqn $ "@stlib/primitives:" <> numPrimTypeToText p) [] [] (Just t) (TName $ numPrimTypeToText p) False (srcRangeToSrcLoc' (snd c.c.name))
+          Just <$> makeTSDefCtx ctx outerCtx (TFqn $ "@stlib/primitives:" <> numPrimTypeToText p) [] [] (Just t) (TName $ numPrimTypeToText p) False sr
         I.BoolType ->
-          let c = (fst ctx.tcIn.primitivesAst).tsDefs & HM.lookup (TName "Bool") & must & A.getTDefCommonMaybe & must
-           in Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Bool") [] [] (Just t) (TName "Bool") False (srcRangeToSrcLoc' (snd c.c.name))
+          Just <$> makeTSDefCtx ctx outerCtx (TFqn "@stlib/primitives:Bool") [] [] (Just t) (TName "Bool") False sr
         I.ANamedType _ ->
           -- Named type context was made when the type definition (1) was visited
           undefined
@@ -260,7 +256,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
       pure (id, (I.vDefCommon d).typ, d)
     _ -> do
       let (VName name, sr') = (A.vDefCommon astDef).name
-      let dbgName = ctx.dbgName
+      let dbgName = ctx.et.location
 
       vDefVisited fqn ctx.genericParams >>= flip when (throw ctx.et sr' $ "Infinite loop getting type of " <> name)
       markVDefVisited fqn ctx.genericParams
@@ -548,7 +544,7 @@ visitVDef userCtx outerCtx gArgs userSr (fqn, astDef) allowUnsafe = do
         case astDef of
           A.AConstDef x -> (x.c.genericParams, False, False, snd x.c.name, fst x.c.name, Attribute "Unsafe" `elem` x.c.attributes)
           A.AFnDef x -> (x.c.genericParams, x.isIterator, x.isAccessor, snd x.c.name, fst x.c.name, Attribute "Unsafe" `elem` x.c.attributes)
-  ctx <- makeVDefCtx userCtx outerCtx (fst <$> gArgs) astGp isIterator isAccessor (defName, defSr) isUnsafe (srcRangeToSrcLoc' defSr)
+  ctx <- makeVDefCtx userCtx outerCtx (fst <$> gArgs) astGp isIterator isAccessor defName isUnsafe userSr
   (vDefId, t, hirDef) <- getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef)
 
   unless allowUnsafe
@@ -862,7 +858,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
                   Nothing
                   (fst alias.c.name)
                   typeIsUnsafe'
-                  (srcRangeToSrcLoc' (snd alias.c.name))
+                  sr
               getType ctx t
             -- Builtins
             _ -> case un fqn of
@@ -945,8 +941,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
                   addTSDef' fqn gArgs' $ I.SliceType $ typeGArg 0
                 _ -> throw userCtx.et td.c.c.name "Unrecognised builtin type"
 
-              let srcLoc = srcRangeToSrcLoc' (snd td.c.c.name)
-              ctx <- makeTSDefCtx userCtx outerCtx fqn c.c.genericParams gArgs' (Just x) name typeIsUnsafe' srcLoc
+              ctx <- makeTSDefCtx userCtx outerCtx fqn c.c.genericParams gArgs' (Just x) name typeIsUnsafe' sr
               addTypeCtx x ctx
               pure x
             --
@@ -955,8 +950,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
                 when (n `elem` Ins.keys structDef.fields)
                   $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as field")
 
-              let srcLoc = srcRangeToSrcLoc' (snd structDef.c.c.name)
-              ctx <- makeTSDefCtx userCtx outerCtx fqn structDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
+              ctx <- makeTSDefCtx userCtx outerCtx fqn structDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' sr
 
               (t, id) <- addTSDef fqn gArgs' $ I.AStructDef tDefCommon
               let ctx' = ctx {C.selfType = Just (fqn, t)}
@@ -971,8 +965,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
                 when (n `elem` Ins.keys enumDef.dataCons)
                   $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
 
-              let srcLoc = srcRangeToSrcLoc' (snd enumDef.c.c.name)
-              ctx <- makeTSDefCtx userCtx outerCtx fqn enumDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
+              ctx <- makeTSDefCtx userCtx outerCtx fqn enumDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' sr
 
               let canBeCastedToInt = all (isNothing . snd3) $ Ins.elems enumDef.dataCons
 
@@ -993,8 +986,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
                 when (n `elem` Ins.keys unionDef.dataCons)
                   $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
 
-              let srcLoc = srcRangeToSrcLoc' (snd unionDef.c.c.name)
-              ctx <- makeTSDefCtx userCtx outerCtx fqn unionDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' srcLoc
+              ctx <- makeTSDefCtx userCtx outerCtx fqn unionDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' sr
 
               (t, id) <-
                 addTSDef fqn gArgs'
@@ -1649,7 +1641,7 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
             let c = A.vDefCommon d
             let fqn = VFqn $ un lhsTFqn <> "." <> un (fst c.name)
 
-            typeCtx <- getTypeCtx ctx lhsType <&> must -- Type has value defs and therefore has a context
+            typeCtx <- getTypeCtx ctx sr lhsType <&> must -- Type has value defs and therefore has a context
             fnGArgs <- forM fnAstGArgs $ getGenArg ctx
 
             unless (length fnAstGArgs == length c.genericParams)
@@ -2018,7 +2010,7 @@ getDestructureTypeHint ctx (d, sr) = case d of
     pure Nothing
 
 -- This prevents the Slice type from being stored in a variable or field
-checkTypeHasRuntimeRepr :: (MonadTcError m) => [(Text, SrcLoc')] -> SrcRange -> I.Type -> m ()
+checkTypeHasRuntimeRepr :: (MonadTcError m) => ErrorTrace -> SrcRange -> I.Type -> m ()
 checkTypeHasRuntimeRepr st sr t =
   unless (I.typeHasRuntimeRepr t)
     $ throw st sr "Type does not have a runtime representation"
@@ -2168,7 +2160,7 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
           [d] -> do
             let c = A.vDefCommon d
             let fqn = VFqn $ un lhsTFqn <> "." <> un (fst c.name)
-            typeCtx <- getTypeCtx ctx lhsType <&> must -- Type has value defs and therefore has a context
+            typeCtx <- getTypeCtx ctx sr lhsType <&> must -- Type has value defs and therefore has a context
             unless (null c.genericParams)
               $ throw ctx.et sr "Operators cannot take generic arguments" -- TODO type inference?
             (id, t, vDef) <- visitVDef ctx typeCtx [] sr (fqn, d) ctx.inUnsafeCode
@@ -2691,7 +2683,7 @@ getTypeAccessExprConst ctx hint sr astTypeExprMaybe (name, nameSr) gArgsMaybe = 
               let c = A.vDefCommon d
               let fqn = VFqn $ un lhsTFqn <> "." <> un (fst c.name)
 
-              typeCtx <- getTypeCtx ctx t <&> must -- Type has value defs and therefore has a context
+              typeCtx <- getTypeCtx ctx sr t <&> must -- Type has value defs and therefore has a context
               let fnAstGArgs = fromMaybe [] gArgsMaybe
               fnGArgs <- forM fnAstGArgs $ getGenArg ctx
 

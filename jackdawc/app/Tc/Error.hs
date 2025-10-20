@@ -9,6 +9,7 @@ import Control.Monad (when)
 import Data.Text qualified as T
 import Prelude2
 import SrcLoc
+import Tc.Ctx (ErrorTrace (..))
 
 data Err = Err ErrorOrigin SrcRange Text
   deriving (Show, Generic)
@@ -25,19 +26,22 @@ class (Monad m) => MonadTcError m where
   consErr :: Err -> m ()
   throwTcException :: TcException -> m a
 
-  throw :: (HasSrcRange r) => ErrorOrigin -> [(Text, SrcLoc')] -> r -> Text -> m a
+  throw :: (HasSrcRange r) => ErrorOrigin -> ErrorTrace -> r -> Text -> m a
   throw o et sr msg = do
     addError o et sr msg
     e <- getErrsListRev
     throwTcException $ TcException $ reverse e
 
-  addError :: (HasSrcRange r) => ErrorOrigin -> [(Text, SrcLoc')] -> r -> Text -> m ()
-  addError o et sr msg' = do
+  addError :: (HasSrcRange r) => ErrorOrigin -> ErrorTrace -> r -> Text -> m ()
+  addError o (ErrorTrace loc et) sr msg' = do
+    let et' = take (length et - 1) et
+    let trace' = et' <&> \(wh, SrcRange fp l _) -> "In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line
     let msg =
           T.intercalate "\n"
-            $ msg'
-            : ("At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line)
-            : (et <&> \(wh, SrcLoc' fp l) -> "In " <> wh <> " at " <> T.pack fp <> ":" <> tShow l.line)
+            $ [msg']
+            ++ ["In " <> loc <> " at " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line | not (T.null loc)]
+            ++ ["At " <> T.pack (filePath sr) <> ":" <> tShow (startLoc sr).line | T.null loc]
+            ++ trace'
     consErr $ Err o (srcRangeOf sr sr) msg
 
     e <- getErrsListRev

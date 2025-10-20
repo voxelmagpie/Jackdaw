@@ -8,7 +8,7 @@ import Ast qualified as A
 import Data.Foldable (find)
 import Names
 import Prelude2
-import SrcLoc (SrcLoc')
+import SrcLoc (SrcRange)
 import Tc.TcIr qualified as I
 
 type ImportsList = [(Namespace, Maybe TName, ImportNames)]
@@ -31,6 +31,9 @@ data TcInputs = TcInputs
   }
   deriving (Show)
 
+data ErrorTrace = ErrorTrace {location :: Text, trace :: [(Text, SrcRange)]}
+  deriving (Show, Generic, Default)
+
 data Ctx = Ctx
   { namespace :: Namespace,
     thisAst :: A.Ast,
@@ -46,8 +49,7 @@ data Ctx = Ctx
     inAccessor :: Bool,
     inLoop :: Bool,
     inUnsafeCode :: Bool,
-    dbgName :: Text,
-    et :: [(Text, SrcLoc')] -- Error trace
+    et :: ErrorTrace
   }
   deriving (Show)
 
@@ -68,8 +70,7 @@ mkFileCtx namespace (thisAst, thisAstImports) tcIn =
       inAccessor = False,
       inLoop = False,
       inUnsafeCode = True, -- Disables unsafe errors when checking definitions
-      dbgName = "",
-      et = []
+      et = ErrorTrace "" []
     }
 
 mkFileCtx' :: Ctx -> Ctx

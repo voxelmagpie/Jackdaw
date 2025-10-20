@@ -38,7 +38,7 @@ getImports allAsts ns ast = do
       if "@" `T.isPrefixOf` i
         then do
           -- Absolute path
-          unless (HM.member (Namespace i) allAsts) $ throw [] sr "Invalid import path"
+          unless (HM.member (Namespace i) allAsts) $ throw def sr "Invalid import path"
           pure (Namespace i)
         else do
           -- Relative path
@@ -49,7 +49,7 @@ getImports allAsts ns ast = do
                   if iPart == ".."
                     then do
                       -- Go up a directory by removing the last element in the list
-                      when (null importParts) $ throw [] sr "Import path may not escape the package"
+                      when (null importParts) $ throw def sr "Import path may not escape the package"
                       pure $ init importParts
                     else
                       pure $ importParts ++ [iPart]
@@ -58,7 +58,7 @@ getImports allAsts ns ast = do
               astImportParts
 
           let importNs = Namespace $ T.intercalate "/" $ pkg : importParts
-          unless (HM.member importNs allAsts) $ throw [] sr $ "Invalid import path: '" <> un importNs <> "'"
+          unless (HM.member importNs allAsts) $ throw def sr $ "Invalid import path: '" <> un importNs <> "'"
           pure importNs
     pure (importNs, fst <$> qual, names)
 

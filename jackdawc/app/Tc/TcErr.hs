@@ -6,14 +6,15 @@
 module Tc.TcErr (throw, addError) where
 
 import Prelude2
-import SrcLoc (HasSrcRange, SrcLoc')
+import SrcLoc (HasSrcRange)
+import Tc.Ctx (ErrorTrace)
 import Tc.Error (MonadTcError)
 import Tc.Error qualified as E
 
-throw :: (MonadTcError m, HasSrcRange r) => [(Text, SrcLoc')] -> r -> Text -> m a
+throw :: (MonadTcError m, HasSrcRange r) => ErrorTrace -> r -> Text -> m a
 throw =
   E.throw E.TypeCheckerError
 
-addError :: (MonadTcError m, HasSrcRange r) => [(Text, SrcLoc')] -> r -> Text -> m ()
+addError :: (MonadTcError m, HasSrcRange r) => ErrorTrace -> r -> Text -> m ()
 addError =
   E.addError E.TypeCheckerError

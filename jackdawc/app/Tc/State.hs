@@ -18,9 +18,9 @@ import GHC.Stack (HasCallStack)
 import Hir qualified as H
 import Names
 import Prelude2
-import SrcLoc (SrcLoc', SrcRange)
+import SrcLoc (SrcRange)
 import Tables
-import Tc.Ctx (Ctx)
+import Tc.Ctx (Ctx, ErrorTrace)
 import Tc.Error
 import Tc.TcIr qualified as I
 
@@ -48,7 +48,7 @@ type BwCheckFnType m =
   Bool ->
   m (H.Statement, Bool)
 
-type BwCheckFnType' m = [(Text, SrcLoc')] -> BwCheckFnType m
+type BwCheckFnType' m = ErrorTrace -> BwCheckFnType m
 
 convertBwCheckFnTypeIO :: BwCheckFnType BcM -> BwCheckFnType' TcM
 convertBwCheckFnTypeIO f et a0 a1 a2 a3 = do
@@ -98,14 +98,14 @@ type TcM = ReaderT TcState IO
 
 data BcState = BcState
   { tcState :: TcState,
-    et :: [(Text, SrcLoc')],
+    et :: ErrorTrace,
     borrows :: IORef Borrows,
     vars :: IORef [Var],
     refVarsList :: IORef [H.LocalVarUid]
   }
   deriving (Generic)
 
-newBcState :: TcState -> [(Text, SrcLoc')] -> IO BcState
+newBcState :: TcState -> ErrorTrace -> IO BcState
 newBcState s et =
   BcState s et
     <$> newIORef def
@@ -211,7 +211,7 @@ class (MonadTcError m, MonadHirRead' m) => MonadBrwChk m where
   -- This is needed to break the module dependency cycle between the type checker and borrow checker
   getTypeIsCopyableFn :: m (I.Type -> m Bool)
 
-  getEt :: m [(Text, SrcLoc')]
+  getEt :: m ErrorTrace
 
 instance MonadHirRead' TcM where
   getVDef id = ask >>= \s -> liftIO $ tblGet id s.hir.vDefs

@@ -166,14 +166,14 @@ struct File {
 
     fn getSize (ref self: Self): I64 unsafe {
         var p = self.getPosition(); 
-        fseek(self.f, 0, _SEEK_END);
+        if fseek(self.f, 0, _SEEK_END) != 0 { ioError("fseek"); }
         var sz = self.getPosition(); 
         self.setPosition(p);
         return sz;
     }
 
     fn setPosition (ref self: Self, p: I64) unsafe {
-        fseek(self.f, p, _SEEK_SET);
+        if fseek(self.f, p, _SEEK_SET) != 0 { ioError("fseek"); }
     }
 
     // TODO This does not work for file > 2GiB. Use posix API for File instead of cstdlib

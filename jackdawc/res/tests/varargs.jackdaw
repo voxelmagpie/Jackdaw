@@ -3,5 +3,5 @@
 @Unsafe fn printf_ (*I8, ...): I32
 
 fn start () unsafe {
-    printf_("a%d".getCPtr(), readI32()+1);
+    _ = printf_("a%d".getCPtr(), readI32()+1);
 }

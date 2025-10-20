@@ -42,13 +42,13 @@ fn free (p: *void) {
 // Use memCopyUnaliased only when the 2 buffers do not overlap
 @Unsafe
 fn copyUnaliased [T] (dst: *T, src: *T, n: ISize) {
-    C.memcpy(dst, src, n * sizeOf[T]);
+    _ = C.memcpy(dst, src, n * sizeOf[T]);
 }
 
 // Use memCopy if the buffers might overlap
 @Unsafe
 fn copy [T] (dst: *T, src: *T, n: ISize) {
-    C.memmove(dst, src, n * sizeOf[T]);
+    _ = C.memmove(dst, src, n * sizeOf[T]);
 }
 
 @Unsafe
@@ -58,5 +58,5 @@ fn compare [T] (dst: *T, src: *T, n: ISize): I32 {
 
 @Unsafe
 fn set [T] (dst: *T, x: U8, n: ISize) {
-    C.memset(dst, x, n * sizeOf[T]);
+    _ = C.memset(dst, x, n * sizeOf[T]);
 }

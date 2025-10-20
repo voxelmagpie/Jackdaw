@@ -16,7 +16,7 @@ fn start () {
 
     var xs = xs.clone();
 
-    xs.takeAt(0);
+    _ = xs.takeAt(0);
     writeI32(xs.at(0));
 
     var ys = List[I32].new();

@@ -118,7 +118,7 @@ fn makeProgram (vsSrc: List[U8], fsSrc: List[U8]): GLuint {
 
 fn start () unsafe {
     if glfwInit() == 0 { throw &"GLFW initialisation failure"; }
-    glfwSetErrorCallback(glfwErrorCallback);
+    _ = glfwSetErrorCallback(glfwErrorCallback);
 
     var vsSrc = readFile("src/vs.glsl");
     vsSrc.push(0);

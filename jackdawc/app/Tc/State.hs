@@ -73,7 +73,7 @@ data TcState = TcState
     nextLocalVarUid :: IORef Int,
     usesThrowingFns :: IORef Bool,
     -- Errors
-    errorsRev :: IORef [Err]
+    errorsRev :: IORef [Error]
   }
   deriving (Generic)
 

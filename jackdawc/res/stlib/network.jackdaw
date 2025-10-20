@@ -175,10 +175,10 @@ struct UnbufferedSocket {
         return r;
     }
 
-    fn writeBytes (ref self: Self, buffer: Slice[U8]): ISize unsafe {
+    fn writeBytes (ref self: Self, buffer: Slice[U8]) unsafe {
         var r = write(self.fd, buffer.asRawSlice().ptr, buffer.length());
+        // TODO Handle partial writes?
         if r != buffer.length() { ioError("write"); }
-        return buffer.length();
     }
 
     @Unsafe
@@ -186,6 +186,7 @@ struct UnbufferedSocket {
         var ex: ISize = 0;
         for (var i = 0; i < ioVecs.length() as I32; i+=1) { ex += ioVecs.at(i).iov_len; }
         var n = writev(self.fd, ioVecs.asRawSlice().ptr, ioVecs.length() as I32);
+        // TODO Handle partial writes?
         if n != ex { ioError("writev"); }
     }
 

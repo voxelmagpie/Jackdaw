@@ -13,6 +13,7 @@ import Prelude2
 import Primitives
 import SrcLoc (SrcRange)
 import Tc.Ctx
+import Tc.Error (ErrorSeverity (SevError))
 import Tc.State (MonadHirRead', MonadTc)
 import Tc.TcErr
 import Tc.TcIr qualified as I
@@ -97,7 +98,7 @@ bitCastIsValid ctx sr from to = case (from, to) of
           _ -> False
     if isIntOrPtr from && isIntOrPtr to
       then do
-        unless ctx.inUnsafeCode $ addError ctx.et sr "Cast not valid in safe code"
+        unless ctx.inUnsafeCode $ addError SevError ctx.et sr "Cast not valid in safe code"
         case to of
           I.NumPrimType (AnIntT x) | x.size /= Int64 -> pure False
           _ -> pure True

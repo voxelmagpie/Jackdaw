@@ -24,7 +24,7 @@ import SrcLoc (SrcRange, srcRangeOf)
 import Tc.Builtins
 import Tc.Casts
 import Tc.Ctx
-import Tc.Error (MonadTcError)
+import Tc.Error (ErrorSeverity (SevError, SevWarning), MonadTcError)
 import Tc.Fmt
 import Tc.Hir
 import Tc.MkCtx
@@ -56,7 +56,7 @@ getConstLitExpr ctx hint (e, sr) = case e of
   A.StringLitExpr str -> makeConstStringLit ctx hint str
   A.CharLitExpr c -> pure (I.ConstInt $ fromIntegral $ ord c, u8)
   A.NullPtrExpr -> do
-    unless ctx.inUnsafeCode $ addError ctx.et sr "Pointers are not valid in safe code"
+    unless ctx.inUnsafeCode $ addError SevError ctx.et sr "Pointers are not valid in safe code"
     case hint of
       TypeHint t@(I.PtrType _) ->
         pure (I.ConstNullPtr, t)
@@ -64,7 +64,7 @@ getConstLitExpr ctx hint (e, sr) = case e of
         | x.isNullable ->
             pure (I.ConstNullPtr, t)
       _ -> do
-        addError ctx.et sr "Unable to deduce pointer type"
+        addError SevError ctx.et sr "Unable to deduce pointer type"
         pure (I.ConstNullPtr, I.PtrType Nothing)
   A.NameExpr name gArgsMaybe -> do
     case findLocalVarByName ctx (fst name) of
@@ -111,11 +111,11 @@ getConstLitExpr ctx hint (e, sr) = case e of
       (expectedType, attribs) <- case Ins.lookup name fieldTypes of
         Just x -> pure x
         _ -> throw ctx.et sr'' "No such field"
-      when (Attribute "Unsafe" `elem` attribs) $ addError ctx.et sr "Unsafe types not valid for constants"
+      when (Attribute "Unsafe" `elem` attribs) $ addError SevError ctx.et sr "Unsafe types not valid for constants"
       c@(_, actualType) <- getConstLitExpr ctx (TypeHint expectedType) astEx >>= iCastConstant expectedType
       unless (actualType == expectedType) $ do
         (act, ex) <- format2Types actualType expectedType
-        addError ctx.et sr $ T.concat ["Wrong type for struct field ", un name, "\nExpected ", ex, ", got ", act]
+        addError SevError ctx.et sr $ T.concat ["Wrong type for struct field ", un name, "\nExpected ", ex, ", got ", act]
       pure (name, c)
 
     let namesList = Ins.keys astFields
@@ -296,7 +296,7 @@ getConstLitExpr ctx hint (e, sr) = case e of
         _ -> throw ctx.et sr "Unsupported constant cast"
   A.AndExpr lhsExpr _ rhsExpr -> do
     (lhsExpr', lhsType) <- getConstLitExpr ctx NoHint lhsExpr
-    unless (lhsType == bool) $ addError ctx.et lhsExpr "Expected boolean"
+    unless (lhsType == bool) $ addError SevError ctx.et lhsExpr "Expected boolean"
 
     let l = case lhsExpr' of I.ConstBool x -> x; _ -> undefined
     if not l
@@ -309,7 +309,7 @@ getConstLitExpr ctx hint (e, sr) = case e of
         pure (I.ConstBool $ l && r, bool)
   A.OrExpr lhsExpr _ rhsExpr -> do
     (lhsExpr', lhsType) <- getConstLitExpr ctx NoHint lhsExpr
-    unless (lhsType == bool) $ addError ctx.et lhsExpr "Expected boolean"
+    unless (lhsType == bool) $ addError SevError ctx.et lhsExpr "Expected boolean"
     let l = case lhsExpr' of I.ConstBool x -> x; _ -> undefined
 
     if l
@@ -335,7 +335,7 @@ getExpr ctx hint (e, sr) = case e of
       | x.isNullable ->
           pure (I.LoadConstantExpr I.ConstNullPtr, t, sr)
     _ -> do
-      addError ctx.et sr "Unable to deduce pointer type"
+      addError SevError ctx.et sr "Unable to deduce pointer type"
       pure (I.LoadConstantExpr I.ConstNullPtr, I.PtrType Nothing, sr)
   A.TypeAccessorExpr x y z -> getTypeAccessExpr ctx hint sr x y z
   A.NameExpr x y -> getNameExpr ctx sr x y
@@ -359,19 +359,19 @@ getExpr ctx hint (e, sr) = case e of
   A.CastExpr e' t -> getCastExpr ctx sr e' t
   A.AndExpr lhsAstExpr _ rhsAstExpr -> do
     lhs@(_, t, _) <- getExpr ctx (TypeHint bool) lhsAstExpr >>= iCast bool
-    unless (t == bool) $ addError ctx.et lhsAstExpr "Expected boolean for lhs of 'and' operator"
+    unless (t == bool) $ addError SevError ctx.et lhsAstExpr "Expected boolean for lhs of 'and' operator"
     rhs@(_, t', _) <- getExpr ctx (TypeHint bool) rhsAstExpr >>= iCast bool
-    unless (t' == bool) $ addError ctx.et lhsAstExpr "Expected boolean for rhs of 'and' operator"
+    unless (t' == bool) $ addError SevError ctx.et lhsAstExpr "Expected boolean for rhs of 'and' operator"
     pure (I.AndExpr lhs rhs, bool, sr)
   A.OrExpr lhsAstExpr _ rhsAstExpr -> do
     lhs@(_, t, _) <- getExpr ctx (TypeHint bool) lhsAstExpr >>= iCast bool
-    unless (t == bool) $ addError ctx.et lhsAstExpr "Expected boolean for lhs of 'or' operator"
+    unless (t == bool) $ addError SevError ctx.et lhsAstExpr "Expected boolean for lhs of 'or' operator"
     rhs@(_, t', _) <- getExpr ctx (TypeHint bool) rhsAstExpr >>= iCast bool
-    unless (t' == bool) $ addError ctx.et lhsAstExpr "Expected boolean for rhs of 'or' operator"
+    unless (t' == bool) $ addError SevError ctx.et lhsAstExpr "Expected boolean for rhs of 'or' operator"
     pure (I.OrExpr lhs rhs, bool, sr)
   A.UninitExpr -> case hint of
     TypeHint t -> do
-      unless ctx.inUnsafeCode $ addError ctx.et sr "Uninitialised data cannot be used in a safe context"
+      unless ctx.inUnsafeCode $ addError SevError ctx.et sr "Uninitialised data cannot be used in a safe context"
       pure (I.UninitExpr, t, sr)
     _ -> throw ctx.et sr "Unable to deduce type"
   A.BubbleExpr e' -> getBubbleExpr ctx hint sr e'
@@ -416,7 +416,7 @@ getCondOpExpr ctx hint sr astExpr = do
   thenExpr@(_, t, _) <- getExpr ctx hint astExpr.thenExpr
   elseExpr@(_, t2, _) <- getExpr ctx (TypeHint t) astExpr.elseExpr >>= iCast t
 
-  unless (t == t2) $ addError ctx.et sr "Types on either side of conditional operator do not match"
+  unless (t == t2) $ addError SevError ctx.et sr "Types on either side of conditional operator do not match"
 
   pure (I.ACondOpExpr $ I.CondOpExpr {condExpr = condExpr, thenExpr = thenExpr, elseExpr = elseExpr}, t, sr)
 
@@ -441,12 +441,12 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
         _ | vOrOpName == Left (VName "eq") || vOrOpName == Right (OpName "==") -> do
           argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
-          unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
+          unless (argType == lhsType) $ addError SevError ctx.et argSr "Incompatible types"
           pure $ Just $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
         _ | vOrOpName == Left (VName "neq") || vOrOpName == Right (OpName "!=") -> do
           argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
-          unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
+          unless (argType == lhsType) $ addError SevError ctx.et argSr "Incompatible types"
           pure $ Just $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
         _ -> pure Nothing
     (I.PtrType pointeeType, True) -> do
@@ -455,23 +455,23 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
           argAstExpr <- getOnlyGArg
           when (isNothing pointeeType) $ throw ctx.et sr "Operation not valid on void pointers"
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint i64) argAstExpr >>= iCast i64
-          unless (argType == i64) $ addError ctx.et argSr "Pointer addition expects an I64"
+          unless (argType == i64) $ addError SevError ctx.et argSr "Pointer addition expects an I64"
           pure $ Just $ Left (I.APtrAddExpr $ I.PtrAddExpr {expr = lhs, index = argExpr}, lhsType, sr)
         _ | vOrOpName == Left (VName "sub") || vOrOpName == Right (OpName "-") -> do
           argAstExpr <- getOnlyGArg
           when (isNothing pointeeType) $ throw ctx.et sr "Operation not valid on void pointers"
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint i64) argAstExpr >>= iCast i64
-          unless (argType == i64) $ addError ctx.et argSr "Pointer subtraction expects an I64"
+          unless (argType == i64) $ addError SevError ctx.et argSr "Pointer subtraction expects an I64"
           pure $ Just $ Left (I.APtrSubExpr $ I.PtrSubExpr {expr = lhs, index = argExpr}, lhsType, sr)
         _ | vOrOpName == Left (VName "eq") || vOrOpName == Right (OpName "==") -> do
           argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
-          unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
+          unless (argType == lhsType) $ addError SevError ctx.et argSr "Incompatible types"
           pure $ Just $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
         _ | vOrOpName == Left (VName "neq") || vOrOpName == Right (OpName "!=") -> do
           argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
-          unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
+          unless (argType == lhsType) $ addError SevError ctx.et argSr "Incompatible types"
           pure $ Just $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
         _ -> pure Nothing
     (I.ConstPtrType _, True) -> do
@@ -479,12 +479,12 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
         _ | vOrOpName == Left (VName "eq") || vOrOpName == Right (OpName "==") -> do
           argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
-          unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
+          unless (argType == lhsType) $ addError SevError ctx.et argSr "Incompatible types"
           pure $ Just $ Left (I.PtrEqExpr lhs argExpr, bool, sr)
         _ | vOrOpName == Left (VName "neq") || vOrOpName == Right (OpName "!=") -> do
           argAstExpr <- getOnlyGArg
           argExpr@(_, argType, argSr) <- getExpr ctx (TypeHint lhsType) argAstExpr >>= iCast lhsType
-          unless (argType == lhsType) $ addError ctx.et argSr "Incompatible types"
+          unless (argType == lhsType) $ addError SevError ctx.et argSr "Incompatible types"
           pure $ Just $ Left (I.PtrNEqExpr lhs argExpr, bool, sr)
         _ -> pure Nothing
     _ -> pure Nothing
@@ -623,16 +623,16 @@ getCallExpr ::
 getCallExpr ctx fnSr sr fnExpr@(_, fnType, _) selfArgMaybe astArgExprs expectIterator = do
   (expectedArgs', isVarArgs, retTypeOrVoid) <- case fnType of
     I.AFnType f -> do
-      when expectIterator $ addError ctx.et sr "Not an iterator"
+      when expectIterator $ addError SevError ctx.et sr "Not an iterator"
       pure (f.params, f.isVarArgs, f.ret)
     I.AnAccessorType f -> do
-      when expectIterator $ addError ctx.et sr "Not an iterator"
+      when expectIterator $ addError SevError ctx.et sr "Not an iterator"
       pure (toList f.params, f.isVarArgs, Just f.ret)
     I.AnIteratorType f -> do
-      unless expectIterator $ addError ctx.et sr "Cannot call an iterator, consider using a for loop"
+      unless expectIterator $ addError SevError ctx.et sr "Cannot call an iterator, consider using a for loop"
       pure (f.params, False, Just f.ret)
     I.AnAccessorIteratorType f -> do
-      unless expectIterator $ addError ctx.et sr "Cannot call an iterator, consider using a for loop"
+      unless expectIterator $ addError SevError ctx.et sr "Cannot call an iterator, consider using a for loop"
       pure (toList f.params, False, Just f.ret)
     _ -> throw ctx.et fnSr "Type is not callable"
 
@@ -642,7 +642,7 @@ getCallExpr ctx fnSr sr fnExpr@(_, fnType, _) selfArgMaybe astArgExprs expectIte
       Just ((_, ex), _) ->
         unless (act == ex) $ do
           (act', ex') <- format2Types act ex
-          addError ctx.et argSr $ T.concat ["Incorrect type for function self argument\nExpected ", ex', ", got ", act']
+          addError SevError ctx.et argSr $ T.concat ["Incorrect type for function self argument\nExpected ", ex', ", got ", act']
       _ ->
         throw ctx.et argSr $ T.concat ["Member function takes no parameters"]
 
@@ -651,9 +651,9 @@ getCallExpr ctx fnSr sr fnExpr@(_, fnType, _) selfArgMaybe astArgExprs expectIte
 
   if isVarArgs
     then
-      unless (length astArgExprs >= length expectedArgs) $ addError ctx.et sr "Wrong number of arguments to function"
+      unless (length astArgExprs >= length expectedArgs) $ addError SevError ctx.et sr "Wrong number of arguments to function"
     else
-      unless (length astArgExprs == length expectedArgs) $ addError ctx.et sr "Wrong number of arguments to function"
+      unless (length astArgExprs == length expectedArgs) $ addError SevError ctx.et sr "Wrong number of arguments to function"
 
   -- Get argument expressions
   args1 <- forM (zip astArgExprs expectedArgs) $ \(astArgExpr, (mode, expectedType)) -> do
@@ -681,7 +681,7 @@ getCallExpr ctx fnSr sr fnExpr@(_, fnType, _) selfArgMaybe astArgExprs expectIte
   forM_ (zip3 (snd3 . fst <$> args') (snd <$> expectedArgs) (snd <$> astArgExprs)) $ \(act, ex, argSr) ->
     unless (act == ex) $ do
       (act', ex') <- format2Types act ex
-      addError ctx.et argSr $ T.concat ["Incorrect type for function argument\nExpected ", ex', ", got ", act']
+      addError SevError ctx.et argSr $ T.concat ["Incorrect type for function argument\nExpected ", ex', ", got ", act']
 
   selfDropMaybe <- case selfArgMaybe of
     Just (_, t, sr') -> getDropFn ctx.tcIn t sr'
@@ -707,7 +707,7 @@ getAccessorExpr ctx sr astAccessorExpr = do
     I.TupleType tupType -> case fst astAccessorExpr.accessor of
       A.AnIndexAccessor i -> do
         unless (i >= 0 && i < length tupType)
-          $ addError ctx.et astAccessorExpr.accessor "Index out of range"
+          $ addError SevError ctx.et astAccessorExpr.accessor "Index out of range"
         dropFn <- getDropFn ctx.tcIn t sr
         let accExpr = I.FieldAccessorExpr {expr = e, index = i, dropFn = dropFn}
         pure (I.AFieldAccessorExpr accExpr, toList tupType !! i, sr)
@@ -735,7 +735,7 @@ getAccessorExpr ctx sr astAccessorExpr = do
                 throw ctx.et (snd astAccessorExpr.accessor) $ "No such field: " <> un name
               Just ((fieldType, attribs), fieldIdx) -> do
                 when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs)
-                  $ addError ctx.et sr "Cannot access unsafe field in safe context"
+                  $ addError SevError ctx.et sr "Cannot access unsafe field in safe context"
                 dropFn <- getDropFn ctx.tcIn t sr
                 pure (I.AFieldAccessorExpr $ I.FieldAccessorExpr e (fromIntegral fieldIdx) dropFn, fieldType, sr)
           _ -> throw ctx.et sr "Accessor type is not valid on structs"
@@ -865,7 +865,7 @@ getDestructureTypeHint ctx (d, sr) = case d of
       [] -> pure Nothing
       [x] -> pure $ Just $ I.ArrayType x $ fromIntegral $ length xs
       (y : ys) -> do
-        unless (all (== y) ys) $ addError ctx.et sr "Conflicting types for array elements"
+        unless (all (== y) ys) $ addError SevError ctx.et sr "Conflicting types for array elements"
         pure $ Just y
   A.StructDes _ ->
     pure Nothing
@@ -900,7 +900,7 @@ getAssignmentStmnt ctx x = case x.lhs of
   Just astLhs -> do
     lhs@(_, lhsType, _) <- getExpr ctx NoHint (astLhs, x.lhsSr)
     e@(_, rhsType, sr) <- getExpr ctx (TypeHint lhsType) x.value >>= iCast lhsType
-    unless (lhsType == rhsType) $ addError ctx.et sr "Expression type does not match LHS type"
+    unless (lhsType == rhsType) $ addError SevError ctx.et sr "Expression type does not match LHS type"
     des <- getDropFn ctx.tcIn lhsType x.lhsSr
     pure $ I.AssignmentStmnt {lhs = Just lhs, value = e, lhsDestructor = des}
 
@@ -909,6 +909,7 @@ getFnCallStmnt ctx x sr = do
   getFnCallExpr ctx NoHint sr x False >>= \case
     Left e@(_, t, sr') -> do
       des <- getDropFn ctx.tcIn t sr'
+      addError SevWarning ctx.et sr "Return value discarded"
       pure (I.ExprStmnt e des, sr)
     Right s -> pure s
 
@@ -936,7 +937,7 @@ getReturnStmnt :: (MonadTc m) => Ctx -> SrcRange -> Maybe A.Expr -> m I.Statemen
 getReturnStmnt ctx sr e = do
   case e of
     Just e' -> do
-      when ctx.inIterator $ addError ctx.et sr "Iterators must return void; use yield to produce a value"
+      when ctx.inIterator $ addError SevError ctx.et sr "Iterators must return void; use yield to produce a value"
 
       e'' <- case ctx.returnType of
         Just r -> do
@@ -944,7 +945,7 @@ getReturnStmnt ctx sr e = do
 
           let dontMatch = do
                 (exp', act') <- format2Types r actualType
-                addError ctx.et e' $ "Expression type does not match function return type\nExpected " <> exp' <> ", got " <> act'
+                addError SevError ctx.et e' $ "Expression type does not match function return type\nExpected " <> exp' <> ", got " <> act'
 
           if actualType == r || not ctx.inAccessor
             then do
@@ -963,11 +964,11 @@ getReturnStmnt ctx sr e = do
 
               pure $ if isAccRawPtr then (I.PtrDerefExpr e'', r, sr) else (I.RawSliceToSliceExpr e'', r, sr)
         _ -> do
-          addError ctx.et e' "Returning expression in function that returns void"
+          addError SevError ctx.et e' "Returning expression in function that returns void"
           getExpr ctx NoHint e'
       pure (I.ReturnStmnt (Just e''), sr)
     _ -> do
-      unless (isNothing ctx.returnType || ctx.inIterator) $ addError ctx.et sr "Expected an expression"
+      unless (isNothing ctx.returnType || ctx.inIterator) $ addError SevError ctx.et sr "Expected an expression"
       pure (I.ReturnStmnt Nothing, sr)
 
 -- TODO Could this use fold instead of recursion?
@@ -1055,7 +1056,7 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
     getCodeBlockStmnt ctx astStmnts $ if isEmpty then hirStmnts else (s', sr) : hirStmnts
   A.ReturnStmnt x -> do
     when (ctx.inIterator && isJust x)
-      $ addError ctx.et sr "Iterators cannot return values; yield to produce a value or return void to terminate early"
+      $ addError SevError ctx.et sr "Iterators cannot return values; yield to produce a value or return void to terminate early"
     s' <- getReturnStmnt ctx sr x
     getCodeBlockStmnt ctx astStmnts (s' : hirStmnts)
   A.AForEachLoopStmnt fe -> do
@@ -1094,7 +1095,7 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
     e@(_, actualType, sr') <- getExpr ctx (TypeHint expectedType) astExpr
     (exp', act') <- format2Types expectedType actualType
     unless (expectedType == actualType)
-      $ addError ctx.et sr' ("Wrong type for yield expression\nExpected " <> exp' <> ", got " <> act')
+      $ addError SevError ctx.et sr' ("Wrong type for yield expression\nExpected " <> exp' <> ", got " <> act')
     getCodeBlockStmnt ctx astStmnts ((I.YieldStmnt e, sr) : hirStmnts)
   A.ForLoopStmnt vars cond as False innerStmnt -> do
     (varsRev, ctx') <-
@@ -1195,7 +1196,7 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
     e'@(_, actualType, _) <- getExpr ctx (TypeHint stringType) e
     unless (actualType == expectedType) $ do
       (act, ex) <- format2Types actualType expectedType
-      addError ctx.et sr $ T.concat ["Wrong type for throw statement\nExpected ", ex, ", got ", act]
+      addError SevError ctx.et sr $ T.concat ["Wrong type for throw statement\nExpected ", ex, ", got ", act]
 
     getCodeBlockStmnt ctx astStmnts ((I.ThrowStmnt e', sr) : hirStmnts)
   A.TryCatchStmnt tryStmnt (nameMaybe, nameSr) catchStmnt -> do
@@ -1238,7 +1239,7 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
 
     unless (retErrType == errType) $ do
       (retErrType', errType') <- format2MaybeTypes "()" retErrType errType
-      addError ctx.et sr $ T.concat ["Error types do not match\nExpected ", retErrType', ", got ", errType']
+      addError SevError ctx.et sr $ T.concat ["Error types do not match\nExpected ", retErrType', ", got ", errType']
 
     getCodeBlockStmnt ctx astStmnts ((I.BubbleStmnt e'', sr) : hirStmnts)
   A.BorrowStatement mode name'@(name, _) astTypeExprMaybe e -> do
@@ -1250,7 +1251,7 @@ getCodeBlockStmnt ctx ((s, sr) : astStmnts) hirStmnts = case s of
       Just expectedType ->
         unless (actualType == expectedType) $ do
           (act, ex) <- format2Types actualType expectedType
-          addError ctx.et sr $ T.concat ["Wrong type for borrow statement\nExpected ", ex, ", got ", act]
+          addError SevError ctx.et sr $ T.concat ["Wrong type for borrow statement\nExpected ", ex, ", got ", act]
     (ctx', uid) <- makeLocalVar ctx actualType name'
     getCodeBlockStmnt ctx' astStmnts ((I.BorrowStatement mode uid name e', sr) : hirStmnts)
 getCodeBlockStmnt _ [] [] =
@@ -1262,7 +1263,7 @@ makeLocalVar :: (MonadTc m) => Ctx -> I.Type -> VName' -> m (Ctx, I.LocalVarUid)
 makeLocalVar ctx typ name@(_, sr) = do
   unless ctx.inUnsafeCode
     $ typeIsUnsafe typ
-    >>= \isUnsafe -> when isUnsafe $ addError ctx.et sr "Cannot use unsafe type in safe code"
+    >>= \isUnsafe -> when isUnsafe $ addError SevError ctx.et sr "Cannot use unsafe type in safe code"
   id <- newLocalVarUid
   pure (ctx {variables = Variable name (Left id) typ : ctx.variables}, id)
 
@@ -1391,11 +1392,11 @@ getStructInitExpr ctx hint fullSrcRange astTypeExprMaybe sr' astFields = do
     (expectedType, attribs) <- case Ins.lookup name fieldTypes of
       Just x -> pure x
       _ -> throw ctx.et sr $ "No such field: " <> un name
-    when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs) $ addError ctx.et sr "Cannot access unsafe fields in safe code"
+    when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs) $ addError SevError ctx.et sr "Cannot access unsafe fields in safe code"
     e@(_, actualType, _) <- getExpr ctx (TypeHint expectedType) astEx >>= iCast expectedType
     unless (actualType == expectedType) $ do
       (act, ex) <- format2Types actualType expectedType
-      addError ctx.et sr $ T.concat ["Wrong type for struct field ", un name, "\nExpected ", ex, ", got ", act]
+      addError SevError ctx.et sr $ T.concat ["Wrong type for struct field ", un name, "\nExpected ", ex, ", got ", act]
     pure e
 
   let namesList = Ins.keys astFields
@@ -1601,6 +1602,6 @@ getBubbleExpr ctx _ sr e' = do
 
   unless (retErrType == errType) $ do
     (retErrType', errType') <- format2MaybeTypes "()" retErrType errType
-    addError ctx.et sr $ T.concat ["Error types do not match\nExpected ", retErrType', ", got ", errType']
+    addError SevError ctx.et sr $ T.concat ["Error types do not match\nExpected ", retErrType', ", got ", errType']
 
   pure (I.BubbleExpr e'', dataType, sr)

@@ -41,7 +41,7 @@ import System.IO (IOMode (WriteMode), hClose, hPutStrLn, openBinaryTempFile, wit
 import System.Process (callProcess)
 import System.Process.Text (readProcessWithExitCode)
 import Tc.Borrow qualified as Bw
-import Tc.Error (Err (Err), ErrorOrigin (BorrowCheckerError, TypeCheckerError))
+import Tc.Error (Error (Error), ErrorOrigin (BorrowCheckerError, TypeCheckerError))
 import Tc.Expr (getCodeBlockStmnt, getConstLitExpr, getExpr)
 import Tc.State (TcFns (TcFns), convertBwCheckFnTypeIO)
 import Tc.Tc (runTc)
@@ -239,12 +239,12 @@ testBorrowCheckFailure stLib = do
       (Left (e, _)) -> throwIO $ CompileException $ "bw_chk_tests.jackdaw parser error:\n" <> e <> "\n" <> src
       (Right a) -> pure a
     let fns = TcFns (convertBwCheckFnTypeIO Bw.runBorrowChecker) getConstLitExpr getExpr getCodeBlockStmnt
-    tcRes <- runTc fns (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
-    case tcRes of
-      Right _ -> throwIO $ CompileException $ "Borrow checker failure test did not fail:\n" <> src
-      Left es -> do
-        let errs = T.intercalate ",\n" (es <&> \(Err _ _ s) -> s)
-        unless (all (\(Err o _ _) -> o == BorrowCheckerError) es)
+    (es, irMaybe) <- runTc fns (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
+    case irMaybe of
+      Just _ -> throwIO $ CompileException $ "Borrow checker failure test did not fail:\n" <> src
+      Nothing -> do
+        let errs = T.intercalate ",\n" (es <&> \(Error _ _ _ s) -> s)
+        unless (all (\(Error _ o _ _) -> o == BorrowCheckerError) es)
           $ throwIO
           $ CompileException
           $ "bw_chk_tests.jackdaw unexpected error:\n"
@@ -272,12 +272,12 @@ testTypeCheckFailure stLib = do
       (Left (e, _)) -> throwIO $ CompileException $ "tc_tests.jackdaw parser error:\n" <> e <> "\n" <> src
       (Right a) -> pure a
     let fns = TcFns (convertBwCheckFnTypeIO Bw.runBorrowChecker) getConstLitExpr getExpr getCodeBlockStmnt
-    tcRes <- runTc fns (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
-    case tcRes of
-      Right _ -> throwIO $ CompileException $ "Type checker failure test did not fail:\n" <> src
-      Left es -> do
-        let errs = T.intercalate ",\n" (es <&> \(Err _ _ s) -> s)
-        unless (all (\(Err o _ _) -> o == TypeCheckerError) es)
+    (es, irMaybe) <- runTc fns (HM.fromList $ (Namespace "@/main", ast) : stLib) False False
+    case irMaybe of
+      Just _ -> throwIO $ CompileException $ "Type checker failure test did not fail:\n" <> src
+      Nothing -> do
+        let errs = T.intercalate ",\n" (es <&> \(Error _ _ _ s) -> s)
+        unless (all (\(Error _ o _ _) -> o == TypeCheckerError) es)
           $ throwIO
           $ CompileException
           $ "tc_tests.jackdaw unexpected error:\n"
@@ -394,21 +394,15 @@ compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers u
 
   let name = dropExtension $ takeFileName srcPath
 
-  let printErrs :: [Err] -> IO a
-      printErrs es =
-        throwIO
-          $ CompileException
-          $ T.intercalate "\n\n"
-          $ es
-          <&> \(Err _ _ e) -> e
-
   typeCheckingStartTime <- getCurrentTime
   let fns = TcFns (convertBwCheckFnTypeIO Bw.runBorrowChecker) getConstLitExpr getExpr getCodeBlockStmnt
-  tcRes <- runTc fns (HM.fromList $ files ++ depsAsts) forceCheckStLib uncheckedArithmetic
-  (hir, typeCheckingTime) <- case tcRes of
-    Left errs ->
-      printErrs errs
-    Right hir -> do
+  (errs, irMaybe) <- runTc fns (HM.fromList $ files ++ depsAsts) forceCheckStLib uncheckedArithmetic
+  let errsString = T.intercalate "\n\n" $ errs <&> \(Error _ _ _ e) -> e
+  (hir, typeCheckingTime) <- case irMaybe of
+    Nothing ->
+      throwIO $ CompileException errsString
+    Just hir -> do
+      when (notNull errs) $ TIO.putStrLn errsString
       typeCheckingEndTime <- getCurrentTime
       when printStagesDone $ putStrLn "Type checking done"
       text <- H.showIr hir

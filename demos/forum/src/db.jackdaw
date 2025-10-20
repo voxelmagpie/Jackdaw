@@ -226,7 +226,9 @@ struct Statement {
     @Unsafe partialResults: List[DbValue]
 
     fn onDrop (ref self: Self) unsafe {
-        mysql_stmt_close(self.stmt);
+        if mysql_stmt_close(self.stmt) != 0 {
+            traceCStr(mysql_error(self.con));
+        }
     }
 
     fn _bindParams (ref self: Self, params: Slice[DbValue]) unsafe {

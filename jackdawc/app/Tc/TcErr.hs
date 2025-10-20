@@ -15,6 +15,6 @@ throw :: (MonadTcError m, HasSrcRange r) => ErrorTrace -> r -> Text -> m a
 throw =
   E.throw E.TypeCheckerError
 
-addError :: (MonadTcError m, HasSrcRange r) => ErrorTrace -> r -> Text -> m ()
-addError =
-  E.addError E.TypeCheckerError
+addError :: (MonadTcError m, HasSrcRange r) => E.ErrorSeverity -> ErrorTrace -> r -> Text -> m ()
+addError sev =
+  E.addError sev E.TypeCheckerError

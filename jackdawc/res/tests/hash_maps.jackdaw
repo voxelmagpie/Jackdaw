@@ -9,7 +9,7 @@ fn start () {
     assert(m.contains("b"));
     writeI32(m.get("a").a);
     writeI32(m.get("b").a);
-    m.remove("a");
+    _ = m.remove("a");
     foreach k in m.iter() {
         writeI32(k.a);
     }

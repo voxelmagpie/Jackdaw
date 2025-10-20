@@ -16,6 +16,7 @@ import Hir qualified as H
 import Names (Attribute (Attribute), VName (VName))
 import Prelude2
 import SrcLoc
+import Tc.Error (ErrorSeverity (..))
 import Tc.Error qualified as E
 import Tc.State
 import Tc.TcIr qualified as I
@@ -51,10 +52,10 @@ throw sr msg = do
   et <- getEt
   E.throw E.BorrowCheckerError et sr msg
 
-addError :: (MonadBrwChk m, HasSrcRange r) => r -> Text -> m ()
-addError sr msg = do
+addError :: (MonadBrwChk m, HasSrcRange r) => ErrorSeverity -> r -> Text -> m ()
+addError sev sr msg = do
   et <- getEt
-  E.addError E.BorrowCheckerError et sr msg
+  E.addError sev E.BorrowCheckerError et sr msg
 
 type ExprOrAccExpr = Either H.Expr (H.AccessorExpr, AccessorTo)
 
@@ -69,7 +70,7 @@ accessorIntoExpr sr b (Right (accExpr, AccRawPtr), _) =
   restoreBorrowState b $> (H.DerefAccessorExpr accExpr, sr)
 accessorIntoExpr sr b (Right (accExpr, _), t) = do
   copy <- getTypeIsCopyableFn >>= \f -> f t
-  unless copy $ addError sr "Cannot move or copy value"
+  unless copy $ addError SevError sr "Cannot move or copy value"
   restoreBorrowState b
   pure (H.DerefAccessorExpr accExpr, sr)
 
@@ -100,7 +101,7 @@ checkMovedInitedVarsAndGetDropFns sr varsBefore updatedVarsLists = do
     $ \l ->
       forM_ l $ \v -> do
         let initedOnAllBranches = all (\l' -> v.uid `elem` ((.uid) <$> l')) initialisedVarsLists
-        unless initedOnAllBranches $ addError sr $ un v.name <> " is not initialised in every branch"
+        unless initedOnAllBranches $ addError SevError sr $ un v.name <> " is not initialised in every branch"
 
   forM_ (concat initialisedVarsLists) $ \v -> markVarInitialised v.uid
 
@@ -209,7 +210,7 @@ borrowCheckExpr ctx mode e@(_, _, sr) = do
 borrowCheckExpr' :: (MonadBrwChk m) => Ctx -> AccessMode -> I.Expr -> m (ExprOrAccExpr', H.Type)
 borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr of
   I.LoadConstantExpr x -> do
-    when (mode == Exclusive) $ addError sr "Cannot mutate constants"
+    when (mode == Exclusive) $ addError SevError sr "Cannot mutate constants"
     let isSmallType = case x of
           H.ConstInt _ -> True
           H.ConstFloatOrDouble _ -> True
@@ -264,13 +265,13 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
           then
             pure (Left $ H.DerefAccessorExpr (accExpr, sr), t)
           else do
-            when (isJust v.refToMaybe) $ addError e.name "Cannot move reference"
+            when (isJust v.refToMaybe) $ addError SevError e.name "Cannot move reference"
             when (v.vTryCatchCtr /= ctx.tryCatchCtr)
-              $ addError e.name "Cannot move value from outside the current try/catch block"
+              $ addError SevError e.name "Cannot move value from outside the current try/catch block"
             case b of
               Just (_, b', SrcRange _ sr0' _) -> do
                 let problemType = case b' of SharedBorrow -> "borrowed (shared)"; ExclusiveBorrow -> "borrowed (exclusive)"
-                addError e.name
+                addError SevError e.name
                   $ "Cannot move "
                   <> un (fst e.name)
                   <> " in "
@@ -289,7 +290,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
         let accExpr' = (Right (accExpr, fromMaybe (AccLocalVar e.uid) v.refToMaybe), t)
         case (mode, b) of
           (Shared, Just (_, ExclusiveBorrow, SrcRange _ sr0' _)) -> do
-            addError e.name
+            addError SevError e.name
               $ "Cannot borrow (shared) "
               <> un (fst e.name)
               <> " as it is already borrowed (exclusive) on line "
@@ -303,7 +304,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
             pure accExpr'
           (Exclusive, Just (_, b', SrcRange _ sr0' _)) -> do
             let borrowType = case b' of SharedBorrow -> "(shared)"; ExclusiveBorrow -> "(exclusive)"
-            addError e.name
+            addError SevError e.name
               $ "Cannot borrow (exclusive) "
               <> un (fst e.name)
               <> " as it is already borrowed "
@@ -322,7 +323,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
         -- Other fields are discarded so type must be plain data or field must be copyable
         -- (onDrop cannot be called on a partial type)
         -- TODO Could drop the other fields individually
-        unless (lhsTypeCopyable || fieldCopyable) $ addError e.expr "Cannot extract value from non-copy type"
+        unless (lhsTypeCopyable || fieldCopyable) $ addError SevError e.expr "Cannot extract value from non-copy type"
         pure (Left $ H.AGetFieldExpr $ H.GetFieldExpr x e.index e.dropFn, t)
       Right (x, accTo) ->
         if mode == Move
@@ -494,7 +495,7 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
     let pointeeType = case t of H.SliceType x -> x; _ -> undefined
     pure (Right (H.RawSliceToSliceExpr e' pointeeType, AccRawPtr), t)
   I.BubbleExpr e -> do
-    when ctx.inAccessorFn $ addError sr "Error bubble operator is not valid in accessors"
+    when ctx.inAccessorFn $ addError SevError sr "Error bubble operator is not valid in accessors"
     e' <- copyBorrowState >>= \b -> borrowCheckExpr ctx Shared e >>= accessorIntoExpr (thd3 e) b
     vs <- copyVarsList
     let toDrop = mapMaybe getDropFnForVarMaybe vs
@@ -590,6 +591,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
       I.LoadConstantExpr (I.ConstFnPtr id) ->
         getVDef id <&> \d -> Attribute "NoReturn" `elem` (H.vDefCommon d).attributes
       _ -> pure False
+
     borrowCheckFnCall ctx e <&> \(x, _) -> (H.FnCallStmnt x, terminates)
   I.ExprStmnt e d -> do
     e' <- copyBorrowState >>= \b -> borrowCheckExpr ctx Shared e >>= accessorIntoExpr (thd3 e) b
@@ -666,7 +668,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
               throw sr' "Expected reference"
             Right (a, accTo) -> do
               unless (accTo == AccRawPtr || accTo == AccLocalVar (H.LocalVarUid 0))
-                $ addError sr' "Accessor functions must return a reference to the first parameter"
+                $ addError SevError sr' "Accessor functions must return a reference to the first parameter"
               restoreBorrowState b
               pure (H.AccessorReturnStmnt a toDrop, True)
           else do
@@ -686,7 +688,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
         Left _ -> throw sr' "Expected accessor"
         Right (a, accTo) -> do
           unless (accTo == AccRawPtr || accTo == AccLocalVar (H.LocalVarUid 0))
-            $ addError sr' "Accessor iterator must yield references to the first parameter"
+            $ addError SevError sr' "Accessor iterator must yield references to the first parameter"
           restoreBorrowState b
           pure (H.AccessorYieldStmnt a toDrop, False)
       else do
@@ -826,7 +828,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
 
     pure (H.TryCatchStmnt tryStmnt' varMaybe catchStmnt', False)
   I.BubbleStmnt e -> do
-    when ctx.inAccessorFn $ addError sr "Error bubble operator is not valid in accessors"
+    when ctx.inAccessorFn $ addError SevError sr "Error bubble operator is not valid in accessors"
     e' <- copyBorrowState >>= \b -> borrowCheckExpr ctx Shared e >>= accessorIntoExpr (thd3 e) b
     vs <- copyVarsList
     let toDrop = mapMaybe getDropFnForVarMaybe vs

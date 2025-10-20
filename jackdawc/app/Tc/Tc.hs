@@ -15,7 +15,9 @@ import Control.Exception (try)
 import Control.Monad (forM, forM_, unless, void, when)
 import Control.Monad.Reader (ReaderT (runReaderT))
 import Data.ByteString qualified as BS
+import Data.Either (isLeft)
 import Data.HashMap.Strict qualified as HM
+import Data.IORef (readIORef)
 import Data.List (init, uncons)
 import Data.Maybe (catMaybes, fromMaybe, isJust, isNothing)
 import Data.Text qualified as T
@@ -30,7 +32,7 @@ import Tc.Builtins
 import Tc.Casts
 import Tc.Ctx
 import Tc.Ctx qualified as C
-import Tc.Error (MonadTcError)
+import Tc.Error (Error (..), ErrorSeverity (..), MonadTcError)
 import Tc.Error qualified as E
 import Tc.Fmt
 import Tc.Hir
@@ -41,13 +43,13 @@ import Tc.TcErr
 import Tc.TcIr qualified as I
 
 -- If the error list is non-empty then the HIR is incomplete and should only be used for writing to a file for debugging
-runTc :: TcFns TcM -> HashMap Namespace A.Ast -> Bool -> Bool -> IO (Either [E.Err] Hir.Ir)
+runTc :: TcFns TcM -> HashMap Namespace A.Ast -> Bool -> Bool -> IO ([E.Error], Maybe Hir.Ir)
 runTc f asts forceCheckStLib uncheckedArithmetic = do
   state <- newTcState f typeIsCopyable
-  res <- try @E.TcException $ runReaderT (typeCheck asts forceCheckStLib uncheckedArithmetic >> E.checkErrs) state
-  pure $ case res of
-    Left e -> Left $ un e
-    _ -> Right state.hir
+  res <- try @E.TcException $ runReaderT (typeCheck asts forceCheckStLib uncheckedArithmetic) state
+  allErrsAndWarnings <- readIORef state.errorsRev <&> reverse
+  let hasErrs = notNull $ filter (\(Error sev _ _ _) -> sev == SevError) allErrsAndWarnings
+  pure $ if isLeft res || hasErrs then (allErrsAndWarnings, Nothing) else (allErrsAndWarnings, Just state.hir)
 
 -- Type checks and generates HIR for all non-generic definitions
 typeCheck :: (MonadTc m) => HashMap Namespace A.Ast -> Bool -> Bool -> m ()
@@ -343,7 +345,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
 
           case e of
             Just (_, act) ->
-              unless (t == act) $ addError ctx.et constDef.typeExpr "Explicit type does not match actual type"
+              unless (t == act) $ addError SevError ctx.et constDef.typeExpr "Explicit type does not match actual type"
             _ -> pure ()
 
           reachableFromStart <- getStartedFromStart
@@ -366,7 +368,7 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
           pure (id, t, c)
         A.AFnDef fnDef -> do
           when (isJust fnDef.retType && Attribute "NoReturn" `elem` fnDef.c.attributes)
-            $ addError ctx.et fnDef.c.name "Functions which return a value cannot be @NoReturn"
+            $ addError SevError ctx.et fnDef.c.name "Functions which return a value cannot be @NoReturn"
 
           unless (length ctx.genericParams == length fnDef.c.genericParams + length outerCtx.genericParams)
             $ throw userCtx.et userSr
@@ -376,16 +378,16 @@ getVDefType userCtx outerCtx ctx gArgs userSr (fqn, astDef) = do
           checkTemplateArgs ctx fnDef.c.genericParams gArgs
 
           when (fnDef.isVarArgs && Attribute "Unsafe" `notElem` fnDef.c.attributes)
-            $ addError ctx.et fnDef.c.name "Var-args requires @Unsafe"
+            $ addError SevError ctx.et fnDef.c.name "Var-args requires @Unsafe"
 
           when (fnDef.isVarArgs && isJust fnDef.code)
-            $ addError ctx.et fnDef.c.name "Var-args is for extern functions only"
+            $ addError SevError ctx.et fnDef.c.name "Var-args is for extern functions only"
 
           when (fnDef.isVarArgs && null fnDef.parameters)
-            $ addError ctx.et fnDef.c.name "Must have at least once parameter before var-args"
+            $ addError SevError ctx.et fnDef.c.name "Must have at least once parameter before var-args"
 
           when (fnDef.isIterator && isNothing fnDef.code)
-            $ addError ctx.et fnDef.c.name "Iterators cannot be extern"
+            $ addError SevError ctx.et fnDef.c.name "Iterators cannot be extern"
 
           -- Get fn type
           p <- forM fnDef.parameters $ \(n, mode, typeExpr) -> do
@@ -460,7 +462,7 @@ visitVDef userCtx outerCtx gArgs userSr (fqn, astDef) allowUnsafe = do
 
   unless allowUnsafe
     $ when (Attribute "Unsafe" `elem` (Hir.vDefCommon hirDef).attributes)
-    $ addError userCtx.et userSr "Cannot use unsafe definition in safe context"
+    $ addError SevError userCtx.et userSr "Cannot use unsafe definition in safe context"
 
   visited <- fnDefBodyVisited vDefId
   if visited
@@ -718,7 +720,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
 
   unless userCtx.inUnsafeCode
     $ when typeIsUnsafe'
-    $ addError userCtx.et sr "Cannot use unsafe type in safe context"
+    $ addError SevError userCtx.et sr "Cannot use unsafe type in safe context"
 
   let gArgs' = fst <$> gArgs
   tsDefMaybe <- getCachedTSDef fqn gArgs'
@@ -837,7 +839,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
             A.AStructDef structDef -> do
               forM_ (toList structDef.c.vDefs.defs) $ \(n, d) ->
                 when (n `elem` Ins.keys structDef.fields)
-                  $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as field")
+                  $ addError SevError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as field")
 
               ctx <- makeTSDefCtx userCtx outerCtx fqn structDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' sr
 
@@ -852,7 +854,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
             A.AnEnumDef enumDef -> do
               forM_ (toList enumDef.c.vDefs.defs) $ \(n, d) ->
                 when (n `elem` Ins.keys enumDef.dataCons)
-                  $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
+                  $ addError SevError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
 
               ctx <- makeTSDefCtx userCtx outerCtx fqn enumDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' sr
 
@@ -873,7 +875,7 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
             A.AUnionDef unionDef -> do
               forM_ (toList unionDef.c.vDefs.defs) $ \(n, d) ->
                 when (n `elem` Ins.keys unionDef.dataCons)
-                  $ addError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
+                  $ addError SevError userCtx.et (A.vDefCommon d).name ("Member function " <> un n <> " has same name as data constructor")
 
               ctx <- makeTSDefCtx userCtx outerCtx fqn unionDef.c.c.genericParams gArgs' Nothing name typeIsUnsafe' sr
 
@@ -949,7 +951,7 @@ getType ctx (astTypeExpr, sr) = case astTypeExpr of
     Just (_, t) -> pure t
     _ -> throw ctx.et sr "Self type is not valid here"
   A.PtrType typeMaybe -> do
-    unless ctx.inUnsafeCode $ addError ctx.et sr "Cannot use pointers in safe code"
+    unless ctx.inUnsafeCode $ addError SevError ctx.et sr "Cannot use pointers in safe code"
     t <- forM typeMaybe $ getType ctx
     pure $ I.PtrType t
   A.ConstPtrType typeExpr -> do

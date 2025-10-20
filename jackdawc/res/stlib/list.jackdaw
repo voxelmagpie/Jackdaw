@@ -208,7 +208,7 @@ struct List [A] {
         self._length = newLength;
     }
 
-    fn ++ join (self: Self, xs: Slice[A]) {
+    fn join ++ (self: Self, xs: Slice[A]) {
         var l = List[A].new();
         l.reserve(self.length() + xs.length());
         foreach x in self.iter() { l.push(x.clone()); }
@@ -216,7 +216,7 @@ struct List [A] {
         return l;
     }
 
-    fn ++= append (ref self: Self, xs: Slice[A]) unsafe {
+    fn append ++= (ref self: Self, xs: Slice[A]) unsafe {
         self.insertSliceAt(self._length, xs);
     }
 
@@ -240,7 +240,7 @@ struct List [A] {
         return Self{ ptr=p, _length=self._length, capacity=self._length };
     }
 
-    fn == eq (self: Self, other: Self): Bool {
+    fn eq == (self: Self, other: Self): Bool {
         if self.length() != other.length() { return false; }
         for (var i: ISize = 0; i < self.length(); i += 1) {
             if self.at(i) != other.at(i) { return false; }

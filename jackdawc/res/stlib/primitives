@@ -8,24 +8,24 @@ import "@stlib/raw_slice"
 import "@stlib/hash"
 
 #define f(t) \
-	fn +    add (x: Self, y: Self): Self { return _add##t(x, y); } _NL \
-	fn -    sub (x: Self, y: Self): Self { return _sub##t(x, y); } _NL \
-	fn *    mul (x: Self, y: Self): Self { return _mul##t(x, y); } _NL \
-	fn /    div (x: Self, y: Self): Self { return _div##t(x, y); } _NL \
-	fn ==   eq  (x: Self, y: Self): Bool { return _eq##t(x, y); } _NL \
-	fn !=   neq (x: Self, y: Self): Bool { return _neq##t(x, y); } _NL \
-	fn >    gt  (x: Self, y: Self): Bool { return _gt##t(x, y); } _NL \
-	fn >=   gte (x: Self, y: Self): Bool { return _gte##t(x, y); } _NL \
-	fn <    lt  (x: Self, y: Self): Bool { return _lt##t(x, y); } _NL \
-	fn <=   lte (x: Self, y: Self): Bool { return _lte##t(x, y); } _NL \
-	fn -    neg (x: Self): Self { return _neg##t(x); } _NL \
+	fn add + 	(x: Self, y: Self): Self { return _add##t(x, y); } _NL \
+	fn sub - 	(x: Self, y: Self): Self { return _sub##t(x, y); } _NL \
+	fn mul * 	(x: Self, y: Self): Self { return _mul##t(x, y); } _NL \
+	fn div / 	(x: Self, y: Self): Self { return _div##t(x, y); } _NL \
+	fn eq  ==  	(x: Self, y: Self): Bool { return _eq##t(x, y); } _NL \
+	fn neq != 	(x: Self, y: Self): Bool { return _neq##t(x, y); } _NL \
+	fn gt  >  	(x: Self, y: Self): Bool { return _gt##t(x, y); } _NL \
+	fn gte >= 	(x: Self, y: Self): Bool { return _gte##t(x, y); } _NL \
+	fn lt  <  	(x: Self, y: Self): Bool { return _lt##t(x, y); } _NL \
+	fn lte <= 	(x: Self, y: Self): Bool { return _lte##t(x, y); } _NL \
+	fn neg - 	(x: Self): Self { return _neg##t(x); } _NL \
 	fn addToHash (self: Self, ref h: Hash) unsafe { addHashBytes(h, RawSlice[U8]{ ptr = &self as *U8, length = sizeOf[Self] }); }
 
 
 type F32 {
 	f(_f32)
 
-	fn % rem (x: Self, y: Self): Self { return remainderf(x, y); }
+	fn rem % (x: Self, y: Self): Self { return remainderf(x, y); }
 	fn addToString (x: Self, ref s: String) unsafe { floatAddToString[Self, snprintf_f32](x, s); }
 	fn sqrt (x: Self): Self { return sqrtf(x); }
 }
@@ -33,7 +33,7 @@ type F32 {
 type F64 {
 	f(_f64)
 
-	fn % rem (x: Self, y: Self): Self { return remainder(x, y); }
+	fn rem % (x: Self, y: Self): Self { return remainder(x, y); }
 	fn addToString (x: Self, ref s: String) unsafe { floatAddToString[Self, snprintf_f64](x, s); }
 	fn sqrt (x: Self): Self { return sqrt(x); }
 }
@@ -47,16 +47,16 @@ type F64 {
 #undef f
 
 type Bool {
-	fn ! not (x: Self): Self { return _not_bool(x); }
-	fn ~ not_ (x: Self): Self { return _not_bool(x); }
-	fn ==   eq  (x: Self, y: Self): Bool { return _eq_bool(x, y); }
-	fn !=   neq (x: Self, y: Self): Bool { return _neq_bool(x, y); }
+	fn not  !  (x: Self): Self { return _not_bool(x); }
+	fn not_ ~  (x: Self): Self { return _not_bool(x); }
+	fn eq   == (x: Self, y: Self): Bool { return _eq_bool(x, y); }
+	fn neq  != (x: Self, y: Self): Bool { return _neq_bool(x, y); }
 
-	fn & and_ (x: Self, y: Self): Bool { return _and_bool(x, y); }
-	fn | or_ (x: Self, y: Self): Bool { return _or_bool(x, y); }
-	fn ~ xor (x: Self, y: Self): Bool { return _neq_bool(x, y); }
-	fn * mul (x: Self, y: Self): Bool { return _and_bool(x, y); }
-	fn + add (x: Self, y: Self): Bool { return _or_bool(x, y); }
+	fn and_ & (x: Self, y: Self): Bool { return _and_bool(x, y); }
+	fn or_  | (x: Self, y: Self): Bool { return _or_bool(x, y); }
+	fn xor  ~ (x: Self, y: Self): Bool { return _neq_bool(x, y); }
+	fn mul  * (x: Self, y: Self): Bool { return _and_bool(x, y); }
+	fn add  + (x: Self, y: Self): Bool { return _or_bool(x, y); }
 
 	fn addToString (self: Self, ref s: String) { 
 		if self {
@@ -78,7 +78,7 @@ type Bool {
 }
 
 #define g(t, name, op) \
-	fn op name (x: Self, y: Self): Self { if const uncheckedArithmetic { return _##name##t(x, y); } else { return _checked_##name##t(x, y); } } _NL
+	fn name op (x: Self, y: Self): Self { if const uncheckedArithmetic { return _##name##t(x, y); } else { return _checked_##name##t(x, y); } } _NL
 
 #define f(t) \
 	g(t, add, +) \
@@ -86,31 +86,31 @@ type Bool {
 	g(t, mul, *) \
 	g(t, div, /) \
 	g(t, rem, %) \
-	fn <<   lsh (x: Self, y: I32): Self { return _lsh##t(x, y); } _NL \
-	fn >>   rsh (x: Self, y: I32): Self { return _rsh##t(x, y); } _NL \
-	fn &    bAnd (x: Self, y: Self): Self { return _and##t(x, y); } _NL \
-	fn |    bOr (x: Self, y: Self): Self { return _or##t(x, y); } _NL \
-	fn ~    xor (x: Self, y: Self): Self { return _xor##t(x, y); } _NL \
-	fn ==   eq  (x: Self, y: Self): Bool { return _eq##t(x, y); } _NL \
-	fn !=   neq (x: Self, y: Self): Bool { return _neq##t(x, y); } _NL \
-	fn >    gt  (x: Self, y: Self): Bool { return _gt##t(x, y); } _NL \
-	fn >=   gte (x: Self, y: Self): Bool { return _gte##t(x, y); } _NL \
-	fn <    lt  (x: Self, y: Self): Bool { return _lt##t(x, y); } _NL \
-	fn <=   lte (x: Self, y: Self): Bool { return _lte##t(x, y); } _NL \
-	fn +%   wrappingAdd (x: Self, y: Self): Self { return _wadd##t(x, y); } _NL \
-	fn -%   wrappingSub (x: Self, y: Self): Self { return _wsub##t(x, y); } _NL \
-	fn ~    not (x: Self): Self { return _not##t(x); } _NL \
+	fn lsh  << (x: Self, y: I32): Self { return _lsh##t(x, y); } _NL \
+	fn rsh  >> (x: Self, y: I32): Self { return _rsh##t(x, y); } _NL \
+	fn bAnd & (x: Self, y: Self): Self { return _and##t(x, y); } _NL \
+	fn bOr  | (x: Self, y: Self): Self { return _or##t(x, y); } _NL \
+	fn xor  ~ (x: Self, y: Self): Self { return _xor##t(x, y); } _NL \
+	fn eq   ==  (x: Self, y: Self): Bool { return _eq##t(x, y); } _NL \
+	fn neq  != (x: Self, y: Self): Bool { return _neq##t(x, y); } _NL \
+	fn gt   >  (x: Self, y: Self): Bool { return _gt##t(x, y); } _NL \
+	fn gte  >= (x: Self, y: Self): Bool { return _gte##t(x, y); } _NL \
+	fn lt   <  (x: Self, y: Self): Bool { return _lt##t(x, y); } _NL \
+	fn lte  <= (x: Self, y: Self): Bool { return _lte##t(x, y); } _NL \
+	fn wrappingAdd +% (x: Self, y: Self): Self { return _wadd##t(x, y); } _NL \
+	fn wrappingSub -% (x: Self, y: Self): Self { return _wsub##t(x, y); } _NL \
+	fn not ~ (x: Self): Self { return _not##t(x); } _NL \
 	fn safeDiv (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .none; } return .some(_div##t(x, y)); } _NL \
 	fn safeRem (x: Self, y: Self): Maybe[Self] { if (y == 0) { return .none; } return .some(_rem##t(x, y)); } _NL \
 	fn addToString (x: Self, ref s: String) { intAddToString[Self](x, s); } _NL \
 	fn addToHash (self: Self, ref h: Hash) unsafe { addHashBytes(h, RawSlice[U8]{ ptr = &self as *U8, length = sizeOf[Self] }); }
 
 #define ineg(t) \
-	fn - neg (x: Self): Self { if const uncheckedArithmetic { return _neg##t(x); } else { return _checked_neg##t(x); } }
+	fn neg - (x: Self): Self { if const uncheckedArithmetic { return _neg##t(x); } else { return _checked_neg##t(x); } }
 
 #define u_fns(t) \
-	fn - neg (x: Self): Self { return _neg##t(x); } _NL \
-	fn *% wrappingMul (x: Self, y: Self): Self { return _wmul##t(x, y); }
+	fn neg - (x: Self): Self { return _neg##t(x); } _NL \
+	fn wrappingMul *% (x: Self, y: Self): Self { return _wmul##t(x, y); }
 
 type I8 {
 	f(_i8)

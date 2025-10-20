@@ -22,35 +22,35 @@ struct Vector [A, n] {
         }
     }
 
-    fn - neg (var self: Self): Self {
+    fn neg - (var self: Self): Self {
         foreach ref x in self.iter() {
             x = -x;
         } 
         return self;
     }
 
-    fn - sub (var self: Self, other: Self): Self {
+    fn sub - (var self: Self, other: Self): Self {
         for (var i = 0; i < n; i=i+1) {
             self.at(i) = self.at(i) - other.at(i);
         }
         return self;
     }
 
-    fn + add (var self: Self, other: Self): Self {
+    fn add + (var self: Self, other: Self): Self {
         for (var i = 0; i < n; i=i+1) {
             self.at(i) = self.at(i) + other.at(i);
         }
         return self;
     }
 
-    fn * mul (var self: Self, other: Self): Self {
+    fn mul * (var self: Self, other: Self): Self {
         for (var i = 0; i < n; i=i+1) {
             self.at(i) = self.at(i) * other.at(i);
         }
         return self;
     }
 
-    fn / div (var self: Self, other: Self): Self {
+    fn div / (var self: Self, other: Self): Self {
         for (var i = 0; i < n; i=i+1) {
             self.at(i) = self.at(i) / other.at(i);
         }

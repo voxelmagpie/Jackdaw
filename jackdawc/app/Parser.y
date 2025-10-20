@@ -236,13 +236,13 @@ Empty :: {()}
 
 
 ConstDef :: {(VName', A.AnyVDef)}
-    : Many(Attribute) 'const' Maybe(AnyOp) VName GPsMaybe ':' TypeExpr '=' Expr { ($4, A.AConstDef $ A.ConstDef (A.VDefCommon $4 $5 $3 $1) $7 (Just $9)) }
-    | Many(Attribute) 'const' Maybe(AnyOp) VName GPsMaybe ':' TypeExpr { ($4, A.AConstDef $ A.ConstDef (A.VDefCommon $4 $5 $3 $1) $7 Nothing) }
+    : Many(Attribute) 'const' VName Maybe(AnyOp) GPsMaybe ':' TypeExpr '=' Expr { ($3, A.AConstDef $ A.ConstDef (A.VDefCommon $3 $5 $4 $1) $7 (Just $9)) }
+    | Many(Attribute) 'const' VName Maybe(AnyOp) GPsMaybe ':' TypeExpr { ($3, A.AConstDef $ A.ConstDef (A.VDefCommon $3 $5 $4 $1) $7 Nothing) }
 
 
 FnDef :: {(VName', A.AnyVDef)}
-    : Many(Attribute) 'fn' Maybe(AnyOp) VName GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($4, A.AFnDef $ A.FnDef (A.VDefCommon $4 $5 $3 $1) False False (fst $7) (snd $7) $9 $10) }
-    | Many(Attribute) AccOrIterOrBoth Maybe(AnyOp) VName GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($4, A.AFnDef $ A.FnDef (A.VDefCommon $4 $5 $3 $1) (fst $2) (snd $2) (fst $7) (snd $7) $9 $10) }
+    : Many(Attribute) 'fn' VName Maybe(AnyOp) GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($3, A.AFnDef $ A.FnDef (A.VDefCommon $3 $5 $4 $1) False False (fst $7) (snd $7) $9 $10) }
+    | Many(Attribute) AccOrIterOrBoth VName Maybe(AnyOp) GPsMaybe '(' FnParams ')' Maybe(ReturnTypeExpr) FnDefCodeBlockStmnt { ($3, A.AFnDef $ A.FnDef (A.VDefCommon $3 $5 $4 $1) (fst $2) (snd $2) (fst $7) (snd $7) $9 $10) }
 
 
 FnDefCodeBlockStmnt :: {Maybe A.Statement}

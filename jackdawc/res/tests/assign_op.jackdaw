@@ -13,7 +13,7 @@ struct X {
     a: I32,
     b: I32
 
-    fn += add (ref self: Self, x: I32) {
+    fn add += (ref self: Self, x: I32) {
         self.a += x;
         self.b += x;
     }

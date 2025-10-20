@@ -22,7 +22,7 @@ struct String {
         return hashBytes(self.utf8Data.asSlice());
     }
 
-    fn ++= appendString (ref self: Self, other: String) unsafe {
+    fn appendString ++= (ref self: Self, other: String) unsafe {
         _ = self.utf8Data.pop();
         self.utf8Data.append(other.utf8Data.asSlice());
     }
@@ -92,7 +92,7 @@ struct String {
         return .{utf8Data};
     }
 
-    fn ++ join (self: Self, other: String): String unsafe {
+    fn join ++ (self: Self, other: String): String unsafe {
         var utf8Data = List[U8].new();
         utf8Data.reserve(self.utf8Data.length() + other.utf8Data.length() - 1);
         utf8Data.append(self.utf8Data.asSlice());

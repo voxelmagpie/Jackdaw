@@ -39,7 +39,7 @@ struct Matrix [A, size] {
         return self.values.at(i);
     }
 
-    fn * mulMatrix (self: Self, other: Self): Self unsafe {
+    fn mulMatrix * (self: Self, other: Self): Self unsafe {
         var result: Self = uninitialised;
 
         for (var y = 0, dstIdx = 0; y < size; y = y + 1) {

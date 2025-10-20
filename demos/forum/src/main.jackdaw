@@ -172,6 +172,8 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
         var formData = parseFormData(body).orThrow();
         foreach (k, v) in formData.iter() {
             if k == "text" {
+                if v.length() < 1 or v.length() > 65535 { break; }
+                // TODO Better way of creating slice from variable/reference
                 var values = Array[DbValue, 1].singleton(.string(v.clone()));
                 db.stmt(statements.insertPost).execute(values.asSlice());
                 conn.sendRedirect303("/");

@@ -87,7 +87,7 @@ void traceI32(int32_t x) {
 }
 // int8_t*
 void traceCStr(void* x) {
-    fprintf(stderr, "%s\n", x);
+    fprintf(stderr, "%s\n", (const char *)x);
 }
 void traceUnformattedByte(uint8_t x) {
     fputc(x, stderr);

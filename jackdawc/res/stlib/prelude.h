@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdarg.h>
 
 #if defined(__GNUC__) || defined(__clang__)
 #define likely(x)   __builtin_expect(!!(x), 1)
@@ -102,10 +103,8 @@ extern const AString _div0_msg;
         return r; \
     }
 #else
-#define g_s(t, name, op, fn) \
-    static t name(t x, t y) { \
-        __panic("Compiler does not support checked arithmetic"); \
-    }
+#define BLANK 
+#define g_s(t, name, op, fn) BLANK
 #endif
 
 #define checked_div_fn(t, name, op) \
@@ -238,7 +237,12 @@ static inline uint64_t strlen_ (void * s) {
     return strlen(s);
 }
 
-int printf (const char* restrict, ...);
-static inline int32_t printf_ (void * f, ...) {
-    return printf(f);    
+int vprintf(const char* restrict, va_list);
+
+static inline int32_t printf_ (void * fmt, ...) {
+    va_list va;
+    va_start(va,fmt);
+    int x = vprintf((const char *)fmt, va);
+    va_end(va);
+    return x;    
 }

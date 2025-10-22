@@ -1,6 +1,6 @@
--- To recreate the database, run this: sudo mariadb forum < forum.sql
+-- To recreate the database, run this: sudo mariadb < forum.sql
 
-DROP DATABASE forum;
+DROP DATABASE IF EXISTS forum;
 CREATE DATABASE forum;
 USE forum;
 

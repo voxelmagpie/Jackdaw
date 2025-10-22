@@ -1,7 +1,7 @@
 sudo apt install mariadb-server mariadb-client libmariadb-dev
 sudo service mariadb start
-sudo mysql_secure_installation
-sudo mariadb forum < forum.sql
+#sudo mysql_secure_installation # Not needed in newer versions
+sudo mariadb < forum.sql
 sudo mariadb forum < test_data.sql
 sudo mariadb
 	CREATE USER 'USER'@localhost IDENTIFIED BY 'PASSWORD';

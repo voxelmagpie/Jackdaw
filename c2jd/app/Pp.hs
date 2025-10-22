@@ -25,11 +25,11 @@ ppThrow :: Text -> Int -> IO a
 ppThrow msg line = throwIO $ PpException $ "Preprocessor parse error on line " <> T.pack (show line) <> " in out/cpp.h: " <> msg
 
 -- Converts the output from cpp -dM into Jackdaw code
-transpilePpDefs :: State -> [Token'] -> IO ()
-transpilePpDefs s input = do
+transpilePpDefs :: State -> [Token'] -> [Text] -> IO ()
+transpilePpDefs s input skip = do
   gather s input
   flip HT.mapM_ s.ppDefs $ \(name, tokens) -> do
-    unless ("__" `T.isPrefixOf` name || null tokens) $ do
+    unless ("__" `T.isPrefixOf` name || null tokens || name `elem` skip) $ do
       handle (\(PpException e) -> addLine s $ "// Skipped " <> name <> " (" <> e <> ")") $ do
         -- Insert a value in the cache to prevent recursion
         HT.insert s.ppDefsCache name [(Ident name, snd $ head tokens)]

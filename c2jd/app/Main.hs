@@ -11,6 +11,7 @@ import C
 import Control.Monad (unless, when)
 import Data.HashTable.IO qualified as HT
 import Data.IORef (readIORef, writeIORef)
+import Data.List (filter, isPrefixOf)
 import Data.Text qualified as T
 import Data.Text.IO qualified as TIO
 import GHC.IORef (newIORef)
@@ -29,19 +30,17 @@ main :: IO ()
 main = do
   -- File path
   args <- getArgs
-  (cFilePath, dumpCFiles) <- case args of
-    [x] ->
-      pure (x, False)
-    [x, y] -> do
-      unless (y == "--dump-c") $ die $ "Unknown argument: " <> y
-      pure (x, True)
+  (cFilePath, dumpCFiles, skipPp) <- case args of
+    x : xs -> do
+      let skPp = filter ("--skip-pp:" `isPrefixOf`) xs <&> (drop 10 >>> T.pack)
+      pure (x, "--dump-c" `elem` xs, skPp)
     _ ->
-      die "Expected 1 argument (file path) with optional --dump-c argument"
+      die "Expected 1 argument (file path) with optional --dump-c, --skip:..,... --skip-pp:...,... arguments"
 
-  go cFilePath dumpCFiles
+  go cFilePath dumpCFiles skipPp
 
-go :: FilePath -> Bool -> IO ()
-go cFilePath dumpCFiles = do
+go :: FilePath -> Bool -> [Text] -> IO ()
+go cFilePath dumpCFiles skipPp = do
   when dumpCFiles $ createDirectoryIfMissing False "./out/"
 
   -- Translate C code
@@ -79,7 +78,7 @@ go cFilePath dumpCFiles = do
     Left e -> die e
     Right x -> pure x
 
-  transpilePpDefs s tokens
+  transpilePpDefs s tokens skipPp
 
   o <- readIORef s.outputRev <&> reverse
   writeIORef s.outputRev []

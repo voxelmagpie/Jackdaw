@@ -22,7 +22,7 @@ newtype PpException = PpException Text
   deriving anyclass (Exception)
 
 ppThrow :: Text -> Int -> IO a
-ppThrow msg line = throwIO $ PpException $ "Preprocessor parse error on line " <> T.pack (show line) <> " in out/cpp.h\n" <> msg
+ppThrow msg line = throwIO $ PpException $ "Preprocessor parse error on line " <> T.pack (show line) <> " in out/cpp.h: " <> msg
 
 -- Converts the output from cpp -dM into Jackdaw code
 transpilePpDefs :: State -> [Token'] -> IO ()

@@ -40,6 +40,8 @@ data TDef2State
   | Td2Visiting (Ctx, SrcRange)
   | Td2Visited I.AnyTDef2
 
+data CachedTSDef = TsDefVisiting | TsDefVisited H.Type
+
 -- This is for breaking the cyclic module dependency between the type checker and borrow checker
 type BwCheckFnType m =
   I.Statement ->
@@ -61,7 +63,7 @@ data TcState = TcState
     isCopyFn :: I.Type -> TcM Bool,
     hir :: H.Ir,
     hirVDefCache :: HashTable (VFqn, [H.GenericArg]) (H.VDefId, H.AnyVDef),
-    hirTSDefCache :: HashTable (TFqn, [H.GenericArg]) H.Type,
+    hirTSDefCache :: HashTable (TFqn, [H.GenericArg]) CachedTSDef,
     hirTDef2Queue :: HashTable H.TDefId TDef2State,
     hirTypeDefsVisited :: HashTable (TFqn, [I.GenericArg]) (),
     hirValueDefsVisited :: HashTable (VFqn, [I.GenericArg]) (),
@@ -161,7 +163,8 @@ class (MonadHirRead' m, MonadTcError m) => MonadTc m where
 
   addTSDef :: TFqn -> [I.GenericArg] -> H.AnyTDef -> m (H.Type, H.TDefId)
   addTSDef' :: TFqn -> [I.GenericArg] -> H.Type -> m H.Type
-  getCachedTSDef :: TFqn -> [I.GenericArg] -> m (Maybe H.Type)
+  markTsDefVisiting :: TFqn -> [I.GenericArg] -> m ()
+  getCachedTSDef :: TFqn -> [I.GenericArg] -> m (Maybe CachedTSDef)
 
   -- Contexts only exist for H.ANamedType
   addTypeCtx :: H.Type -> Ctx -> m ()
@@ -300,15 +303,17 @@ instance MonadTc TcM where
     pure $ filter (snd >>> \case Td2Queued _ -> True; _ -> False) xs <&> fst
 
   addTSDef' fqn gArgs typ = do
-    ask >>= \s -> liftIO $ HT.insert s.hirTSDefCache (fqn, gArgs) typ
+    ask >>= \s -> liftIO $ HT.insert s.hirTSDefCache (fqn, gArgs) (TsDefVisited typ)
     pure typ
 
   addTSDef fqn gArgs tDef = do
     s <- ask
     id <- liftIO $ tblInsert tDef s.hir.tDefs
     let t = I.ANamedType id
-    liftIO $ HT.insert s.hirTSDefCache (fqn, gArgs) t
+    liftIO $ HT.insert s.hirTSDefCache (fqn, gArgs) (TsDefVisited t)
     pure (t, id)
+
+  markTsDefVisiting fqn gArgs = ask >>= \s -> liftIO $ HT.insert s.hirTSDefCache (fqn, gArgs) TsDefVisiting
 
   getCachedTSDef fqn gArgs = ask >>= \s -> liftIO $ HT.lookup s.hirTSDefCache (fqn, gArgs)
 

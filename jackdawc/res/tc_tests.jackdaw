@@ -278,3 +278,13 @@ fn start () {
 fn f (): String { return 3; }
 
 fn start() {}
+
+// --- //
+
+struct X { a: X }
+fn start () {}
+
+// --- //
+
+alias X = X
+fn start () {}

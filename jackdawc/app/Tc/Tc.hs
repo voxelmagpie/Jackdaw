@@ -716,7 +716,8 @@ getTSDefType ::
   m I.Type
 getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
   let isUnion = case astDef of A.AUnionDef _ -> True; _ -> False
-  let typeIsUnsafe' = isUnion || Attribute "Unsafe" `elem` (A.tsDefCommon astDef).attributes
+  let c' = A.tsDefCommon astDef
+  let typeIsUnsafe' = isUnion || Attribute "Unsafe" `elem` c'.attributes
 
   unless userCtx.inUnsafeCode
     $ when typeIsUnsafe'
@@ -725,18 +726,21 @@ getTSDefType userCtx outerCtx gArgs sr (fqn, astDef) = do
   let gArgs' = fst <$> gArgs
   tsDefMaybe <- getCachedTSDef fqn gArgs'
   case tsDefMaybe of
-    Just x -> do
+    Just (TsDefVisited x) -> do
       pure x
-    _ -> do
-      unless (length (A.tsDefCommon astDef).genericParams == length gArgs)
+    Just TsDefVisiting ->
+      throw userCtx.et sr $ "Infinite loop in " <> un (fst c'.name)
+    Nothing -> do
+      unless (length c'.genericParams == length gArgs)
         $ throw userCtx.et sr "Wrong number of generic arguments to type"
 
-      checkTemplateArgs userCtx (A.tsDefCommon astDef).genericParams gArgs
+      checkTemplateArgs userCtx c'.genericParams gArgs
 
       let typeGArg i = case gArgs' !! i of I.TypeGenericArg t' -> t'; _ -> undefined
 
       case astDef of
         A.ATypeAlias alias -> do
+          markTsDefVisiting fqn gArgs'
           t <- case alias.typ of
             Just t -> do
               ctx <-

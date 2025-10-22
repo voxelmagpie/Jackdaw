@@ -288,3 +288,8 @@ fn start () {}
 
 alias X = X
 fn start () {}
+
+// --- //
+
+alias InfLoop [a] = InfLoop[a+1]
+fn start() { _ = InfLoop[0]{}; }

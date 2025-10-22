@@ -52,7 +52,8 @@ data Ctx = Ctx
     inAccessor :: Bool,
     inLoop :: Bool,
     inUnsafeCode :: Bool,
-    et :: ErrorTrace
+    et :: ErrorTrace,
+    depth :: Int -- For preventing infinite loops in generic definitions
   }
   deriving (Show)
 
@@ -73,7 +74,8 @@ mkFileCtx namespace (thisAst, thisAstImports) tcIn =
       inAccessor = False,
       inLoop = False,
       inUnsafeCode = True, -- Disables unsafe errors when checking definitions
-      et = ErrorTrace "" []
+      et = ErrorTrace "" [],
+      depth = 0
     }
 
 mkFileCtx' :: Ctx -> Ctx

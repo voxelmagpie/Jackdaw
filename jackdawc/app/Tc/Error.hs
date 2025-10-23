@@ -72,18 +72,26 @@ noteColour = "\x1b[32;1m" -- Green, bold
 reset :: Text
 reset = "\x1b[0m"
 
-fmtLoc'' :: [Char] -> String -> String
-fmtLoc'' [] s = T.unpack (T.reverse reset) <> s
-fmtLoc'' (c : cs) s
+fmtLocTyp :: [Char] -> String -> String
+fmtLocTyp [] s = T.unpack (T.reverse reset) <> s
+fmtLocTyp (c : cs) s
   | not (isAsciiLower c) && not (isAsciiUpper c) && (c /= '_') && not (isDigit c) =
-      fmtLoc' cs (c : (T.unpack (T.reverse locColour) <> s))
-fmtLoc'' (c : cs) s = fmtLoc'' cs (c : s)
+      fmtLocPunc cs (c : (T.unpack (T.reverse locColour) <> s))
+fmtLocTyp (c : cs) s = fmtLocTyp cs (c : s)
 
-fmtLoc' :: [Char] -> String -> String
-fmtLoc' [] s = T.unpack (T.reverse reset) <> s
-fmtLoc' (c : cs) s | isAsciiUpper c = fmtLoc'' cs (c : (T.unpack (T.reverse typeColour) <> s))
-fmtLoc' (c : cs) s = fmtLoc' cs (c : s)
+fmtLocPunc :: [Char] -> String -> String
+fmtLocPunc [] s = T.unpack (T.reverse reset) <> s
+fmtLocPunc (c : cs) s | isAsciiUpper c = fmtLocTyp cs (c : (T.unpack (T.reverse typeColour) <> s))
+fmtLocPunc (c : cs) s | isAsciiLower c || c == '_' = fmtLocVal cs (c : s)
+fmtLocPunc (c : cs) s = fmtLocPunc cs (c : s)
+
+fmtLocVal :: [Char] -> String -> String
+fmtLocVal [] s = T.unpack (T.reverse reset) <> s
+fmtLocVal (c : cs) s
+  | not (isAsciiLower c) && not (isAsciiUpper c) && (c /= '_') && not (isDigit c) =
+      fmtLocPunc cs (c : s)
+fmtLocVal (c : cs) s = fmtLocVal cs (c : s)
 
 -- Highlights Type names
 fmtLoc :: Text -> Text
-fmtLoc l = T.reverse $ T.pack $ fmtLoc' (T.unpack l) (T.unpack $ T.reverse locColour)
+fmtLoc l = T.reverse $ T.pack $ fmtLocPunc (T.unpack l) (T.unpack $ T.reverse locColour)

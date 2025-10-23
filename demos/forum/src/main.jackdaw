@@ -8,6 +8,8 @@ import "@stlib/io"
 import "@stlib/fs"
 import "@stlib/posix"
 import "@stlib/os_string"
+import "@stlib/hash_map"
+import "@stlib/template"
 import "@http/http"
 import "@http/server" (Server, Connection, Request)
 import "@http/uri"
@@ -125,38 +127,28 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
 
         var template = readTextFile("res/templates/main_page.html");
 
-        var html: String;
-        var html2: String;
-        {
-            var i: ISize = 0;
-            foreach x in template.utf8Slice().iter() {
-                if x == '`' {
-                    break;
-                }
-                else {
-                    i += 1;
-                }
-            }
-            html = template.subString(0, i);
-            html2 = template.subString(i+1, template.length() - i - 1);
-        }
 
         var emptySqlParams = List[DbValue].new();
         db.stmt(statements.getPosts).query(emptySqlParams.asSlice());
+        var postsHtml = String.new();
         foreach fields in db.stmt(statements.getPosts).iterRows() {
-            html ++= "<div class=\"post_outer\"><div class =\"post_inner\">";
+            postsHtml ++= "<div class=\"post_outer\"><div class =\"post_inner\">";
             match fields.at(1) {
                 .some(.string(s)) {
                     match filterHtml(s) {
-                        .some(s2) { html ++= s2; }
-                        .none { html ++= s; }
+                        .some(s2) { postsHtml ++= s2; }
+                        .none { postsHtml ++= s; }
                     }
                 }
                 _ { throw &"DB schema error"; }
             }
-            html ++= "</div></div>";
+            postsHtml ++= "</div></div>";
         }
-        html ++= html2;
+        
+        var vars = HashMap[String, String].new();
+        vars.insert("posts".clone(), postsHtml);
+        var html = substitute(template, vars);
+
         conn.sendString(html, respHeaders.asSlice(), head);
     }
     else if uri == "/add_post" {

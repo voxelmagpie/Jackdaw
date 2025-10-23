@@ -1,0 +1,62 @@
+// This Source Code Form is subject to the terms of the Mozilla Public
+// License, v. 2.0. If a copy of the MPL was not distributed with this
+// file, You can obtain one at https://mozilla.org/MPL/2.0/.
+
+import "@stlib/hash_map"
+
+fn substitute (src: String, vars: HashMap[String, String]): String {
+    var dst = String.new();
+    dst.reserve(src.length());
+
+    borrow src = src.utf8Slice();
+    var i: ISize = 0;
+
+    var name = String.new();
+
+    loop {
+        // Get non-backtick characters
+        var j: ISize = 0;
+        loop {
+            if i+j >= src.length() { break; }
+            var c = src.at(i+j);
+            if c == '`' {
+                break;
+            }
+            else {
+                j += 1;
+            }
+        }
+        dst.appendUtf8(src.subSlice(i, j));
+
+        i += j+1;
+        if i >= src.length() { break; }
+
+        // Get non-backtick characters for variable name
+
+        j = 0;
+        loop {
+            if i+j >= src.length() { break; }
+            var c = src.at(i+j);
+            if c == '`' {
+                break;
+            }
+            else {
+                j += 1;
+            }
+        }
+
+        // Lookup value for name and add to the string
+
+        name.clear();
+        name.appendUtf8(src.subSlice(i, j));
+
+        if vars.contains(name) {
+            dst ++= vars.get(name);
+        }
+
+        i += j+1;
+        if i >= src.length() { break; }
+    }
+
+    return dst;
+}

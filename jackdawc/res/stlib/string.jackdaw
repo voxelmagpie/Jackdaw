@@ -291,4 +291,9 @@ struct String {
         }
         return .some(x);
     }
+
+    fn clear (ref self: Self) unsafe {
+        self.utf8Data.clear();
+        self.utf8Data.push(0);
+    }
 }

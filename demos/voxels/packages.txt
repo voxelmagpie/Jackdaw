@@ -1,0 +1,8 @@
+# Debian/Ubuntu (development)
+sudo apt install libglfw3-dev libgles2-mesa-dev
+
+# Debian/Ubuntu
+sudo apt install libglfw3 libgles2-mesa
+
+# Fedora 43
+sudo dnf install glfw libwayland-cursor libglvnd-gles libwayland-egl libxkbcommon

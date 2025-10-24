@@ -11,6 +11,7 @@ iterator iter (x: I32, y: I32): X {
 
 fn start () {
     foreach x in iter(0, readI32()) {
+        _ = x; // Test moving the loop value
     }
 }
 

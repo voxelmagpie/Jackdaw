@@ -705,7 +705,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
         applyArgsBorrows $ concatMap snd argsAndNewBorrows
 
         prevVarsList <- copyVarsList
-        dropFns' <- borrowCheckDestructure ctx s.var
+        dropFns' <- borrowCheckDestructure ctx {loopDepth = ctx.loopDepth + 1} s.var
         pure (Left $ fst <$> argsAndNewBorrows, Move, dropFns', prevVarsList)
       H.AnAccessorIteratorType f -> do
         when (s.varMode == Move) $ throw sr "Cannot move from accessor"
@@ -728,7 +728,7 @@ borrowCheckStmnt' ctx (stmnt, sr) = case stmnt of
         let newBorrows = concat $ selfNewBorrows : (snd <$> otherArgsAndNewBorrows)
         applyArgsBorrows newBorrows
 
-        addDestructureRefs ctx to (s.varMode == Shared) s.var
+        addDestructureRefs ctx {loopDepth = ctx.loopDepth + 1} to (s.varMode == Shared) s.var
 
         prevVarsList <- copyVarsList
         pure (Right (selfParamMode, selfExpr, fst <$> otherArgsAndNewBorrows), s.varMode, [], prevVarsList)

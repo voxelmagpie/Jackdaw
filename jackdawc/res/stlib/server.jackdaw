@@ -24,6 +24,10 @@ struct Server {
         return Self{ socket, port };
     }
 
+    fn accept (ref self: Self): UnbufferedSocket {
+        return self.socket.acceptUnbuffered();
+    }
+
     // If .none is returned then the caller is in the original process and should call acceptFork again
     fn acceptFork (ref self: Self): Maybe[UnbufferedSocket] {
         var s = self.socket.acceptUnbuffered();

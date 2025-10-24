@@ -229,6 +229,7 @@ void traceU64Hex(uint64_t x);
 void traceI32(int32_t x);
 // int8_t*
 void traceCStr(void* x);
+void traceCStrLen(void*, int32_t);
 void traceUnformattedByte(uint8_t x);
 
 unsigned long strlen(const char* str);

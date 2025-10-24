@@ -130,13 +130,9 @@ fn dbInit () unsafe {
 
 enum DbValue {
     int(I32),
+    bigInt(I64),
     string(String)
-} 
-
-enum DbValueType {
-    int,
-    string
-} 
+}
 
 struct StatementId { x: I32 }
 
@@ -253,6 +249,11 @@ struct Statement {
                     b.buffer = &x;
                     b.buffer_length = 4;
                 }
+                .bigInt(x) {
+                    b.buffer_type = _MYSQL_TYPE_LONGLONG; 
+                    b.buffer = &x;
+                    b.buffer_length = 8;
+                }
                 .string(s) {
                     b.buffer_type = _MYSQL_TYPE_STRING; 
                     b.buffer = s.getCPtr();
@@ -310,6 +311,9 @@ struct Statement {
             if f.*._type == _MYSQL_TYPE_LONG {
                 self.partialResults.push(.int(0));
             }
+            else if f.*._type == _MYSQL_TYPE_LONGLONG {
+                self.partialResults.push(.bigInt(0));
+            }
             else if f.*._type == _MYSQL_TYPE_BLOB {
                 if f.*.charsetnr == 63 {
                     throw &"TODO: Blob";
@@ -348,6 +352,11 @@ struct Statement {
                     b.buffer = &x;
                     b.buffer_length = 4;
                 }
+                .bigInt(x) {
+                    b.buffer_type = _MYSQL_TYPE_LONGLONG;
+                    b.buffer = &x;
+                    b.buffer_length = 8;
+                }
                 .string(_) {
                     b.buffer_type = _MYSQL_TYPE_BLOB;
                     // Don't load strings, only get the lengths
@@ -362,7 +371,7 @@ struct Statement {
             throw &"mysql_stmt_bind_result error";
         }
 
-        // Preload data from db server (optional)
+        // Preload data from db server
 
         if mysql_stmt_store_result(self.stmt) != 0 { 
             traceCStr(mysql_stmt_error(self.stmt));
@@ -396,6 +405,9 @@ struct Statement {
                 .int(x) {
                     results.push(.some(.int(x)));
                 }
+                .bigInt(x) {
+                    results.push(.some(.bigInt(x)));
+                }
                 .string(_) {
                     var l = self.resultLengths.at(i);
                     if l > 65535 { throw &"String too large"; }
@@ -428,6 +440,14 @@ struct Statement {
                 }
             }
         }
+    }
+
+    fn getAllRows (ref self: Self): List[List[Maybe[DbValue]]] {
+        var xs = List[List[Maybe[DbValue]]].new();
+        foreach x in self.iterRows() {
+            xs.push(x);
+        }
+        return xs;
     }
 }
 
@@ -464,6 +484,14 @@ struct QueryResultString {
                 .some(x) { yield x; }
             }
         }
+    }
+
+    fn getAllRows (ref self: Self): List[List[String]] {
+        var xs = List[List[String]].new();
+        foreach x in self.iterRows() {
+            xs.push(x);
+        }
+        return xs;
     }
 
     fn onDrop (ref self: Self) unsafe {

@@ -89,6 +89,9 @@ void traceI32(int32_t x) {
 void traceCStr(void* x) {
     fprintf(stderr, "%s\n", (const char *)x);
 }
+void traceCStrLen(void* x, int32_t n) {
+    fprintf(stderr, "%.*s\n", n, (const char *)x);
+}
 void traceUnformattedByte(uint8_t x) {
     fputc(x, stderr);
 }

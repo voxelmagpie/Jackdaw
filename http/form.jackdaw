@@ -20,7 +20,7 @@ fn parseFormData (s: List[U8]): HttpResult[List[(String, String)]] {
 
 fn readKeyValue (s: List[U8], ref i: ISize): HttpResult[(String, String)] {
     var key = readWord(s, i)!;
-    if i >= s.length() or s.at(i) != '=' { return .err(&"Expected '='"); }
+    if i >= s.length() or s.at(i) != '=' { return .ok((key, String.new())); }
     i += 1;
     var value = readWord(s, i)!;
     return .ok((key, value));
@@ -52,7 +52,8 @@ fn readWord (s: List[U8], ref i: ISize): HttpResult[String] {
             break;
         }
         else {
-            return .err(&"Invalid character in URI");
+            trace(c.toString());
+            return .err(&"Invalid character in form data");
         }
     }
 

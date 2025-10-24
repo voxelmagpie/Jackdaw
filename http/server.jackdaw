@@ -28,6 +28,11 @@ struct Server {
             }
         }
     }
+
+    fn accept (ref self: Self): Connection {
+        var unbuf = self.server.accept();
+        return .{ s = .fromUnbuffered(unbuf) };
+    }
 }
 
 enum NextRequest {
@@ -39,6 +44,7 @@ struct Request {
     head: Bool,
     reqType: HttpRequestType,
     uri: String,
+    queryParameters: List[(String, String)],
     keepAlive: Bool,
     headers: HashMap[String, String],
     body: List[U8]
@@ -50,7 +56,7 @@ struct Connection {
     fn nextRequest (ref self: Self): NextRequest {
         if !self.s.peekByte().isSome() { return .closed; }
 
-        var .{ reqType, uri, keepAliveDefault:keepAlive } = HttpRequest.read(self.s).orThrow();
+        var .{ reqType, uri, queryParameters, keepAliveDefault:keepAlive } = HttpRequest.read(self.s).orThrow();
 
         if !uriIsValid(uri) { 
             throw &"URI invalid";
@@ -87,11 +93,16 @@ struct Connection {
             _ { head = false; }
         }
 
-        return .request(.{ reqType, head, uri, keepAlive, headers, body });
+        return .request(.{ reqType, head, uri, queryParameters, keepAlive, headers, body });
     }
 
     fn sendBadRequest400 (ref self: Self) {
         self.s.writeString("HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n");
+        self.s.flush();
+    }
+
+    fn sendMethodNotAllowed405 (ref self: Self) {
+        self.s.writeString("HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n");
         self.s.flush();
     }
 

@@ -4,6 +4,8 @@
 
 import "@stlib/network"
 import "@stlib/hash_map"
+import "uri"
+import "form"
 
 enum HttpRequestType {
     get,
@@ -63,10 +65,11 @@ fn asciiHexCharToInt (c: U8): HttpResult[I32] {
 fn readUri (ref s: Socket): HttpResult[String] {
     var str = String.new();
     loop {
+        if str.length() > 2048 { throw &"URI too long"; }
         match s.peekByte() {
             .none { break; }
             .some(c) {
-                if c == '\n' or c == '\r' or c == ' ' or c == '\t' {
+                if c == '\n' or c == '\r' or c == ' ' or c == '\t' or c == '?' {
                     break;
                 }
 
@@ -78,6 +81,9 @@ fn readUri (ref s: Socket): HttpResult[String] {
                 if c == '+' {
                     str.pushAsciiChar(' ');
                 }
+                else if isUriSafeChar(c) {
+                    str.pushAsciiChar(c);
+                }
                 else if c == '%' {
                     var hi = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
                     var lo = asciiHexCharToInt(s.readByte().toResult[*const String](&"EOF")!)!;
@@ -88,7 +94,7 @@ fn readUri (ref s: Socket): HttpResult[String] {
                     str.pushAsciiChar(c as U8);
                 }
                 else {
-                    str.pushAsciiChar(c);
+                    return .err(&"Invalid character in URI");
                 }
             }
         }
@@ -161,6 +167,7 @@ fn expectNewLine (ref s: Socket): MaybeError[*const String] {
 struct HttpRequest {
     reqType: HttpRequestType,
     uri: String,
+    queryParameters: List[(String, String)],
     keepAliveDefault: Bool
 
     fn read (ref s: Socket): HttpResult[Self] {
@@ -186,6 +193,20 @@ struct HttpRequest {
         var uri = readUri(s)!;
         if uri.length() < 1 { return .err(&"Expected uri"); }
 
+        var queryParameters = List[(String, String)].new();
+        if s.peekByte() == .some('?') {
+            _ = s.readByte();
+            var bytes = List[U8].new();
+            loop {
+                var c = s.peekByte().orThrowMsg(&"EOF in query parameters"); 
+                if c == '\r' or c == ' ' { break; }
+                _ = s.readByte();
+                bytes.push(c);
+                if bytes.length() > 2048 { throw &"Query parameters too long"; }
+            }
+            queryParameters = parseFormData(bytes)!;
+        }
+
         skipWhitespace(s);
 
         var keepAliveDefault: Bool;
@@ -203,23 +224,10 @@ struct HttpRequest {
         expectNewLine(s)!;
 
         
-        return .ok(Self{ reqType, uri, keepAliveDefault });
+        return .ok(Self{ reqType, uri, queryParameters, keepAliveDefault });
     }
 }
 
-fn skipLine (ref s: Socket): MaybeError[*const String] {
-    loop {
-        match s.peekByte() {
-            .none { return .err(&"EOF before end of line"); }
-            .some(c) {
-                if c == '\n' or c == '\r' {
-                    break;
-                }
-            }
-        }
-    }
-    return expectNewLine(s);
-}
 
 struct HttpHeader {
     header: String,

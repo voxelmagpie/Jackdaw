@@ -18,11 +18,13 @@ import "db"
 
 struct Statements {
     getPosts: StatementId,
+    getPostsCount: StatementId,
     insertPost: StatementId
 
     fn create (ref db: Db): Self {
         return .{
-            getPosts = db.prepareStatement(&"SELECT * FROM Posts"),
+            getPosts = db.prepareStatement(&"SELECT id, text FROM Posts ORDER BY id ASC LIMIT 10 OFFSET ?"),
+            getPostsCount = db.prepareStatement(&"SELECT COUNT(*) FROM Posts"),
             insertPost = db.prepareStatement(&"INSERT INTO Posts (text) VALUES (?)")
         };
     }
@@ -42,6 +44,7 @@ fn start (Args, var streams: IoStreams) {
     var server = Server.new(8080);
     streams.stdOut.writeLine("Listening on port " ++ server.server.port.toString());
     loop {
+        // var conn = server.accept();
         match server.acceptFork() {
             .none {}
             .some(conn) {
@@ -111,7 +114,7 @@ fn filterHtml (src: String): Maybe[String] {
 }
 
 fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request) {
-    var .{ head, reqType, uri, keepAlive:_, headers:reqHeaders, body } = req;
+    var .{ head, reqType, uri, keepAlive:_, headers:reqHeaders, queryParameters, body } = req;
     // trace(uri);
 
 
@@ -119,19 +122,63 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
     var respHeaders = List[(String, String)].new();
 
     if uri == "/" {
+        // Only allow get/head
         match reqType {
             .head {}
             .get {}
-            .post { conn.sendBadRequest400(); return; }
+            .post { conn.sendMethodNotAllowed405(); return; }
         }
 
+        // Get total number of posts in database
+
+        var sqlParams = List[DbValue].new();
+        var schemaErr = &"DB schema error";
+
+        var totalPostsCount: I64 = 0;
+        {
+            sqlParams.clear();
+            db.stmt(statements.getPostsCount).query(sqlParams.asSlice());
+            var row = db.stmt(statements.getPostsCount).nextRow().orThrow();
+            match row.at(0) {
+                .some(.bigInt(x)) { totalPostsCount = x; } 
+                _ { throw schemaErr; }
+            }
+        }
+        var pageCount = (totalPostsCount + 9) / 10; // Rounds up
+
+        // Query parameters
+
+        var pageNumber: I64 = 1;
+        foreach (k, v) in queryParameters.iter() {
+            if k == "page" {
+                match v.parseInt() {
+                    .some(x) { pageNumber = clamp[I64](x, 1, pageCount); }
+                    _ { conn.sendBadRequest400(); return; }
+                }
+            }
+            else if k == "latest" {
+                pageNumber = pageCount;
+            }
+            else {
+                conn.sendBadRequest400();
+                return;
+            }
+        }
+
+        // Get posts
+
+        sqlParams.clear();
+        sqlParams.push(.bigInt((pageNumber-1) * 10));
+        db.stmt(statements.getPosts).query(sqlParams.asSlice());
+        var posts = db.stmt(statements.getPosts).getAllRows();
+
+        // Generate HTML
+
         var template = readTextFile("res/templates/main_page.html");
+        var addPostForm = readTextFile("res/templates/add_post_form.html");
 
-
-        var emptySqlParams = List[DbValue].new();
-        db.stmt(statements.getPosts).query(emptySqlParams.asSlice());
         var postsHtml = String.new();
-        foreach fields in db.stmt(statements.getPosts).iterRows() {
+        foreach fields in posts.iter() {
             postsHtml ++= "<div class=\"post_outer\"><div class =\"post_inner\">";
             match fields.at(1) {
                 .some(.string(s)) {
@@ -140,14 +187,35 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
                         .none { postsHtml ++= s; }
                     }
                 }
-                _ { throw &"DB schema error"; }
+                _ { throw schemaErr; }
             }
             postsHtml ++= "</div></div>";
         }
         
         var vars = HashMap[String, String].new();
         vars.insert("posts".clone(), postsHtml);
-        var html = substitute(template, vars);
+        vars.insert("pageCount".clone(), pageCount.toString());
+        vars.insert("pageNumber".clone(), pageNumber.toString());
+        
+        if pageNumber == pageCount {
+            vars.insert("addPostFormMaybe".clone(), addPostForm);
+        }
+
+        if pageNumber == 1 {
+            vars.insert("prevDisabled".clone(), "disabled".clone());
+        }
+        else {
+            vars.insert("prevPage".clone(), (pageNumber-1).toString());
+        }
+
+        if pageNumber == pageCount {
+            vars.insert("nextDisabled".clone(), "disabled".clone());
+        }
+        else {
+            vars.insert("nextPage".clone(), (pageNumber+1).toString());
+        }
+
+        var html = substitute(template, vars, true);
 
         conn.sendString(html, respHeaders.asSlice(), head);
     }
@@ -168,7 +236,7 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
                 // TODO Better way of creating slice from variable/reference
                 var values = Array[DbValue, 1].singleton(.string(v.clone()));
                 _ = db.stmt(statements.insertPost).execute(values.asSlice());
-                conn.sendRedirect303("/");
+                conn.sendRedirect303("/?latest");
                 return;   
             }
         }

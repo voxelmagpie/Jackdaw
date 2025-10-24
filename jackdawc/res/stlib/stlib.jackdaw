@@ -277,9 +277,16 @@ fn unreachable () {
 @Unsafe
 fn traceCStr (*CChar)
 fn trace (s: String) unsafe { traceCStr(s.getCPtr()); }
+@Unsafe
+fn traceCStrLen(*CChar, I32)
 fn traceI32 (I32)
 fn traceU64Hex (U64)
 fn traceUnformattedByte (U8)
+
+fn traceUtf8 (x: Slice[U8]) unsafe {
+    var y = x.asRawSlice();
+    traceCStrLen(y.ptr as *CChar, min[I64](I32.max, y.length) as I32);
+}
 
 // Unsigned on 32-bit ARM
 alias CChar = I8

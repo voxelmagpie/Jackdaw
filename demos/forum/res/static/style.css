@@ -94,6 +94,10 @@ body {
     padding-bottom: 10px;
 }
 
+.nav {
+    width: 100%
+}
+
 
 
 button {
@@ -115,14 +119,17 @@ button:disabled {
     background-color: hsl(200, 5%, 30%);
     border-bottom: solid hsl(200, 0%, 00%) 3px;
     color: #d8d8d8;
+    cursor: default;
 }
 
 button:hover:enabled {
     background-color: hsl(220 100% 35%);
     border-bottom: solid hsl(240 100% 30%) 3px;
+    cursor: pointer;
 }
 
 button:active:enabled {
     background-color: hsl(240 100% 20%);
     border-bottom: solid hsl(240 100% 20%) 3px;
+    cursor: pointer;
 }

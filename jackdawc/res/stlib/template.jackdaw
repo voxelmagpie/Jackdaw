@@ -4,7 +4,7 @@
 
 import "@stlib/hash_map"
 
-fn substitute (src: String, vars: HashMap[String, String]): String {
+fn substitute (src: String, vars: HashMap[String, String], skipMissing: Bool): String {
     var dst = String.new();
     dst.reserve(src.length());
 
@@ -52,6 +52,10 @@ fn substitute (src: String, vars: HashMap[String, String]): String {
 
         if vars.contains(name) {
             dst ++= vars.get(name);
+        }
+        else if !skipMissing {
+            trace(name);
+            throw &"Variable not found";
         }
 
         i += j+1;

@@ -113,43 +113,59 @@ type Bool {
 	fn wrappingMul *% (x: Self, y: Self): Self { return _wmul##t(x, y); }
 
 type I8 {
+	const max: Self = 127
+	const min: Self = -128
 	f(_i8)
 	ineg(_i8)
 }
 
 type I16 {
+	const max: Self = 32767
+	const min: Self = -32768
 	f(_i16)
 	ineg(_i16)
 }
 
 type I32 {
+	const max: Self = 2147483647
+	const min: Self = -2147483648
 	f(_i32)
 	ineg(_i32)
 }
 
 alias ISize = I64
 type I64 {
+	const max: Self = 9223372036854775807
+	const min: Self = -9223372036854775808
 	f(_i64)
 	ineg(_i64)
 }
 
 type U8 {
+	const max: Self = 255
+	const min: Self = 0
 	f(_u8)
 	u_fns(_u8)
 }
 
 type U16 {
+	const max: Self = 65535
+	const min: Self = 0
 	f(_u16)
 	u_fns(_u16)
 }
 
 type U32 {
+	const max: Self = 0xffffffff
+	const min: Self = 0
 	f(_u32)
 	u_fns(_u32)
 }
 
 alias USize = U64
 type U64 {
+	const max: Self = 0xffffffffffffffff
+	const min: Self = 0
 	f(_u64)
 	u_fns(_u64)
 }

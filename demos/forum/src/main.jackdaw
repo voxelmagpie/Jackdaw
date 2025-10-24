@@ -76,7 +76,7 @@ fn filterHtml (src: String): Maybe[String] {
         loop {
             if i+j >= src.length() { break; }
             var c = src.at(i+j);
-            if c == '<' or c == '>' or c == '&' or c == '"' or c == '\'' {
+            if c == '<' or c == '>' or c == '&' or c == '"' or c == '\'' or c == '\n' or c == '\r' {
                 break;
             }
             else {
@@ -105,8 +105,16 @@ fn filterHtml (src: String): Maybe[String] {
         else if x == '"' {
             dst ++= "&quot;".utf8Slice();
         }
-        else {
+        else if x == '\'' {
             dst ++= "&apos;".utf8Slice();
+        }
+        else if x == '\n' {
+            dst ++= "<br>".utf8Slice();
+        }
+        else if x == '\r' {
+        }
+        else {
+            dst.push('?');
         }
     }
 

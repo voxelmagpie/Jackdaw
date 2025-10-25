@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>Forum</title>
+    <link href="style.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div class="sep"></div>
+    <div id="content">
+        <div class="sep"></div>
+        <form action="/add_thread" method="post">
+            <input name="title" id="new_thread_title" required maxlength="500" placeholder="Thread title..."
+                spellcheck="true" />
+            <textarea name="text" required maxlength="5000" placeholder="Start the conversation..." spellcheck="true"
+                id="new_post_text"></textarea>
+            <button id="add_thread" type="submit">New Thread</button>
+        </form>
+        <div class="sep"></div>
+    </div>
+    <div class="sep"></div>
+</body>
+
+</html>

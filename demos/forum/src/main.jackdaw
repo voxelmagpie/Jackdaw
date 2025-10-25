@@ -17,15 +17,21 @@ import "@http/form" (parseFormData)
 import "db"
 
 struct Statements {
+    getThreads: StatementId,
+    getThread: StatementId,
     getPosts: StatementId,
     getPostsCount: StatementId,
+    insertThread: StatementId,
     insertPost: StatementId
 
     fn create (ref db: Db): Self {
         return .{
-            getPosts = db.prepareStatement(&"SELECT id, text FROM Posts ORDER BY id ASC LIMIT 10 OFFSET ?"),
-            getPostsCount = db.prepareStatement(&"SELECT COUNT(*) FROM Posts"),
-            insertPost = db.prepareStatement(&"INSERT INTO Posts (text) VALUES (?)")
+            getThreads = db.prepareStatement(&"SELECT thread_id, title FROM Threads ORDER BY thread_id DESC"),
+            getThread = db.prepareStatement(&"SELECT title FROM Threads WHERE thread_id = ?"),
+            getPosts = db.prepareStatement(&"SELECT content FROM Posts WHERE thread_id = ? ORDER BY post_id ASC LIMIT 10 OFFSET ?"),
+            getPostsCount = db.prepareStatement(&"SELECT COUNT(*) FROM Posts WHERE thread_id=?"),
+            insertThread = db.prepareStatement(&"INSERT INTO Threads (title) VALUES (?)"),
+            insertPost = db.prepareStatement(&"INSERT INTO Posts (thread_id, content) VALUES (?, ?)")
         };
     }
 }
@@ -121,144 +127,310 @@ fn filterHtml (src: String): Maybe[String] {
     return .some(String.fromByteListUnchecked(dst));
 }
 
-fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request) {
-    var .{ head, reqType, uri, keepAlive:_, headers:reqHeaders, queryParameters, body } = req;
-    // trace(uri);
-
-
-    // TODO Better way of creating empty slices
-    var respHeaders = List[(String, String)].new();
-
-    if uri == "/" {
-        // Only allow get/head
-        match reqType {
-            .head {}
-            .get {}
-            .post { conn.sendMethodNotAllowed405(); return; }
-        }
-
-        // Get total number of posts in database
-
-        var sqlParams = List[DbValue].new();
-        var schemaErr = &"DB schema error";
-
-        var totalPostsCount: I64 = 0;
-        {
-            sqlParams.clear();
-            db.stmt(statements.getPostsCount).query(sqlParams.asSlice());
-            var row = db.stmt(statements.getPostsCount).nextRow().orThrow();
-            match row.at(0) {
-                .some(.bigInt(x)) { totalPostsCount = x; } 
-                _ { throw schemaErr; }
-            }
-        }
-        var pageCount = (totalPostsCount + 9) / 10; // Rounds up
-
-        // Query parameters
-
-        var pageNumber: I64 = 1;
-        foreach (k, v) in queryParameters.iter() {
-            if k == "page" {
-                match v.parseInt() {
-                    .some(x) { pageNumber = clamp[I64](x, 1, pageCount); }
-                    _ { conn.sendBadRequest400(); return; }
-                }
-            }
-            else if k == "latest" {
-                pageNumber = pageCount;
-            }
-            else {
-                conn.sendBadRequest400();
-                return;
-            }
-        }
-
-        // Get posts
-
-        sqlParams.clear();
-        sqlParams.push(.bigInt((pageNumber-1) * 10));
-        db.stmt(statements.getPosts).query(sqlParams.asSlice());
-        var posts = db.stmt(statements.getPosts).getAllRows();
-
-        // Generate HTML
-
-        var template = readTextFile("res/templates/main_page.html");
-        var addPostForm = readTextFile("res/templates/add_post_form.html");
-
-        var postsHtml = String.new();
-        foreach fields in posts.iter() {
-            postsHtml ++= "<div class=\"post_outer\"><div class =\"post_inner\">";
-            match fields.at(1) {
-                .some(.string(s)) {
-                    match filterHtml(s) {
-                        .some(s2) { postsHtml ++= s2; }
-                        .none { postsHtml ++= s; }
-                    }
-                }
-                _ { throw schemaErr; }
-            }
-            postsHtml ++= "</div></div>";
-        }
-        
-        var vars = HashMap[String, String].new();
-        vars.insert("posts".clone(), postsHtml);
-        vars.insert("pageCount".clone(), pageCount.toString());
-        vars.insert("pageNumber".clone(), pageNumber.toString());
-        
-        if pageNumber == pageCount {
-            vars.insert("addPostFormMaybe".clone(), addPostForm);
-        }
-
-        if pageNumber == 1 {
-            vars.insert("prevDisabled".clone(), "disabled".clone());
-        }
-        else {
-            vars.insert("prevPage".clone(), (pageNumber-1).toString());
-        }
-
-        if pageNumber == pageCount {
-            vars.insert("nextDisabled".clone(), "disabled".clone());
-        }
-        else {
-            vars.insert("nextPage".clone(), (pageNumber+1).toString());
-        }
-
-        var html = substitute(template, vars, true);
-
-        conn.sendString(html, respHeaders.asSlice(), head);
+fn appendFiltered (ref dst: String, src: String) {
+    match filterHtml(src) {
+        .some(s) { dst ++= s; }
+        .none { dst ++= src; }
     }
-    else if uri == "/add_post" {
-        match reqType {
-            .post {}
-            _ { conn.sendBadRequest400(); return; }
-        }
+}
 
-        if !reqHeaders.contains("content-type") or reqHeaders.get("content-type") != "application/x-www-form-urlencoded" {
-            conn.sendBadRequest400(); return; 
-        }
+const schemaErr: String = "DB schema error"
 
-        var formData = parseFormData(body).orThrow();
-        foreach (k, v) in formData.iter() {
-            if k == "text" {
-                if v.length() < 1 or v.length() > 65535 { break; }
-                // TODO Better way of creating slice from variable/reference
-                var values = Array[DbValue, 1].singleton(.string(v.clone()));
-                _ = db.stmt(statements.insertPost).execute(values.asSlice());
-                conn.sendRedirect303("/?latest");
-                return;   
+fn getTotalPostsInThread (ref db: Db, ref statements: Statements, threadId: I32): I32 {
+    var sqlParams = { DbValue.int(threadId) };
+    db.stmt(statements.getPostsCount).query(sqlParams.asSlice());
+    var row = db.stmt(statements.getPostsCount).nextRow().orThrow();
+    match row.at(0) {
+        .some(.bigInt(x)) { return x as I32; } 
+        _ { throw &schemaErr; }
+    }
+}
+
+
+enum Response {
+    ok(String),
+    redirect(String),
+    notFound,
+    wrongMethod,
+    clientError
+}
+
+fn handleMainPage (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request): Response {
+    if req.reqType != .get {
+        return .wrongMethod;
+    }
+
+    // Get threads
+
+    var sqlParams = List[DbValue].new();
+
+    db.stmt(statements.getThreads).query(sqlParams.asSlice());
+    var threads = db.stmt(statements.getThreads).getAllRows();
+
+    // Generate HTML
+
+    var template = readTextFile("res/templates/main_page.html");
+
+    var threadsHtml = String.new();
+    foreach fields in threads.iter() {
+        var id: I32;
+        match fields.at(0) {
+            .some(.int(x)) { id = x; }
+            _ { throw &schemaErr; }
+        }
+        threadsHtml ++= "<a class=\"thread\" href=\"/thread?id=" ++ id.toString() ++ "&page=1\">";
+        match fields.at(1) {
+            .some(.string(s)) { appendFiltered(threadsHtml, s); }
+            _ { throw &schemaErr; }
+        }
+        threadsHtml ++= "</a>";
+    }
+    
+    var vars = HashMap[String, String].new();
+    vars.insert("threads".clone(), threadsHtml);
+
+    var html = substitute(template, vars, false);
+    return .ok(html);
+} 
+
+fn handleThreadPage (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request): Response {
+    if req.reqType != .get {
+        return .wrongMethod;
+    }
+
+    // Query parameters
+
+    var pageNumber: I64 = -1;
+    var threadId: I32 = -1;
+    foreach (k, v) in req.queryParameters.iter() {
+        if k == "id" {
+            match v.parseInt() {
+                .some(x) {
+                    threadId = x as I32;
+                    if threadId < 0 { return .clientError; }
+                }
+                _ { return .clientError; }
             }
         }
+        else if k == "page" {
+            match v.parseInt() {
+                .some(x) { pageNumber = x; }
+                _ { return .clientError; }
+            }
+        }
+        else {
+            return .clientError;
+        }
+    }
+    if threadId < 0 or pageNumber < 1 { return .clientError; }
 
-        conn.sendBadRequest400();
+    // Get thread title
+
+    var threadTitle: String;
+    {
+        var sqlParams = { DbValue.int(threadId) };
+        db.stmt(statements.getThread).query(sqlParams.asSlice());
+        var rows = db.stmt(statements.getThread).getAllRows();
+        if rows.length() < 1 { return .notFound; }
+        match rows.at(0).at(0) {
+            .some(.string(x)) { threadTitle = x.clone(); } 
+            _ { throw &schemaErr; }
+        }
+    }
+
+
+
+    // Get total number of posts in thread
+
+    var totalPostsCount = getTotalPostsInThread (db, statements, threadId);
+    var pageCount = (totalPostsCount + 9) / 10; // Rounds up
+    if pageNumber == I64.max {
+        pageNumber = pageCount;
     }
     else {
-        match reqType {
-            .head {}
-            .get {}
-            .post { conn.sendBadRequest400(); return; }
+        if pageNumber > pageCount {
+            return .redirect("/thread?id=" ++ threadId.toString() ++ "&page=" ++ pageCount.toString());
+        }
+    }
+
+    // Get posts & generate HTML
+
+    var template = readTextFile("res/templates/thread.html");
+    var addPostForm = readTextFile("res/templates/add_post_form.html");
+
+    var sqlParams = { DbValue.int(threadId), DbValue.bigInt((pageNumber-1) * 10) };
+    db.stmt(statements.getPosts).query(sqlParams.asSlice());
+
+    var postsHtml = String.new();
+    foreach fields in db.stmt(statements.getPosts).iterRows() {
+        postsHtml ++= "<div class =\"post\">";
+        match fields.at(0) {
+            .some(.string(s)) { appendFiltered(postsHtml, s); }
+            _ { throw &schemaErr; }
+        }
+        postsHtml ++= "</div>";
+    }
+    
+    var vars = HashMap[String, String].new();
+    vars.insert("posts".clone(), postsHtml);
+    vars.insert("pageCount".clone(), pageCount.toString());
+    vars.insert("pageNumber".clone(), pageNumber.toString());
+    vars.insert("title".clone(), threadTitle);
+    vars.insert("thisThreadId".clone(), threadId.toString());
+    vars.insert("lastPage".clone(), pageCount.toString());
+    
+    if pageNumber == pageCount {
+        var vars2 = HashMap[String, String].new();
+        vars2.insert("threadId".clone(), threadId.toString());
+        vars.insert("addPostFormMaybe".clone(), substitute(addPostForm, vars2, false));
+    }
+
+    if pageNumber == 1 {
+        vars.insert("prevDisabled".clone(), "disabled".clone());
+    }
+    else {
+        vars.insert("prevPage".clone(), (pageNumber-1).toString());
+    }
+
+    if pageNumber == pageCount {
+        vars.insert("nextDisabled".clone(), "disabled".clone());
+    }
+    else {
+        vars.insert("nextPage".clone(), (pageNumber+1).toString());
+    }
+
+    return .ok(substitute(template, vars, true));
+} 
+
+fn handleAddPost (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request): Response {
+    if req.reqType != .post {
+        return .wrongMethod;
+    }
+
+    if !req.headers.contains("content-type") or req.headers.get("content-type") != "application/x-www-form-urlencoded" {
+        return .clientError; 
+    }
+
+    var threadId: I32 = -1;
+    var formData = parseFormData(req.body).orThrow();
+    var text = Maybe[String].none;
+    foreach (k, v) in formData.iter() {
+        if k == "threadId" {
+            match v.parseInt() {
+                .some(x) { threadId = x as I32; }
+                _ { return .clientError; }
+            }
+        }
+        else if k == "text" {
+            if v.length() < 1 or v.length() > 65535 { continue; }
+            text = .some(v.clone());
+        }
+    }
+    if threadId < 0 { return .clientError; }
+    match var text {
+        .some(t) {
+            var sqlParams = { DbValue.int(threadId), DbValue.string(t) };
+            _ = db.stmt(statements.insertPost).execute(sqlParams.asSlice());
+            var totalPostsCount = getTotalPostsInThread(db, statements, threadId);
+            var pages = (totalPostsCount + 9) / 10;
+            return .redirect("/thread?id=" ++ threadId.toString() ++ "&page=" ++ pages.toString());
+        }
+        _ { return .clientError; }
+    }   
+} 
+
+fn handleAddThread (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request): Response {
+    if req.reqType != .post {
+        return .wrongMethod;
+    }
+
+    if !req.headers.contains("content-type") or req.headers.get("content-type") != "application/x-www-form-urlencoded" {
+        return .clientError; 
+    }
+
+    var formData = parseFormData(req.body).orThrow();
+    var titleMaybe = Maybe[String].none;
+    var textMaybe = Maybe[String].none;
+    foreach (k, v) in formData.iter() {
+        if k == "text" {
+            if v.length() < 1 or v.length() > 65535 { return .clientError; }
+            textMaybe = .some(v.clone());
+        }
+        else if k == "title" {
+            if v.length() < 1 or v.length() > 65535 { return .clientError; }
+            titleMaybe = .some(v.clone());
+        }
+    }
+    
+    var title: String;
+    var text: String;
+    match var titleMaybe { .some(x) { title = x; } _ { return .clientError; } }
+    match var textMaybe { .some(x) { text = x; } _ { return .clientError; } }
+    
+    var values = { DbValue.string(title) };
+    var threadId = db.stmt(statements.insertThread).execute(values.asSlice()).insertId as I32;
+    
+    var values = { DbValue.int(threadId), DbValue.string(text) };
+    _ = db.stmt(statements.insertPost).execute(values.asSlice());
+    
+    return .redirect("/thread?id=" ++ threadId.toString() ++ "&page=1");   
+} 
+
+fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var req: Request) {
+    // trace(req.uri);
+
+    var response: Response;
+    if req.uri == "/" {
+        response = handleMainPage(conn, db, statements, req);
+    }
+    else if req.uri == "/thread" {
+        response = handleThreadPage(conn, db, statements, req);
+    }
+    else if req.uri == "/add_post" {
+        response = handleAddPost(conn, db, statements, req);
+    }
+    else if req.uri == "/new_thread" {
+        if req.reqType != .get and req.reqType != .head {
+            conn.sendMethodNotAllowed405();
+            return;
         }
 
-        var path = OsString.fromString("res/static" ++ uri);
-        conn.sendFile(path, respHeaders.asSlice(), head);
+        // TODO Better way of creating empty slices
+        var respHeaders = List[(String, String)].new();
+        conn.sendFile("res/templates/new_thread.html", respHeaders.asSlice(), req.head);
+        return;
+    }
+    else if req.uri == "/add_thread" {
+        response = handleAddThread(conn, db, statements, req);
+    }
+    else {
+        if req.reqType != .get and req.reqType != .head {
+            conn.sendMethodNotAllowed405();
+            return;
+        }
+
+        var path = OsString.fromString("res/static" ++ req.uri);
+        var respHeaders = List[(String, String)].new();
+        conn.sendFile(path, respHeaders.asSlice(), req.head);
+        return;
+    }
+
+    var respHeaders = List[(String, String)].new();
+    match response {
+        .ok(x) {
+            conn.sendString(x, respHeaders.asSlice(), false);
+        }
+        .redirect(to) {
+            conn.sendRedirect303(to);
+        }
+        .notFound {
+            conn.sendNotFound404();
+        }
+        .wrongMethod {
+            conn.sendMethodNotAllowed405();
+        }
+        .clientError {
+            conn.sendBadRequest400();
+        }
     }
 }

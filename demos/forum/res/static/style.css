@@ -1,24 +1,26 @@
 body {
-    background-color: white;
+    background-color: #f8f8f8;
     display: flex;
     flex-direction: row;
-    height: 100%;
+    min-height: 100%;
     width: 100%;
     position: absolute;
     margin: 0;
     padding: 0;
-    justify-content: space-between;
+    align-items: stretch;
 }
 
 #content {
+    background-color: white;
+    padding-left: 50px;
+    padding-right: 50px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     padding-top: 20px;
     padding-bottom: 15px;
     box-sizing: border-box;
-    width: min(95%, 800px);
-    min-height: 100%;
+    width: min(100%, 1000px);
     margin: 0;
 }
 
@@ -26,13 +28,12 @@ body {
     flex-grow: 1;
 }
 
-.post_inner {
+.post {
     width: 100%;
     box-sizing: border-box;
     padding: 30px;
     padding-left: 10px;
     padding-right: 10px;
-    background-color: white;
     color: black;
     font-family: sans-serif;
     font-size: 16px;
@@ -42,6 +43,22 @@ body {
     min-height: 100px;
     max-height: 600px;
     overflow-y: auto;
+}
+
+.thread {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 20px;
+    padding-left: 10px;
+    padding-right: 10px;
+    color: black;
+    font-family: sans-serif;
+    font-size: 16px;
+    border: none;
+    border-bottom: solid lightgray 1px;
+    min-height: 60px;
+    overflow-y: none;
+    text-decoration: none;
 }
 
 #new_post_div {
@@ -58,7 +75,6 @@ body {
 
 #new_post_text {
     padding: 10px;
-    background-color: white;
     color: black;
     width: 100%;
     box-sizing: border-box;
@@ -75,14 +91,38 @@ body {
     margin-bottom: 10px;
 }
 
+#new_thread_title {
+    padding: 10px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+    color: black;
+    width: 100%;
+    box-sizing: border-box;
+    font-family: sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    border: none;
+    border-top: solid hsl(199, 20%, 90%) 3px;
+    border-left: solid hsl(199, 20%, 90%) 3px;
+    overflow: auto;
+    resize: none;
+    margin: 0;
+    margin-bottom: 10px;
+}
+
 #add_post {
     width: 100%;
     margin-top: 5px;
 }
 
+#add_thread {
+    width: 100%;
+    margin-top: 30px;
+}
+
 #buttons {
     margin-bottom: 20px;
-    margin-top: 5px;
+    margin-top: 20px;
     width: 100%;
     display: flex;
     gap: 10px;
@@ -103,12 +143,47 @@ body {
     width: 100%
 }
 
+#threadPageTitle {
+    font-family: sans-serif;
+    font-size: 18px;
+    text-wrap: nowrap;
+    margin-bottom: 20px;
+    padding-left: 10px;
+}
+
+#back {
+    font-family: sans-serif;
+    font-size: 14px;
+    padding-left: 10px;
+}
+
+#newThreadLink {
+    font-family: sans-serif;
+    font-size: 18px;
+    padding-left: 10px;
+    text-align: center;
+    text-decoration: none;
+    color: black;
+}
+
+#back {
+    font-family: sans-serif;
+    font-size: 16px;
+    padding: 10px;
+    text-align: right;
+}
+
+.horiz_layout {
+    display: flex;
+    flex-direction: row;
+}
+
 
 
 button {
     border: none;
-    border-bottom: solid hsl(240 100% 20%) 3px;
-    background-color: hsl(220 100% 30%);
+    border-bottom: solid hsl(240 100% 20%) 4px;
+    background-color: hsl(220 100% 35%);
     color: white;
 
     font-weight: bold;
@@ -122,19 +197,19 @@ button {
 
 button:disabled {
     background-color: hsl(200, 5%, 30%);
-    border-bottom: solid hsl(200, 0%, 00%) 3px;
+    border-bottom: solid hsl(200, 0%, 00%) 4px;
     color: #d8d8d8;
     cursor: default;
 }
 
 button:hover:enabled {
-    background-color: hsl(220 100% 35%);
-    border-bottom: solid hsl(240 100% 30%) 3px;
+    background-color: hsl(220 100% 40%);
+    border-bottom: solid hsl(240 100% 30%) 4px;
     cursor: pointer;
 }
 
 button:active:enabled {
     background-color: hsl(240 100% 20%);
-    border-bottom: solid hsl(240 100% 20%) 3px;
+    border-bottom: solid hsl(240 100% 20%) 4px;
     cursor: pointer;
 }

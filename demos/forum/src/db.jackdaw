@@ -116,6 +116,7 @@ struct MYSQL_FIELD {
 @Unsafe @NoThrow fn mysql_stmt_bind_param (stmt: *MYSQL_STMT, bnd: *MYSQL_BIND): I8
 @Unsafe @NoThrow fn mysql_stmt_execute (stmt: *MYSQL_STMT): I32
 @Unsafe @NoThrow fn mysql_stmt_affected_rows (stmt: *MYSQL_STMT): USize
+@Unsafe @NoThrow fn mysql_stmt_insert_id (stmt: *MYSQL_STMT): USize
 @Unsafe @NoThrow fn mysql_stmt_result_metadata (stmt: *MYSQL_STMT): *MYSQL_RES
 @Unsafe @NoThrow fn mysql_stmt_bind_result (stmt: *MYSQL_STMT, bnd: *MYSQL_BIND): I8
 @Unsafe @NoThrow fn mysql_fetch_fields (res: *MYSQL_RES): *MYSQL_FIELD
@@ -135,6 +136,11 @@ enum DbValue {
 }
 
 struct StatementId { x: I32 }
+
+struct DbExecResult {
+    affectedRows: USize,
+    insertId: USize
+}
 
 struct Db {
     @Unsafe con: *MYSQL,
@@ -273,7 +279,7 @@ struct Statement {
         }
     }
 
-    fn execute (ref self: Self, params: Slice[DbValue]): ISize unsafe {
+    fn execute (ref self: Self, params: Slice[DbValue]): DbExecResult unsafe {
         self._bindParams(params);
 
         if mysql_stmt_execute(self.stmt) != 0 {
@@ -281,7 +287,10 @@ struct Statement {
             throw &"mysql_stmt_execute error";
         }
 
-        return mysql_stmt_affected_rows(self.stmt) as ISize;
+        return .{
+            affectedRows = mysql_stmt_affected_rows(self.stmt),
+            insertId = mysql_stmt_insert_id(self.stmt)
+        };
     }
 
     fn query (ref self: Self, params: Slice[DbValue]) unsafe {

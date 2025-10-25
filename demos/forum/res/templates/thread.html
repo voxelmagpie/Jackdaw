@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="referrer" content="no-referrer">
+    <title>`title`</title>
+    <link href="style.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div class="sep"></div>
+    <div id="content">
+        <div class="horiz_layout">
+            <div class="sep"></div><a href="/" id="back">&lt; Back</a>
+        </div>
+        <h2 id="threadPageTitle">`title`</h2>
+        `posts`
+        `addPostFormMaybe`
+        <div class="sep"></div>
+        <div id="buttons">
+            <a href="/thread?id=`thisThreadId`&page=1" class="sep"><button id="first" class="nav" `prevDisabled`>&lt&lt
+                    First</button></a>
+            <a href="/thread?id=`thisThreadId`&page=`prevPage`" class="sep"><button id="prev" class="nav"
+                    `prevDisabled`>&lt Prev</button></a>
+            <a href="/thread?id=`thisThreadId`&page=`nextPage`" class="sep"><button id="next" class="nav"
+                    `nextDisabled`>Next &gt</button></a>
+            <a href="/thread?id=`thisThreadId`&page=`lastPage`" class="sep"><button id="last" class="nav"
+                    `nextDisabled`>Last
+                    &gt&gt</button></a>
+        </div>
+        <div id="page_no">Page `pageNumber` of `pageCount`</div>
+    </div>
+    <div class="sep"></div>
+</body>
+
+</html>

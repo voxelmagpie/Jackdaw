@@ -140,10 +140,7 @@ fn getTotalPostsInThread (ref db: Db, ref statements: Statements, threadId: I32)
     var sqlParams = { DbValue.int(threadId) };
     db.stmt(statements.getPostsCount).query(sqlParams.asSlice());
     var row = db.stmt(statements.getPostsCount).nextRow().orThrow();
-    match row.at(0) {
-        .some(.bigInt(x)) { return x as I32; } 
-        _ { throw &schemaErr; }
-    }
+    return extractRow[I64](row) as I32;
 }
 
 
@@ -163,26 +160,17 @@ fn handleMainPage (ref conn: Connection, ref db: Db, ref statements: Statements,
     // Get threads
 
     var sqlParams = List[DbValue].new();
-
     db.stmt(statements.getThreads).query(sqlParams.asSlice());
-    var threads = db.stmt(statements.getThreads).getAllRows();
 
     // Generate HTML
 
     var template = readTextFile("res/templates/main_page.html");
 
     var threadsHtml = String.new();
-    foreach fields in threads.iter() {
-        var id: I32;
-        match fields.at(0) {
-            .some(.int(x)) { id = x; }
-            _ { throw &schemaErr; }
-        }
+    foreach row in db.stmt(statements.getThreads).iterRows() {
+        var (id, title) = extractRow[(I32, String)](row);
         threadsHtml ++= "<a class=\"thread\" href=\"/thread?id=" ++ id.toString() ++ "&page=1\">";
-        match fields.at(1) {
-            .some(.string(s)) { appendFiltered(threadsHtml, s); }
-            _ { throw &schemaErr; }
-        }
+        appendFiltered(threadsHtml, title);
         threadsHtml ++= "</a>";
     }
     
@@ -232,12 +220,10 @@ fn handleThreadPage (ref conn: Connection, ref db: Db, ref statements: Statement
         db.stmt(statements.getThread).query(sqlParams.asSlice());
         var rows = db.stmt(statements.getThread).getAllRows();
         if rows.length() < 1 { return .notFound; }
-        match rows.at(0).at(0) {
-            .some(.string(x)) { threadTitle = x.clone(); } 
-            _ { throw &schemaErr; }
-        }
+        var x = extractRow[String](rows.at(0));
+        threadTitle = x;
     }
-
+    
 
 
     // Get total number of posts in thread
@@ -262,12 +248,10 @@ fn handleThreadPage (ref conn: Connection, ref db: Db, ref statements: Statement
     db.stmt(statements.getPosts).query(sqlParams.asSlice());
 
     var postsHtml = String.new();
-    foreach fields in db.stmt(statements.getPosts).iterRows() {
+    foreach row in db.stmt(statements.getPosts).iterRows() {
+        var s = extractRow[String](row);
         postsHtml ++= "<div class =\"post\">";
-        match fields.at(0) {
-            .some(.string(s)) { appendFiltered(postsHtml, s); }
-            _ { throw &schemaErr; }
-        }
+        appendFiltered(postsHtml, s);
         postsHtml ++= "</div>";
     }
     

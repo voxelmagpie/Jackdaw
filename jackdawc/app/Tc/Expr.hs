@@ -186,8 +186,14 @@ getConstLitExpr ctx hint (e, sr) = case e of
         pure (I.ConstBool $ x <= y, bool)
       ("==", I.ConstBool x, I.ConstBool y) ->
         pure (I.ConstBool $ x == y, bool)
+      ("==", I.ConstEnum x, I.ConstEnum y)
+        | lhsType == rhsType ->
+            pure (I.ConstBool $ x == y, bool)
       ("!=", I.ConstBool x, I.ConstBool y) ->
         pure (I.ConstBool $ x /= y, bool)
+      ("!=", I.ConstEnum x, I.ConstEnum y)
+        | lhsType == rhsType ->
+            pure (I.ConstBool $ x /= y, bool)
       ("|", I.ConstInt x, I.ConstInt y) -> getInt ctx sr (x .|. y)
       ("&", I.ConstInt x, I.ConstInt y) -> getInt ctx sr (x .&. y)
       ("~", I.ConstInt x, I.ConstInt y) -> getInt ctx sr (x `xor` y)

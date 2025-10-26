@@ -507,3 +507,77 @@ struct QueryResultString {
         mysql_free_result(self.result);
     }
 }
+
+@Unsafe
+fn _extractField [T] (ref val: Maybe[DbValue], dst: *T): IsError {
+    // TODO Maybe[I32/I64/String]
+    if const typesEq[T, I32] {
+        match ref val {
+            .some(.int(x)) { dst.* = (&x).*; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, I64] {
+        match ref val {
+            .some(.bigInt(x)) { dst.* = (&x).*; }
+            .some(.int(x)) { dst.* = (&x).*; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, String] {
+        match ref val {
+            .some(.string(x)) { dst.* = (&x).*; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, DbValue] {
+        match ref val {
+            .some(x) { dst.* = (&x).*; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, Maybe[DbValue]] {
+        dst.* = (&val).*;
+    }
+    else {
+        unsupportedType();
+    }
+    
+    return .ok;
+}
+
+// Given list is left with length = 0
+// Unless an exception is thrown, in which case it is unmodified
+fn extractRow [T] (ref row: List[Maybe[DbValue]]): T unsafe {
+    var result: T = uninitialised;
+
+    // TODO type inference for builtin const function args
+    if const (typeInfo[T] == TypeMeta.struct_ or typeInfo[T] == TypeMeta.tuple) and !typesEq[T, String] {
+        if row.length() != fieldsCount[T] {
+            leak[T](result);
+            throw &"Query returned wrong number of fields";
+        }
+
+        for const (var i: ISize = 0; i < fieldsCount[T]; i += 1) {
+            if _extractField[FieldType[T, i]](row.at(i), getFieldPtr[T, i](&result)) == .err {
+                leak[T](result);
+                throw &"Wrong type for field";
+            }
+        }
+    }
+    else {
+        if row.length() != 1 {
+            leak[T](result);
+            throw &"Query returned wrong number of fields";
+        }
+
+        if _extractField[T](row.at(0), &result) == .err {
+            leak[T](result);
+            throw &"Wrong type for field";
+        }
+    }
+
+    row._length = 0;
+
+    return result;
+}

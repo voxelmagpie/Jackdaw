@@ -66,6 +66,7 @@ fn start (Args, var streams: IoStreams) {
                         }
                     }
                 }
+                break;
             }
         }
     }

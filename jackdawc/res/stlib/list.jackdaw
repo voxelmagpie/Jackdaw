@@ -258,4 +258,17 @@ struct List [A] {
         self.capacity = 0;
     }
 
+    fn addToString (self: Self, ref s: String) {
+        s.pushAsciiChar('{');
+        if self.length() > 0 { s.pushAsciiChar(' '); }
+        for (var i: ISize = 0; i < self.length(); i += 1) {
+            self.at(i).addToString(s);
+            if i != self.length() - 1 {
+                s ++= ", ";
+            }
+        }
+        if self.length() > 0 { s.pushAsciiChar(' '); }
+        s.pushAsciiChar('}');
+    }
+
 }

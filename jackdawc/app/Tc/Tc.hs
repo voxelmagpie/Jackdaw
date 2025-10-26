@@ -550,10 +550,10 @@ visitVDef userCtx outerCtx gArgs userSr (fqn, astDef) allowUnsafe = do
                 I.ValueGenericArg (I.ConstInt x, _) -> pure x
                 _ -> throw userCtx.et (gArgs !! 0) "Expected integer"
 
-              fieldType <- getFieldTypeAtIdx userCtx gArgs (typeGArg 0) i
+              _ <- getFieldTypeAtIdx userCtx gArgs (typeGArg 0) i
 
               let a = Hir.ALocalVarAccessorExpr $ Hir.LocalVarAccessorExpr (I.LocalVarUid 0) (VName "x")
-              let a' = Hir.PtrDerefExpr (Hir.DerefAccessorExpr (a, defSr), defSr) fieldType
+              let a' = Hir.PtrDerefExpr (Hir.DerefAccessorExpr (a, defSr), defSr) (typeGArg 0)
               let a'' = Hir.AFieldAccessorExpr $ Hir.FieldAccessorExpr (a', defSr) (fromIntegral i)
               addFnDefBody vDefId (Hir.ReturnStmnt (Just (Hir.AddressOfExpr (a'', defSr), defSr)) [], defSr) True
             "@stlib/stlib:getEnumActiveIndex" -> do

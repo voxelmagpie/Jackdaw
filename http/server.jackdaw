@@ -44,7 +44,7 @@ struct Request {
     head: Bool,
     reqType: HttpRequestType,
     uri: String,
-    queryParameters: List[(String, String)],
+    queryParameters: HashMap[String, String],
     keepAlive: Bool,
     headers: HashMap[String, String],
     body: List[U8]

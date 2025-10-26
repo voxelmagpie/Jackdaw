@@ -167,7 +167,7 @@ fn expectNewLine (ref s: Socket): MaybeError[*const String] {
 struct HttpRequest {
     reqType: HttpRequestType,
     uri: String,
-    queryParameters: List[(String, String)],
+    queryParameters: HashMap[String, String],
     keepAliveDefault: Bool
 
     fn read (ref s: Socket): HttpResult[Self] {
@@ -193,7 +193,7 @@ struct HttpRequest {
         var uri = readUri(s)!;
         if uri.length() < 1 { return .err(&"Expected uri"); }
 
-        var queryParameters = List[(String, String)].new();
+        var queryParameters = HashMap[String, String].new();
         if s.peekByte() == .some('?') {
             _ = s.readByte();
             var bytes = List[U8].new();

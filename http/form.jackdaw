@@ -4,13 +4,16 @@
 
 import "http" (HttpResult, asciiHexCharToInt)
 import "uri"
+import "@stlib/hash_map"
 
-fn parseFormData (s: List[U8]): HttpResult[List[(String, String)]] {
-    var fields = List[(String, String)].new();
+fn parseFormData (s: List[U8]): HttpResult[HashMap[String, String]] {
+    var fields = HashMap[String, String].new();
     var i: ISize = 0;
     loop {
         if i >= s.length() { break;}
-        fields.push(readKeyValue(s, i)!);
+        var (k, v) = readKeyValue(s, i)!;
+        if fields.contains(k) { throw &"Duplicate key in form"; }
+        fields.insert(k, v);
         if i >= s.length() { break;}
         if s.at(i) != '&' { return .err(&"Expected '&'"); }
         i += 1;

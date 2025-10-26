@@ -191,7 +191,7 @@ fn handleThreadPage (ref conn: Connection, ref db: Db, ref statements: Statement
 
     var pageNumber: I64 = -1;
     var threadId: I32 = -1;
-    foreach (k, v) in req.queryParameters.iter() {
+    foreach (k, v) in req.queryParameters.iterEntries() {
         if k == "id" {
             match v.parseInt() {
                 .some(x) {
@@ -299,7 +299,7 @@ fn handleAddPost (ref conn: Connection, ref db: Db, ref statements: Statements, 
     var threadId: I32 = -1;
     var formData = parseFormData(req.body).orThrow();
     var text = Maybe[String].none;
-    foreach (k, v) in formData.iter() {
+    foreach (k, v) in formData.iterEntries() {
         if k == "threadId" {
             match v.parseInt() {
                 .some(x) { threadId = x as I32; }
@@ -336,7 +336,7 @@ fn handleAddThread (ref conn: Connection, ref db: Db, ref statements: Statements
     var formData = parseFormData(req.body).orThrow();
     var titleMaybe = Maybe[String].none;
     var textMaybe = Maybe[String].none;
-    foreach (k, v) in formData.iter() {
+    foreach (k, v) in formData.iterEntries() {
         if k == "text" {
             if v.length() < 1 or v.length() > 65535 { return .clientError; }
             textMaybe = .some(v.clone());

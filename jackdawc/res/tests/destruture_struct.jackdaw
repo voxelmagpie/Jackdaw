@@ -7,7 +7,7 @@ struct X {
 }
 
 fn des (var x: X) {
-    var .{b, a} = x;
+    var {b, a} = x;
     writeI32(a + (b ? 1 : 0));
 }
 

@@ -318,5 +318,9 @@ type Slice [A] {
 			yield self.at(i);
 		}
 	}
+
+	accessor one (x: A): Self unsafe {
+		return RawSlice[A]{ ptr = &x, length=1 };
+	}
 }
 

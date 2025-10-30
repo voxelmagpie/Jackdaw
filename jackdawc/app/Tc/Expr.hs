@@ -343,6 +343,11 @@ getExpr ctx hint (e, sr) = case e of
     _ -> do
       addError SevError ctx.et sr "Unable to deduce pointer type"
       pure (I.LoadConstantExpr I.ConstNullPtr, I.PtrType Nothing, sr)
+  A.EmptyExpr -> case hint of
+    TypeHint t@(I.SliceType elType) ->
+      pure (I.EmptySliceExpr elType, t, sr)
+    _ -> do
+      throw ctx.et sr "Unable to deduce slice type"
   A.TypeAccessorExpr x y z -> getTypeAccessExpr ctx hint sr x y z
   A.NameExpr x y -> getNameExpr ctx sr x y
   A.MkTupleExpr x -> getMkTupleExpr ctx hint sr x

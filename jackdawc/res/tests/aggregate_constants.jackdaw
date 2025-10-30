@@ -11,9 +11,9 @@ struct Y {
     d: (F64, F64)
 }
 
-const x: X = X{ a=1, b = Y{ c=false, d=(3, 2.2) } }
+const x: X = X{a=1, b=Y{c=false, d=(3, 2.2)} }
 
-const y: Array[X, 2] = { x, x }
+const y: Array[X, 2] = [x, x]
 
 
 fn start () {
@@ -21,7 +21,7 @@ fn start () {
     a.a = a.a + readI32();
     writeI32(a.a);
 
-    var b = { 10, 20, 30 };
+    var b = [ 10, 20, 30 ];
     var i = readI32();
     b.at(i) = y.at(1).a + readI32();
     writeI32(b.at(1));

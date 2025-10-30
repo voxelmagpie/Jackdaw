@@ -273,7 +273,7 @@ fn readHttpHeaders (ref s: Socket): HttpResult[HashMap[String, String]] {
     loop {
         match HttpHeader.readMaybe(s)! {
             .some(h) { // TODO Destructuring
-                var .{header, value} = h;
+                var {header, value} = h;
                 map.insert(header, value);
             }
             _ {

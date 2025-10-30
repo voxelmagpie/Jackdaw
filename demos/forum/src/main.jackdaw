@@ -138,7 +138,7 @@ fn appendFiltered (ref dst: String, src: String) {
 const schemaErr: String = "DB schema error"
 
 fn getTotalPostsInThread (ref db: Db, ref statements: Statements, threadId: I32): I32 {
-    var sqlParams = { DbValue.int(threadId) };
+    var sqlParams = [ DbValue.int(threadId) ];
     db.stmt(statements.getPostsCount).query(sqlParams.asSlice());
     var row = db.stmt(statements.getPostsCount).nextRow().orThrow();
     return extractRow[I64](row) as I32;
@@ -160,8 +160,7 @@ fn handleMainPage (ref conn: Connection, ref db: Db, ref statements: Statements,
 
     // Get threads
 
-    var sqlParams = List[DbValue].new();
-    db.stmt(statements.getThreads).query(sqlParams.asSlice());
+    db.stmt(statements.getThreads).query([]);
 
     // Generate HTML
 
@@ -217,7 +216,7 @@ fn handleThreadPage (ref conn: Connection, ref db: Db, ref statements: Statement
 
     var threadTitle: String;
     {
-        var sqlParams = { DbValue.int(threadId) };
+        var sqlParams = [ DbValue.int(threadId) ];
         db.stmt(statements.getThread).query(sqlParams.asSlice());
         var rows = db.stmt(statements.getThread).getAllRows();
         if rows.length() < 1 { return .notFound; }
@@ -245,7 +244,7 @@ fn handleThreadPage (ref conn: Connection, ref db: Db, ref statements: Statement
     var template = readTextFile("res/templates/thread.html");
     var addPostForm = readTextFile("res/templates/add_post_form.html");
 
-    var sqlParams = { DbValue.int(threadId), DbValue.bigInt((pageNumber-1) * 10) };
+    var sqlParams = [ DbValue.int(threadId), DbValue.bigInt((pageNumber-1) * 10) ];
     db.stmt(statements.getPosts).query(sqlParams.asSlice());
 
     var postsHtml = String.new();
@@ -314,7 +313,7 @@ fn handleAddPost (ref conn: Connection, ref db: Db, ref statements: Statements, 
     if threadId < 0 { return .clientError; }
     match var text {
         .some(t) {
-            var sqlParams = { DbValue.int(threadId), DbValue.string(t) };
+            var sqlParams = [ DbValue.int(threadId), DbValue.string(t) ];
             _ = db.stmt(statements.insertPost).execute(sqlParams.asSlice());
             var totalPostsCount = getTotalPostsInThread(db, statements, threadId);
             var pages = (totalPostsCount + 9) / 10;
@@ -352,10 +351,10 @@ fn handleAddThread (ref conn: Connection, ref db: Db, ref statements: Statements
     match var titleMaybe { .some(x) { title = x; } _ { return .clientError; } }
     match var textMaybe { .some(x) { text = x; } _ { return .clientError; } }
     
-    var values = { DbValue.string(title) };
+    var values = [ DbValue.string(title) ];
     var threadId = db.stmt(statements.insertThread).execute(values.asSlice()).insertId as I32;
     
-    var values = { DbValue.int(threadId), DbValue.string(text) };
+    var values = [ DbValue.int(threadId), DbValue.string(text) ];
     _ = db.stmt(statements.insertPost).execute(values.asSlice());
     
     return .redirect("/thread?id=" ++ threadId.toString() ++ "&page=1");   
@@ -380,9 +379,7 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
             return;
         }
 
-        // TODO Better way of creating empty slices
-        var respHeaders = List[(String, String)].new();
-        conn.sendFile("res/templates/new_thread.html", respHeaders.asSlice(), req.head);
+        conn.sendFile("res/templates/new_thread.html", [], req.head);
         return;
     }
     else if req.uri == "/add_thread" {
@@ -395,15 +392,13 @@ fn handleReq (ref conn: Connection, ref db: Db, ref statements: Statements, var 
         }
 
         var path = OsString.fromString("res/static" ++ req.uri);
-        var respHeaders = List[(String, String)].new();
-        conn.sendFile(path, respHeaders.asSlice(), req.head);
+        conn.sendFile(path, [], req.head);
         return;
     }
 
-    var respHeaders = List[(String, String)].new();
     match response {
         .ok(x) {
-            conn.sendString(x, respHeaders.asSlice(), false);
+            conn.sendString(x, [], false);
         }
         .redirect(to) {
             conn.sendRedirect303(to);

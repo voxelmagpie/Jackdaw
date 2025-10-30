@@ -9,7 +9,7 @@ fn sum (s: Slice[I32]): I32 {
 }
 
 fn start () {
-    var x = {1, 1, 2};
+    var x = [1, 1, 2];
     writeI32(sum(x.asSlice()));
 
     var x = List[I32].new();

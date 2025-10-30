@@ -297,6 +297,7 @@ data AccessorExpr'
   | PtrDerefExpr Expr Type -- Type is pointee type
   | DataConsUnsafeAccessorExpr AccessorExpr Int
   | RawSliceToSliceExpr Expr Type -- Type is pointee type
+  | EmptySliceExpr Type
   deriving (Show, Generic)
 
 type AccessorExpr = (AccessorExpr', SrcRange)

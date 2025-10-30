@@ -19,12 +19,12 @@ fn noise2d (x: F32, y: F32): F32 {
     var offY = y - (cellY as F32);
 
     // Get the random values and weights for each corner
-    var samples = {
+    var samples = [
         (makeRandom(cellX, cellY), 1 as F32 - offX, 1 as F32 - offY),
         (makeRandom(cellX+1, cellY), offX, 1 as F32 - offY),
         (makeRandom(cellX+1, cellY+1), offX, offY),
         (makeRandom(cellX, cellY+1), 1 as F32 - offX, offY)
-    };
+    ];
 
     // Combine them, use smoothstep (same function as in GLSL) to prevent artefacts from linear interpolation
     var sum: F32 = 0;

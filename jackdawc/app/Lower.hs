@@ -344,10 +344,15 @@ visitAccessorExpr ctx (hirExpr, sr) = case hirExpr of
     pointeeType' <- convertType pointeeType
     (i, _) <- visitExpr' ctx e
     let ptrType = L.PtrType $ Just pointeeType'
-    let t = L.StructType $ List1 ptrType $ [L.NumPrimType i64t]
+    let t = L.StructType $ List1 ptrType [L.NumPrimType i64t]
     (x0, _) <- addValInstrLExpr sr ptrType $ L.IBitCast (L.ILExpr $ L.LStructUnionElem i 0) ptrType
     (x1, _) <- addValInstrLExpr sr (L.NumPrimType i64t) $ L.ILExpr $ L.LStructUnionElem i 1
     addValInstrInstrV' sr t $ L.IInitStruct (List1 x0 [x1]) t
+  H.EmptySliceExpr elType -> do
+    pointeeType' <- convertType elType
+    let ptrType = L.PtrType $ Just pointeeType'
+    let t = L.StructType $ List1 ptrType [L.NumPrimType i64t]
+    addValInstrInstrV' sr t $ L.IInitStruct (List1 L.NullPtr [L.IntLit 0]) t
 
 visitExpr' :: (MonadLo m) => Ctx -> H.Expr -> m (L.LExpr, L.Type)
 visitExpr' ctx e@(_, sr) = do

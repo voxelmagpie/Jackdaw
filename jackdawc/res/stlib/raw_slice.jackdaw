@@ -10,6 +10,11 @@ struct RawSlice [A] {
     @Unsafe length: ISize
 
     @Unsafe
+    fn empty (): Self {
+        return .{ ptr=nullptr, length=0 };
+    }
+
+    @Unsafe
     accessor at (self: Self, i: ISize): A {
         return self.atPtr(i);
     }

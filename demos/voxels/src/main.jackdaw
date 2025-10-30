@@ -189,10 +189,10 @@ fn start () unsafe {
         glColorMask(_GL_TRUE, _GL_TRUE, _GL_TRUE, _GL_TRUE);
         glClear(_GL_COLOR_BUFFER_BIT as U32 | _GL_DEPTH_BUFFER_BIT);
 
-        var tr1 = Mat4.translate(Vec3{ values = {-16, -4, -16} });
+        var tr1 = Mat4.translate(Vec3{values=[-16, -4, -16]});
         var rm = Mat4.rotateY(r);
         var model = rm*tr1;
-        var tr = Mat4.translate(Vec3{ values = {x, y-20, -25} });
+        var tr = Mat4.translate(Vec3{values=[x, y-20, -25]});
         var viewRot = Mat4.rotateX(-degToRad * 45);
         var proj = perspectiveMatrixGl(degToRad*45, (width as F32) / (height as F32), 1, 100);
         var m = proj*viewRot*tr*model;

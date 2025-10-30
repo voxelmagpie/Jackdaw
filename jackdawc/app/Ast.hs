@@ -219,6 +219,7 @@ data Expr'
   | StringLitExpr Text
   | CharLitExpr Char
   | NullPtrExpr
+  | EmptyExpr
   | NameExpr VName' (Maybe [GenericArg])
   | TypeAccessorExpr (Maybe TypeExpr) VName' (Maybe [GenericArg])
   | MkTupleExpr (List2 Expr)

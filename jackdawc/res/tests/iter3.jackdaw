@@ -2,13 +2,13 @@
 
 iterator iter (x: I32): (I32, Array[I32, 2]) {
     for (var i = 0; i < x; i += 1) {
-        var a = {i/2, i*2};
+        var a = [i/2, i*2];
         yield (i, a);
     }
 }
 
 fn start () {
-    foreach (_, {_, z}) in iter(readI32()) {
+    foreach (_, [_, z]) in iter(readI32()) {
         writeI32(z);
     }
 }

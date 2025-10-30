@@ -56,7 +56,7 @@ struct Connection {
     fn nextRequest (ref self: Self): NextRequest {
         if !self.s.peekByte().isSome() { return .closed; }
 
-        var .{ reqType, uri, queryParameters, keepAliveDefault:keepAlive } = HttpRequest.read(self.s).orThrow();
+        var { reqType, uri, queryParameters, keepAliveDefault:keepAlive } = HttpRequest.read(self.s).orThrow();
 
         if !uriIsValid(uri) { 
             throw &"URI invalid";

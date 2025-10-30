@@ -5,7 +5,7 @@ fn start () {
     match var x {
         .a {}
         .b(y) {
-            var .{a} = y;
+            var {a} = y;
             writeI32(a+1);
         }
     }

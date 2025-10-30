@@ -30,8 +30,8 @@ import Hir
     TDefId (..),
     Type (..),
     TypeDef (..),
+    UnionDef (..),
     UnionDef2 (..),
-    UnionDef(..),
     VDefCommon (..),
     VDefId (..),
     typeHasRuntimeRepr,
@@ -64,6 +64,7 @@ data Expr'
   | DataConsExpr Type Int Expr
   | ActiveDataConsExpr Expr
   | RawSliceToSliceExpr Expr
+  | EmptySliceExpr Type
   | BubbleExpr Expr
   deriving (Show, Generic)
 

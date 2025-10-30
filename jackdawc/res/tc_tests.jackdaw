@@ -62,19 +62,19 @@ fn start () {var x = X{};}
 
 // --- //
 
-fn start () {var x = {0 as I32, 1.0};}
+fn start () {var x = [0 as I32, 1.0];}
 
 // --- //
 
-fn start () {var x: Array[I32, 2] = {0.0, 1.0};}
+fn start () {var x: Array[I32, 2] = [0.0, 1.0];}
 
 // --- //
 
-fn start () {var x: Array[I32, 3] = {0, 1};}
+fn start () {var x: Array[I32, 3] = [0, 1];}
 
 // --- //
 
-fn start () {var x: Array[I32, 1] = {0}; _ = x.1;}
+fn start () {var x: Array[I32, 1] = [0]; _ = x.1;}
 
 // --- //
 
@@ -148,7 +148,7 @@ fn start () {}
 
 // --- //
 
-fn start () { var x = {1,2}; _ = x.asSlice(); }
+fn start () { var x = [1,2]; _ = x.asSlice(); }
 
 // --- //
 
@@ -184,7 +184,7 @@ fn start (){}
 
 struct X { a: I32, @Unsafe b: *I32 }
 fn f (): X unsafe { return X{ a=3, b=nullptr }; }
-fn start () { var .{a, b} = f(); }
+fn start () { var {a, b} = f(); }
 
 // --- //
 

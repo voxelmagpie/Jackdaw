@@ -241,7 +241,7 @@ struct Socket {
             self.rRing._count += n;
         }
         else {
-            var ioVecs = {
+            var ioVecs = [
                 IoVec{
                     iov_base = &self.rRing.ptr.(self.rRing.start + self.rRing._count),
                     iov_len = self.rRing.capacity - (self.rRing.start + self.rRing._count)
@@ -250,7 +250,7 @@ struct Socket {
                     iov_base = self.rRing.ptr,
                     iov_len = self.rRing.start
                 }
-            };
+            ];
             var n = self.s.readBytesMany(ioVecs.asSlice());
             if n == 0 { return false; }
             self.rRing._count += n;
@@ -362,19 +362,19 @@ struct Socket {
             self.wRing._count += buffer.length();
         }
         else if self.wRing.start + self.wRing._count <= self.wRing.capacity {
-            var ioVecs = {
+            var ioVecs = [
                 IoVec{
                     iov_base = &self.wRing.ptr.(self.wRing.start),
                     iov_len = self.wRing._count
                 },
                 IoVec{ iov_base = buffer.asRawSlice().ptr, iov_len=buffer.length() }
-            };
+            ];
             self.s.writeBytesMany(ioVecs.asSlice());
             self.wRing._count = 0;
             self.wRing.start = 0;
         }
         else {
-            var ioVecs = {
+            var ioVecs = [
                 IoVec{
                     iov_base = &self.wRing.ptr.(self.wRing.start),
                     iov_len = self.wRing.capacity - self.wRing.start
@@ -384,7 +384,7 @@ struct Socket {
                     iov_len = self.wRing._count - (self.wRing.capacity - self.wRing.start)
                 },
                 IoVec{ iov_base = buffer.asRawSlice().ptr, iov_len=buffer.length() }
-            };
+            ];
             self.s.writeBytesMany(ioVecs.asSlice());
             self.wRing._count = 0;
             self.wRing.start = 0;
@@ -405,7 +405,7 @@ struct Socket {
         if self.wRing._count < 1 {
         }
         else if self.wRing.start + self.wRing._count > self.wRing.capacity {
-            var ioVecs = {
+            var ioVecs = [
                 IoVec{
                     iov_base = &self.wRing.ptr.(self.wRing.start),
                     iov_len = self.wRing.capacity - self.wRing.start
@@ -414,7 +414,7 @@ struct Socket {
                     iov_base = self.wRing.ptr,
                     iov_len = self.wRing._count - (self.wRing.capacity - self.wRing.start)
                 }
-            };
+            ];
             self.s.writeBytesMany(ioVecs.asSlice());
             self.wRing._count = 0;
             self.wRing.start = 0;

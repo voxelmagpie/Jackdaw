@@ -77,7 +77,7 @@ struct ThreadInit [A, R] {
 @Unsafe
 fn _runThread [A, R] (var initPtr: *ThreadInit[A, R]): *void {
     try {
-        var .{arg, f} = initPtr.*;
+        var {arg, f} = initPtr.*;
         free(initPtr);
 
         var r = f(arg);

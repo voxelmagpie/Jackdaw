@@ -494,6 +494,8 @@ borrowCheckExpr' ctx mode (expr, t, sr@(SrcRange fileName' sr0 _)) = case expr o
     e' <- copyBorrowState >>= \b -> borrowCheckExpr ctx Shared e >>= accessorIntoExpr (thd3 e) b
     let pointeeType = case t of H.SliceType x -> x; _ -> undefined
     pure (Right (H.RawSliceToSliceExpr e' pointeeType, AccRawPtr), t)
+  I.EmptySliceExpr elType -> do
+    pure (Right (H.EmptySliceExpr elType, AccRawPtr), t)
   I.BubbleExpr e -> do
     when ctx.inAccessorFn $ addError SevError sr "Error bubble operator is not valid in accessors"
     e' <- copyBorrowState >>= \b -> borrowCheckExpr ctx Shared e >>= accessorIntoExpr (thd3 e) b

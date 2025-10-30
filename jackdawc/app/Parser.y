@@ -480,7 +480,7 @@ AtomExp :: {A.Expr}
     | AtomTypeExpr '{' StructInitFields '}' {(A.StructInitExpr (Just $ fst $1) (snd $1) $3, srcRangeOf $1 $4)}
     | '.' '{' '}' {(A.StructInitExpr Nothing (snd $1) def, srcRangeOf $1 $3)}
     | '.' '{' StructInitFields '}' {(A.StructInitExpr Nothing (snd $1) $3, srcRangeOf $1 $4)}
-    | '{' ListNE(Expr, ',') '}' {(A.ArrayInitExpr $ List1 (head $2) $ tail $2, srcRangeOf $1 $3)}
+    | '[' ListNE(Expr, ',') ']' {(A.ArrayInitExpr $ List1 (head $2) $ tail $2, srcRangeOf $1 $3)}
     | floatlit { (A.FloatLitExpr $ getFloatLit $1, snd $1) }
     | intlit { (A.IntLitExpr $ getIntLit $1, snd $1) }
     | stringlit { (A.StringLitExpr $ getStringLit $1, snd $1) }
@@ -489,6 +489,7 @@ AtomExp :: {A.Expr}
     | 'false' {(A.BoolLitExpr False, snd $1)}
     | 'nullptr' {A.NullPtrExpr, snd $1}
     | 'uninitialised' {(A.UninitExpr, snd $1)}
+    | '[' ']' {(A.EmptyExpr, snd $1)}
 
     | VName {(A.NameExpr $1 Nothing, snd $1)}
     | VName GenericArgs {(A.NameExpr $1 (Just $2), srcRangeOf $1 $2)}
@@ -582,8 +583,8 @@ Destructure :: {A.Destructure}
     : VName Maybe(TypeSpecifier) {(A.NameDes $1 $2, snd $1)}
     | '_' Maybe(TypeSpecifier) {(A.IgnoreDes $2, snd $1)}
     | '(' TupleDesInner ')' {(A.TupleDes $2, srcRangeOf $1 $3)}
-    | '{' ListNE(Destructure, ',') '}' {(A.ArrayDes $ List1 (head $2) $ tail $2, srcRangeOf $1 $3)}
-    | '.' '{' StructDesInner '}' {(A.StructDes $3, srcRangeOf $1 $4)}
+    | '[' ListNE(Destructure, ',') ']' {(A.ArrayDes $ List1 (head $2) $ tail $2, srcRangeOf $1 $3)}
+    | '{' StructDesInner '}' {(A.StructDes $2, srcRangeOf $1 $3)}
 
 
 TupleDesInner :: {List2 A.Destructure}

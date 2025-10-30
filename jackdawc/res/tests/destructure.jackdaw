@@ -5,10 +5,10 @@ fn start () {
     var (x, _, z: I32) = x;
     writeI32(z);
 
-    var {(x, _)} = { (readI32(), 3) };
+    var [(x, _)] = [ (readI32(), 3) ];
     writeI32(x);
 
-    var .{a: .{a: b}} = X{a=Y{a=readI32()}};
+    var {a: {a: b}} = X{a=Y{a=readI32()}};
     writeI32(b);
 }
 

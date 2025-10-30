@@ -21,3 +21,4 @@ Options:
   -- <args>                   Passes all further arguments to the compiled program
                               (for `run` mode only)
   --add-package <name> <path> Defines a library package that is accessible to the project.
+  --no-exceptions             Disables exception support, causing exceptions to abort the process

@@ -384,6 +384,32 @@ compileToC :: [(Namespace, A.Ast)] -> FilePath -> Maybe Text -> FilePath -> Bool
 compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers uncheckedArithmetic noExceptions = do
   startTime <- getCurrentTime
 
+  (hir, typeCheckingTime) <- compileToHir depsAsts srcPath srcMaybe dumpDir forceCheckStLib uncheckedArithmetic
+
+  transpilingStartTime <- getCurrentTime
+  c <- runLowerer hir addDbgLineNumbers noExceptions
+  transpilingEndTime <- getCurrentTime
+  let transpilingTime = diffUTCTime transpilingEndTime transpilingStartTime
+  when printStagesDone $ putStrLn "Transpiling done"
+
+  endTime <- getCurrentTime
+  pure
+    ( c,
+      Timings
+        { lexing = typeCheckingTime.lexing,
+          parsing = typeCheckingTime.parsing,
+          typeChecking = typeCheckingTime.typeChecking,
+          transpiling = transpilingTime,
+          cc = def,
+          execute = def,
+          total = diffUTCTime endTime startTime
+        }
+    )
+
+compileToHir :: [(Namespace, A.Ast)] -> FilePath -> Maybe Text -> FilePath -> Bool -> Bool -> IO (H.Ir, Timings)
+compileToHir depsAsts srcPath srcMaybe dumpDir forceCheckStLib uncheckedArithmetic = do
+  startTime <- getCurrentTime
+
   (files, tt) <-
     if takeExtension srcPath == ".jackdaw"
       then do
@@ -411,27 +437,31 @@ compileToC depsAsts srcPath srcMaybe dumpDir forceCheckStLib addDbgLineNumbers u
         withFile (dumpDir </> name <.> ".hir.hs.txt") WriteMode $ flip TIO.hPutStr text
       pure (hir, diffUTCTime typeCheckingEndTime typeCheckingStartTime)
 
-  transpilingStartTime <- getCurrentTime
-  c <- runLowerer hir addDbgLineNumbers noExceptions
-  transpilingEndTime <- getCurrentTime
-  when printStagesDone $ putStrLn "Transpiling done"
-  let transpilingTime = diffUTCTime transpilingEndTime transpilingStartTime
-
-  when printStagesDone $ putStrLn "Transpiling done"
-
   endTime <- getCurrentTime
   pure
-    ( c,
+    ( hir,
       Timings
         { lexing = tt.lexing,
           parsing = tt.parsing,
           typeChecking = typeCheckingTime,
-          transpiling = transpilingTime,
+          transpiling = def,
           cc = def,
           execute = def,
           total = diffUTCTime endTime startTime
         }
     )
+
+compileHir :: Config -> FilePath -> Bool -> [(String, FilePath)] -> IO ()
+compileHir cfg srcPath outputTimings packages = do
+  packages' <- forM packages $ \(pkg, path) -> do
+    (a, t) <- getPackageAsts pkg path
+    pure (T.pack pkg, a, t)
+
+  (_, timings') <- compileToHir (concatMap snd3 packages') srcPath Nothing (takeDirectory srcPath) False cfg.uncheckedArithmetic
+
+  let timings = ("", timings') : (outerOf3 <$> packages')
+  when outputTimings
+    $ writeTimingsFile "timings.txt" timings
 
 compile :: Config -> FilePath -> Maybe FilePath -> Bool -> [(String, FilePath)] -> IO ()
 compile cfg srcPath exePathMaybe outputTimings packages = do
@@ -525,6 +555,14 @@ main = do
 
           handle @CompileException (un >>> T.unpack >>> die)
             $ compile cfg srcPath cfg.exePath cfg.outputTimings packages
+          pure ()
+        "check" -> do
+          srcPath <- case cfg.inputFileOrDir of
+            Nothing -> die "Expected path to source file"
+            Just x -> pure x
+
+          handle @CompileException (un >>> T.unpack >>> die)
+            $ compileHir cfg srcPath cfg.outputTimings packages
           pure ()
         "run" -> do
           srcPath <- case cfg.inputFileOrDir of

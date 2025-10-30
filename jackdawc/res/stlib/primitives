@@ -3,9 +3,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 
-import "@stlib/to_string"
-import "@stlib/raw_slice"
-import "@stlib/hash"
+import "@stlib/to_string" (*)
+import "@stlib/raw_slice" (*)
+import "@stlib/hash" (*)
 
 #define f(t) \
 	fn add + 	(x: Self, y: Self): Self { return _add##t(x, y); } _NL \

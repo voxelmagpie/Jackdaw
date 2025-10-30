@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "@stlib/array_list"
+import "@stlib/array_list" (*)
 
 @Unsafe fn snprintf_f32(buffer: *CChar, bufsz: USize, F32): I32
 @Unsafe fn snprintf_f64(buffer: *CChar, bufsz: USize, F64): I32

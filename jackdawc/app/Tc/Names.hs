@@ -91,6 +91,7 @@ lookupTypeName ctx (name, sr) = do
                 let (ast, astImports) = must $ HM.lookup importNs ctx.tcIn.allAsts
                     qualResult = [(importNs, NlNamespace (importNs, ast, astImports)) | qualNameMaybe == Just name]
                     doCheck = case names of
+                      NoNames -> False
                       AllNames -> True
                       VisibleNames ns -> un name `elem` ns
                       HiddenNames ns -> un name `notElem` ns
@@ -129,6 +130,7 @@ lookupVName ctx (name, sr) = do
         _ -> do
           let found = flip mapMaybe ctx.thisAstImports $ \(importNs, _, names) ->
                 let doCheck = case names of
+                      NoNames -> False
                       AllNames -> True
                       VisibleNames ns -> un name `elem` ns
                       HiddenNames ns -> un name `notElem` ns

@@ -2,11 +2,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "hash"
-import "utf8"
-import "raw_slice"
-import "range"
-import "memory" as M ()
+import "hash" (*)
+import "utf8" (*)
+import "raw_slice" (*)
+import "range" (*)
+import "memory" as M
 
 @Unsafe @NoThrow fn strtoll (str: *CChar, str_end: **CChar, base: I32): I64
 

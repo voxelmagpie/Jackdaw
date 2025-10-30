@@ -4,7 +4,7 @@
 
 // Requires pthreads
 
-import "@stlib/memory"
+import "@stlib/memory" (*)
 
 struct Thread [A, R] {
     @Unsafe id: PThreadId

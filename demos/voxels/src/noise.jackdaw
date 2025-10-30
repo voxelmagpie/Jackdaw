@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "@stlib/hash"
-import "@stlib/os_string"
-import "pgm"
+import "@stlib/hash" (*)
+import "@stlib/os_string" (*)
+import "pgm" (*)
 
 // A noise generator based on blurring white noise
 // TODO Function for generating noise in bulk (pixels in same cell can reuse calculated random values)

@@ -13,7 +13,7 @@ newtype Namespace = Namespace Text
   deriving newtype (Eq, Hashable)
   deriving anyclass (Newtype)
 
-data ImportNames = AllNames | VisibleNames [Text] | HiddenNames [Text]
+data ImportNames = NoNames | AllNames | VisibleNames [Text] | HiddenNames [Text]
   deriving (Show, Generic, Eq)
 
 -- a, _f9, etc.

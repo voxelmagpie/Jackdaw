@@ -1,6 +1,6 @@
 //! 3 4 # 3\n4\n0\n4\n0
 
-import "@stlib/hash_map"
+import "@stlib/hash_map" (*)
 
 fn start () {
     var m = HashMap[String, X].new();

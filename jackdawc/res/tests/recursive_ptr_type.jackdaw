@@ -1,6 +1,6 @@
 //! 3 # 3
 
-import "@stlib/memory"
+import "@stlib/memory" (*)
 
 @Unsafe
 struct X {

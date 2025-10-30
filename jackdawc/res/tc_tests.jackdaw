@@ -249,6 +249,16 @@ fn start() {
 
 // --- //
 
+// Json name is ambiguous as the json.jackdaw file defines a type named Json
+import "@stlib/json" as Json (*)
+
+fn start () {
+    var x = Json.new();
+}
+
+// --- //
+
+import "@stlib/json" (*)
 import "@stlib/json" as Json
 
 fn start () {
@@ -257,17 +267,8 @@ fn start () {
 
 // --- //
 
-import "@stlib/json"
-import "@stlib/json" as Json ()
-
-fn start () {
-    var x = Json.new();
-}
-
-// --- //
-
-import "@stlib/list" as Json ()
-import "@stlib/json" as Json ()
+import "@stlib/list" as Json
+import "@stlib/json" as Json
 
 fn start () {
     var x = Json.new();

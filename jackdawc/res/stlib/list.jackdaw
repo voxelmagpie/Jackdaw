@@ -2,9 +2,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "@stlib/raw_slice"
-import "@stlib/range"
-import "@stlib/memory" as M
+import "@stlib/raw_slice" (*)
+import "@stlib/range" (*)
+import "@stlib/memory" as M (*)
 
 struct List [A] {
     // Do not reorder these fields, the compiler relies on the order when generating/using const lists

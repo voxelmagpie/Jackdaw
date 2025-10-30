@@ -3,8 +3,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import "http" (HttpResult, asciiHexCharToInt)
-import "uri"
-import "@stlib/hash_map"
+import "uri" (*)
+import "@stlib/hash_map" (*)
 
 fn parseFormData (s: List[U8]): HttpResult[HashMap[String, String]] {
     var fields = HashMap[String, String].new();

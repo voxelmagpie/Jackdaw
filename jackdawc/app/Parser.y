@@ -154,7 +154,8 @@ Ast :: {A.Ast}
 
 
 Import :: {A.Import}
-    : 'import' stringlit MaybeQual {A.Import (getStringLit $2) (snd $2) $3 AllNames}
+    : 'import' stringlit MaybeQual {A.Import (getStringLit $2) (snd $2) $3 NoNames}
+    | 'import' stringlit MaybeQual '(' '*' ')' {A.Import (getStringLit $2) (snd $2) $3 AllNames}
     | 'import' stringlit MaybeQual '(' List(VNameOrTName, ',') ')' {A.Import (getStringLit $2) (snd $2) $3 $ VisibleNames $5}
     | 'import' stringlit MaybeQual '~' '(' List(VNameOrTName, ',') ')' {A.Import (getStringLit $2) (snd $2) $3 $ HiddenNames $6}
 

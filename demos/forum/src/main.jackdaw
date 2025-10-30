@@ -2,19 +2,19 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "@stlib/network"
-import "@stlib/raw_slice"
-import "@stlib/io"
-import "@stlib/fs"
-import "@stlib/posix"
-import "@stlib/os_string"
-import "@stlib/hash_map"
-import "@stlib/template"
-import "@http/http"
+import "@stlib/network" (*)
+import "@stlib/raw_slice" (*)
+import "@stlib/io" (*)
+import "@stlib/fs" (*)
+import "@stlib/posix" (*)
+import "@stlib/os_string" (*)
+import "@stlib/hash_map" (*)
+import "@stlib/template" (*)
+import "@http/http" (*)
 import "@http/server" (Server, Connection, Request)
-import "@http/uri"
+import "@http/uri" (*)
 import "@http/form" (parseFormData)
-import "db"
+import "db" (*)
 
 struct Statements {
     getThreads: StatementId,

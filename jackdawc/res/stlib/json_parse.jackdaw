@@ -2,8 +2,8 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "@stlib/json"
-import "@stlib/hash_map"
+import "@stlib/json" (*)
+import "@stlib/hash_map" (*)
 
 // TODO Could treat the string as being ASCII, just make sure the json strings are copied exactly..
 

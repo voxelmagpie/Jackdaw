@@ -1,7 +1,7 @@
 //! 3 4 1 # 4
 //! 2 2 0 # 3
 
-import "@stlib/memory"
+import "@stlib/memory" (*)
 
 fn start () unsafe {
     var p = alloc[I32](2);

@@ -1,7 +1,7 @@
 //! 7 # 9
 
-import "@stlib/raw_slice"
-import "@stlib/memory"
+import "@stlib/raw_slice" (*)
+import "@stlib/memory" (*)
 
 fn f (ref x: Slice[I32]) {
     if x.length() > 0 {

@@ -2,13 +2,13 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "@stlib/server" as S
-import "@stlib/hash_map"
+import "@stlib/server" as S (*)
+import "@stlib/hash_map" (*)
 import "@stlib/network" (Socket)
-import "@stlib/os_string"
+import "@stlib/os_string" (*)
 import "@stlib/fs" (MMapFile)
-import "http"
-import "uri"
+import "http" (*)
+import "uri" (*)
 
 struct Server {
     server: S.Server

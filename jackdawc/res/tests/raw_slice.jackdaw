@@ -1,6 +1,6 @@
 //! 4 8 5 1 2 # 8\n5
 
-import "@stlib/raw_slice"
+import "@stlib/raw_slice" (*)
 
 fn start () unsafe {
     var x = [readI32(), readI32(), readI32()];

@@ -2,7 +2,7 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
-import "raw_slice"
+import "raw_slice" (*)
 
 // Returns None if utf8 is invalid
 // If valid, returns (code point, number of bytes read)

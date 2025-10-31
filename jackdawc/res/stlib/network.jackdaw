@@ -273,8 +273,8 @@ struct Socket {
     fn readBytesListOrThrow (ref self: Self, n: ISize): List[U8] unsafe {
         var l = List[U8].new();
         l.reserve(n);
-        self.readBytesOrThrow(RawSlice[U8]{ ptr = l.ptr, length=n });
-        l._length = n;
+        self.readBytesOrThrow(RawSlice[U8]{ ptr = l.getPtr(), length=n });
+        l.setLength(n);
         return l;
     }
 
@@ -295,8 +295,8 @@ struct Socket {
     fn readBytesList (ref self: Self, n: ISize): List[U8] unsafe {
         var l = List[U8].new();
         l.reserve(n);
-        var read = self.readBytes(RawSlice[U8]{ ptr = l.ptr, length=n });
-        l._length = read;
+        var read = self.readBytes(RawSlice[U8]{ ptr = l.getPtr(), length=n });
+        l.setLength(read);
         l.shrink();
         return l;
     }

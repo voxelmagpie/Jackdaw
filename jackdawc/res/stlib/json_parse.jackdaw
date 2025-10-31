@@ -211,7 +211,7 @@ fn parseNumber (s: String, ref i: ISize): JsonResult[F64] {
     skipWhitespace(s, i);
 
     unsafe {
-        return .ok(strtod(s.utf8Data.ptr as *I8 + startI, nullptr));
+        return .ok(strtod(s.utf8Data.getPtr() as *I8 + startI, nullptr));
     }
 }
 

@@ -62,7 +62,7 @@ struct File {
         var bytes = List[U8].new();
         bytes.reserve(n);
 
-        var bytesRead = fread(bytes.ptr, 1, n as USize, self.f) as ISize;
+        var bytesRead = fread(bytes.getPtr(), 1, n as USize, self.f) as ISize;
 
         if bytesRead < 0 {
             ioError("fread");
@@ -71,7 +71,7 @@ struct File {
             return .new();
         }
 
-        bytes._length = bytesRead;
+        bytes.setLength(bytesRead);
         return bytes;
     }
 
@@ -187,10 +187,10 @@ fn readTextFile (path: OsString): String unsafe {
     var sz = f.getSize() as I32;
     var utf8Data = List[U8].new();
     utf8Data.reserve(sz+1);
-    var bytesRead = fread(utf8Data.ptr, 1, sz as USize, f.f) as ISize;
+    var bytesRead = fread(utf8Data.getPtr(), 1, sz as USize, f.f) as ISize;
     if bytesRead < 0 { ioError("fread"); }
     if bytesRead != sz { throw &"Incomplete fread (readTextFile)"; }
-    utf8Data._length = bytesRead;
+    utf8Data.setLength(bytesRead);
     if !isValidUtf8(utf8Data.asSlice()) { throw &"Invalid UTF8"; }
     utf8Data.push(0);
     return String{utf8Data};
@@ -202,10 +202,10 @@ fn readFile (path: OsString): List[U8] unsafe {
     var bytes = List[U8].new();
     if sz == 0 { return bytes; }
     bytes.reserve(sz);
-    var bytesRead = fread(bytes.ptr, 1, sz as USize, f.f) as ISize;
+    var bytesRead = fread(bytes.getPtr(), 1, sz as USize, f.f) as ISize;
     if bytesRead < 0 { ioError("fread"); }
     if bytesRead != sz { throw &"Incomplete fread (readFile)"; }
-    bytes._length = bytesRead;
+    bytes.setLength(bytesRead);
     return bytes;
 }
 

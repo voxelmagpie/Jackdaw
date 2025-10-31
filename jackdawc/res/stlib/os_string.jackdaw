@@ -40,7 +40,7 @@ struct OsString {
 
     @Unsafe
     fn getCPtr (self: Self): *CChar {
-        return self.data.ptr as *CChar;
+        return self.data.getPtr() as *CChar;
     }
 
     fn isValidUtf8 (self: Self): Bool {

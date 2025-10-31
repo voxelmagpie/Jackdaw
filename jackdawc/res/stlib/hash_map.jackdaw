@@ -7,17 +7,17 @@ import "@stlib/memory" (*)
 import "@stlib/hash" (*)
 
 struct HashMap [K, V] {
-    @Unsafe
+    @Unsafe @Private
     occupied: BitList,
     
-    @Unsafe
+    @Unsafe @Private
     data: *(K, V),
 
-    @Unsafe
+    @Unsafe @Private
     capacity: ISize
 
     fn new (): Self unsafe {
-        return Self{ occupied = .new(), data = nullptr, capacity=0 };
+        return Self{occupied=.new(), data=nullptr, capacity=0};
     }
 
     fn count (self: Self): ISize unsafe {

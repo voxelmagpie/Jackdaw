@@ -1,6 +1,10 @@
 -- This Source Code Form is subject to the terms of the Mozilla Public
 -- License, v. 2.0. If a copy of the MPL was not distributed with this
 -- file, You can obtain one at https://mozilla.org/MPL/2.0/.
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+
+{-# HLINT ignore "Use maybe" #-}
+{-# HLINT ignore "Use head" #-}
 
 module Tc.Expr where
 
@@ -747,6 +751,8 @@ getAccessorExpr ctx sr astAccessorExpr = do
               Just ((fieldType, attribs), fieldIdx) -> do
                 when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs)
                   $ addError SevError ctx.et sr "Cannot access unsafe field in safe context"
+                when (Attribute "Private" `elem` attribs && Just s.c.fqn /= (fst <$> ctx.selfType)) $ do
+                  addError SevWarning ctx.et sr $ un name <> " is private"
                 dropFn <- getDropFn ctx.tcIn t sr
                 pure (I.AFieldAccessorExpr $ I.FieldAccessorExpr e (fromIntegral fieldIdx) dropFn, fieldType, sr)
           _ -> throw ctx.et sr "Accessor type is not valid on structs"

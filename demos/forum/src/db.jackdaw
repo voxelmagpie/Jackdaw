@@ -425,7 +425,7 @@ struct Statement {
                     var b: MYSQL_BIND;
                     M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
                     b.buffer_type = _MYSQL_TYPE_BLOB;
-                    b.buffer = bytes.ptr;
+                    b.buffer = bytes.getPtr();
                     b.buffer_length = l as CULong;
                     if mysql_stmt_fetch_column(self.stmt, &b, i as U32, 0) != 0 {
                         traceCStr(mysql_stmt_error(self.stmt));
@@ -577,7 +577,7 @@ fn extractRow [T] (ref row: List[Maybe[DbValue]]): T unsafe {
         }
     }
 
-    row._length = 0;
+    row.setLength(0);
 
     return result;
 }

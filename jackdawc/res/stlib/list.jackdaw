@@ -7,41 +7,56 @@ import "@stlib/range" (*)
 import "@stlib/memory" as M (*)
 
 struct List [A] {
-    // Do not reorder these fields, the compiler relies on the order when generating/using const lists
+	// Do not reorder these fields, the compiler relies on the order when generating/using const lists
 
-    @Unsafe
-    ptr: *A, // = nullptr
+	@Unsafe @Private
+	ptr: *A, // = nullptr
 
-    @Unsafe
-    _length: ISize, // = 0
+	@Unsafe @Private
+	_length: ISize, // = 0
 
-    // Capacity is 0 for const lists
-    // Capacity may be non-zero for empty lists if it had data which was then removed
-    @Unsafe
-    capacity: ISize // = 0
+	// Capacity is 0 for const lists
+	// Capacity may be non-zero for empty lists if it had data which was then removed
+	@Unsafe @Private
+	capacity: ISize // = 0
 
 
-    fn new (): Self unsafe {
-        return Self{ ptr=nullptr, _length=0, capacity=0 };
-    }
+	fn new (): Self unsafe {
+		return Self{ ptr=nullptr, _length=0, capacity=0 };
+	}
 
-    fn newWithCapacity (cap: ISize): Self {
-        var x = Self.new();
-        x.reserve(cap);
-        return x;
-    }
+	fn newWithCapacity (cap: ISize): Self {
+		var x = Self.new();
+		x.reserve(cap);
+		return x;
+	}
 
-    fn singleton (var x: A): Self unsafe {
-        var ptr = alloc[A](1);
-        ptr.* = x;
-        return Self{ ptr=ptr, _length=1, capacity=1 };
-    }
+	fn singleton (var x: A): Self unsafe {
+		var ptr = alloc[A](1);
+		ptr.* = x;
+		return Self{ ptr=ptr, _length=1, capacity=1 };
+	}
 
-    fn length (self: Self): ISize unsafe {
-        return self._length;
-    }
+	@Unsafe
+	fn getPtr (self: Self): *A {
+		return self.ptr;
+	}
 
-    @Unsafe
+	fn length (self: Self): ISize unsafe {
+		return self._length;
+	}
+
+	@Unsafe
+	fn setLength (ref self: Self, l: ISize) {
+		self._length = l;
+	}
+
+	@Unsafe
+	fn getCapacity (self: Self): ISize {
+		return self.capacity;
+	}
+
+	@Unsafe
 	fn asRawSlice (self: Self): RawSlice[A] {
 		return RawSlice[A]{ ptr = self.ptr, length=self._length };
 	}
@@ -49,226 +64,226 @@ struct List [A] {
 	accessor asSlice (self: Self): Slice[A] unsafe {
 		return self.asRawSlice();
 	}
-    
-    accessor at (self: Self, i: ISize): A unsafe { 
-        if i < 0 or i >= self._length { throw &"Index out of bounds"; }
-        return self.ptr.(i); 
-    }
+	
+	accessor at (self: Self, i: ISize): A unsafe { 
+		if i < 0 or i >= self._length { throw &"Index out of bounds"; }
+		return self.ptr.(i); 
+	}
 
-    accessor iterator iter (self: Self): A unsafe {
-        foreach i in range[ISize](0, self._length) {
-            yield self.ptr.(i);
-        }
-    }
+	accessor iterator iter (self: Self): A unsafe {
+		foreach i in range[ISize](0, self._length) {
+			yield self.ptr.(i);
+		}
+	}
 
-    accessor iterator iterRange (self: Self, var start: ISize, var n: ISize): A unsafe {
-        putRangeInBounds(self._length, start, n);
-        foreach i in range[ISize](start, start+n) {
-            yield self.ptr.(i);
-        }
-    }
+	accessor iterator iterRange (self: Self, var start: ISize, var n: ISize): A unsafe {
+		putRangeInBounds(self._length, start, n);
+		foreach i in range[ISize](start, start+n) {
+			yield self.ptr.(i);
+		}
+	}
 
-    fn clear (ref self: Self) unsafe {
-        foreach ref x in self.iter() {
-            drop[A](x);
-        }
-        self._length = 0;
-    }
+	fn clear (ref self: Self) unsafe {
+		foreach ref x in self.iter() {
+			drop[A](x);
+		}
+		self._length = 0;
+	}
 
-    fn reserve (ref self: Self, minCap: ISize) unsafe {
-        if minCap <= self.capacity { return; }
-        var newCap = max[ISize](self.capacity + (self.capacity / 2), minCap);
-        if newCap <= self.capacity { return; }
+	fn reserve (ref self: Self, minCap: ISize) unsafe {
+		if minCap <= self.capacity { return; }
+		var newCap = max[ISize](self.capacity + (self.capacity / 2), minCap);
+		if newCap <= self.capacity { return; }
 
-        if self._length == 0 {
-            free(self.ptr);
-            self.ptr = alloc[A](newCap);
-        }
-        else {
-            self.ptr = realloc[A](self.ptr, newCap);
-        }
-        self.capacity = newCap;
-    }
+		if self._length == 0 {
+			free(self.ptr);
+			self.ptr = alloc[A](newCap);
+		}
+		else {
+			self.ptr = realloc[A](self.ptr, newCap);
+		}
+		self.capacity = newCap;
+	}
 
-    fn shrink (ref self: Self) unsafe {
-        if self._length >= self.capacity { return; }
-        self.ptr = M.realloc[A](self.ptr, self._length);
-        self.capacity = self._length;
-    }
+	fn shrink (ref self: Self) unsafe {
+		if self._length >= self.capacity { return; }
+		self.ptr = M.realloc[A](self.ptr, self._length);
+		self.capacity = self._length;
+	}
 
-    fn pop (ref self: Self): A unsafe {
-        if self._length < 1 { throw &"List is empty"; }
-        self._length -= 1;
-        return self.ptr.(self._length);
-    }
-    
-    fn push (ref self: Self, var x: A) unsafe {
-        self.reserve(self._length + 1);
-        self.ptr.(self._length) = x;
-        self._length += 1;
-    }
-    
-    fn takeAt (ref self: Self, i: ISize): A unsafe {
-        if i < 0 or i >= self._length { throw &"Index out of bounds"; }
+	fn pop (ref self: Self): A unsafe {
+		if self._length < 1 { throw &"List is empty"; }
+		self._length -= 1;
+		return self.ptr.(self._length);
+	}
+	
+	fn push (ref self: Self, var x: A) unsafe {
+		self.reserve(self._length + 1);
+		self.ptr.(self._length) = x;
+		self._length += 1;
+	}
+	
+	fn takeAt (ref self: Self, i: ISize): A unsafe {
+		if i < 0 or i >= self._length { throw &"Index out of bounds"; }
 
-        var x = self.ptr.(i);
+		var x = self.ptr.(i);
 
-        M.copy[A](self.ptr + i, self.ptr + i + 1, self._length - i - 1);
-        self._length -= 1;
+		M.copy[A](self.ptr + i, self.ptr + i + 1, self._length - i - 1);
+		self._length -= 1;
 
-        return x;
-    }
-    
-    // Changes ordering of list elements
-    fn takeBySwapAt (ref self: Self, i: ISize): A unsafe {
-        if i < 0 or i >= self._length { throw &"Index out of bounds"; }
+		return x;
+	}
+	
+	// Changes ordering of list elements
+	fn takeBySwapAt (ref self: Self, i: ISize): A unsafe {
+		if i < 0 or i >= self._length { throw &"Index out of bounds"; }
 
-        var x = self.ptr.(i);
+		var x = self.ptr.(i);
 
-        self._length -= 1;
-        self.ptr.(i) = self.ptr.(self._length);
+		self._length -= 1;
+		self.ptr.(i) = self.ptr.(self._length);
 
-        return x;
-    }
+		return x;
+	}
 
-    fn removeRangeAt (ref self: Self, var i: ISize, var n: ISize) unsafe {
-        putRangeInBounds(self._length, i, n);
-        if n == 0 { return; }
+	fn removeRangeAt (ref self: Self, var i: ISize, var n: ISize) unsafe {
+		putRangeInBounds(self._length, i, n);
+		if n == 0 { return; }
 
-        for (var j: ISize = 0; j < n; j += 1) {
-            drop[A](self.ptr.(i+j));
-        }
+		for (var j: ISize = 0; j < n; j += 1) {
+			drop[A](self.ptr.(i+j));
+		}
 
-        M.copy[A](self.ptr.(i), self.ptr.(i+n), self._length - i - n);
-        self._length -= n;
-    }
+		M.copy[A](self.ptr.(i), self.ptr.(i+n), self._length - i - n);
+		self._length -= n;
+	}
 
-    fn removeRangeBySwapAt (ref self: Self, var i: ISize, var n: ISize) unsafe {
-        putRangeInBounds(self._length, i, n);
-        if n == 0 { return; }
+	fn removeRangeBySwapAt (ref self: Self, var i: ISize, var n: ISize) unsafe {
+		putRangeInBounds(self._length, i, n);
+		if n == 0 { return; }
 
-        for (var j: ISize = 0; j < n; j += 1) {
-            drop[A](self.ptr.(i+j));
-        }
+		for (var j: ISize = 0; j < n; j += 1) {
+			drop[A](self.ptr.(i+j));
+		}
 
-        var n_ = min[ISize](n, self.length - i - n);
-        M.copyUnaliased[A](self.ptr.(i), self.ptr.(self._length - n_), n_);
-        self._length -= n;
-    }
+		var n_ = min[ISize](n, self.length - i - n);
+		M.copyUnaliased[A](self.ptr.(i), self.ptr.(self._length - n_), n_);
+		self._length -= n;
+	}
 
-    fn removeLastN (ref self: Self, n: ISize) {
-        foreach _ in range[ISize](0, n) {
-            _ = self.pop();
-        }
-    }
-    
-    fn insertAt (ref self: Self, var i: ISize, var x: A) unsafe {
-        i = i > self._length ? self._length : i >= 0 ? i : 0;
+	fn removeLastN (ref self: Self, n: ISize) {
+		foreach _ in range[ISize](0, n) {
+			_ = self.pop();
+		}
+	}
+	
+	fn insertAt (ref self: Self, var i: ISize, var x: A) unsafe {
+		i = i > self._length ? self._length : i >= 0 ? i : 0;
 
-        var newLength = self._length + 1;
-        self.reserve(newLength);
-        M.copy[A](self.ptr + i + 1, self.ptr + i, self._length - i);
-        self.ptr.(i) = x;
-        self._length = newLength;
-    }
+		var newLength = self._length + 1;
+		self.reserve(newLength);
+		M.copy[A](self.ptr + i + 1, self.ptr + i, self._length - i);
+		self.ptr.(i) = x;
+		self._length = newLength;
+	}
 
-    fn insertListAt (ref self: Self, i: ISize, var xs: Self) unsafe {
-        self.copyRawSliceAt(i, xs.asRawSlice());
-        free(xs.ptr);
-        leak[Self](xs); // Don't drop as data has been copied
-    }
+	fn insertListAt (ref self: Self, i: ISize, var xs: Self) unsafe {
+		self.copyRawSliceAt(i, xs.asRawSlice());
+		free(xs.ptr);
+		leak[Self](xs); // Don't drop as data has been copied
+	}
 
-    @Unsafe
-    fn copyRawSliceAt (ref self: Self, i: ISize, xs: RawSlice[A]) {
-        var newLength = self._length + xs.length;
-        self.reserve(newLength);
-        var i = clamp[ISize](i, 0, self._length);
+	@Unsafe
+	fn copyRawSliceAt (ref self: Self, i: ISize, xs: RawSlice[A]) {
+		var newLength = self._length + xs.length;
+		self.reserve(newLength);
+		var i = clamp[ISize](i, 0, self._length);
 
-        M.copy[A](self.ptr + i + xs.length, self.ptr + i, self._length - i);
-        M.copy[A](self.ptr + i, xs.ptr, xs.length);
-        
-        self._length = newLength;
-    }
+		M.copy[A](self.ptr + i + xs.length, self.ptr + i, self._length - i);
+		M.copy[A](self.ptr + i, xs.ptr, xs.length);
+		
+		self._length = newLength;
+	}
 
-    fn insertSliceAt (ref self: Self, i: ISize, xs: Slice[A]) unsafe {
-        var newLength = self._length + xs.length();
-        self.reserve(newLength);
-        var i = clamp[ISize](i, 0, self._length);
+	fn insertSliceAt (ref self: Self, i: ISize, xs: Slice[A]) unsafe {
+		var newLength = self._length + xs.length();
+		self.reserve(newLength);
+		var i = clamp[ISize](i, 0, self._length);
 
-        M.copy[A](self.ptr + i + xs.length(), self.ptr + i, self._length - i);
+		M.copy[A](self.ptr + i + xs.length(), self.ptr + i, self._length - i);
 
-        if const typeIsCopyable[A] {
-            M.copyUnaliased[A](self.ptr + i, xs.asRawSlice().ptr, xs.length());
-        }
-        else {
-            for (var j: ISize = 0; j < xs.length(); j += 1) {
-                self.ptr(i+j) = xs.at(j).clone();
-            }
-        }
-        self._length = newLength;
-    }
+		if const typeIsCopyable[A] {
+			M.copyUnaliased[A](self.ptr + i, xs.asRawSlice().ptr, xs.length());
+		}
+		else {
+			for (var j: ISize = 0; j < xs.length(); j += 1) {
+				self.ptr(i+j) = xs.at(j).clone();
+			}
+		}
+		self._length = newLength;
+	}
 
-    fn join ++ (self: Self, xs: Slice[A]) {
-        var l = List[A].new();
-        l.reserve(self.length() + xs.length());
-        foreach x in self.iter() { l.push(x.clone()); }
-        foreach x in xs.iter() { l.push(x.clone()); }
-        return l;
-    }
+	fn join ++ (self: Self, xs: Slice[A]) {
+		var l = List[A].new();
+		l.reserve(self.length() + xs.length());
+		foreach x in self.iter() { l.push(x.clone()); }
+		foreach x in xs.iter() { l.push(x.clone()); }
+		return l;
+	}
 
-    fn append ++= (ref self: Self, xs: Slice[A]) unsafe {
-        self.insertSliceAt(self._length, xs);
-    }
+	fn append ++= (ref self: Self, xs: Slice[A]) unsafe {
+		self.insertSliceAt(self._length, xs);
+	}
 
-    fn appendList (ref self: Self, var xs: List[A]) unsafe {
-        self.copyRawSliceAt(self._length, xs.asRawSlice());
-        free(xs.ptr);
-        leak[Self](xs); // Don't drop as data has been copied
-    }
+	fn appendList (ref self: Self, var xs: List[A]) unsafe {
+		self.copyRawSliceAt(self._length, xs.asRawSlice());
+		free(xs.ptr);
+		leak[Self](xs); // Don't drop as data has been copied
+	}
 
-    fn clone (self: Self): Self unsafe {
-        var p = alloc[A](self._length);
-        if const typeIsCopyable[A] {
-            M.copyUnaliased[A](p, self.ptr, self._length);
-        }
-        else {
-            for (var i: ISize = 0; i < self._length; i += 1) {
-                p.(i) = self.at(i).clone();
-            }
-        }
-        
-        return Self{ ptr=p, _length=self._length, capacity=self._length };
-    }
+	fn clone (self: Self): Self unsafe {
+		var p = alloc[A](self._length);
+		if const typeIsCopyable[A] {
+			M.copyUnaliased[A](p, self.ptr, self._length);
+		}
+		else {
+			for (var i: ISize = 0; i < self._length; i += 1) {
+				p.(i) = self.at(i).clone();
+			}
+		}
+		
+		return Self{ ptr=p, _length=self._length, capacity=self._length };
+	}
 
-    fn eq == (self: Self, other: Self): Bool {
-        if self.length() != other.length() { return false; }
-        for (var i: ISize = 0; i < self.length(); i += 1) {
-            if self.at(i) != other.at(i) { return false; }
-        }
-        return true;
-    }
+	fn eq == (self: Self, other: Self): Bool {
+		if self.length() != other.length() { return false; }
+		for (var i: ISize = 0; i < self.length(); i += 1) {
+			if self.at(i) != other.at(i) { return false; }
+		}
+		return true;
+	}
 
-    fn onDrop (ref self: Self) unsafe {
-        for (var i: ISize = 0; i < self._length; i += 1) {
-            drop[A](self.ptr.(i));
-        }
-        free(self.ptr);
-        self.ptr = nullptr;
-        self._length = 0;
-        self.capacity = 0;
-    }
+	fn onDrop (ref self: Self) unsafe {
+		for (var i: ISize = 0; i < self._length; i += 1) {
+			drop[A](self.ptr.(i));
+		}
+		free(self.ptr);
+		self.ptr = nullptr;
+		self._length = 0;
+		self.capacity = 0;
+	}
 
-    fn addToString (self: Self, ref s: String) {
-        s.pushAsciiChar('{');
-        if self.length() > 0 { s.pushAsciiChar(' '); }
-        for (var i: ISize = 0; i < self.length(); i += 1) {
-            self.at(i).addToString(s);
-            if i != self.length() - 1 {
-                s ++= ", ";
-            }
-        }
-        if self.length() > 0 { s.pushAsciiChar(' '); }
-        s.pushAsciiChar('}');
-    }
+	fn addToString (self: Self, ref s: String) {
+		s.pushAsciiChar('{');
+		if self.length() > 0 { s.pushAsciiChar(' '); }
+		for (var i: ISize = 0; i < self.length(); i += 1) {
+			self.at(i).addToString(s);
+			if i != self.length() - 1 {
+				s ++= ", ";
+			}
+		}
+		if self.length() > 0 { s.pushAsciiChar(' '); }
+		s.pushAsciiChar('}');
+	}
 
 }

@@ -69,15 +69,15 @@ fn modff (arg: F32, iptr: *F32): F32
 @Unsafe
 fn makeTerrainMeshBuffer (t: Terrain, isWater: Bool): (GLuint, I32) {
     var (vertexData, normalsData, colours) = makeTerrainMesh(t, isWater);
-    var vertexCount = vertexData._length as I32;
+    var vertexCount = vertexData.length() as I32;
 
     var vertexBuffer: GLuint;
     glGenBuffers(1, &vertexBuffer);
     glBindBuffer(_GL_ARRAY_BUFFER, vertexBuffer);
     glBufferData(_GL_ARRAY_BUFFER, vertexCount*12, nullptr, _GL_STATIC_DRAW);
-    glBufferSubData(_GL_ARRAY_BUFFER, 0, vertexCount*4, vertexData.ptr);
-    glBufferSubData(_GL_ARRAY_BUFFER, vertexCount*4, vertexCount*4, normalsData.ptr);
-    glBufferSubData(_GL_ARRAY_BUFFER, vertexCount*8, vertexCount*4, colours.ptr);
+    glBufferSubData(_GL_ARRAY_BUFFER, 0, vertexCount*4, vertexData.getPtr());
+    glBufferSubData(_GL_ARRAY_BUFFER, vertexCount*4, vertexCount*4, normalsData.getPtr());
+    glBufferSubData(_GL_ARRAY_BUFFER, vertexCount*8, vertexCount*4, colours.getPtr());
 
     return (vertexBuffer, vertexCount);
 }
@@ -86,9 +86,9 @@ fn makeTerrainMeshBuffer (t: Terrain, isWater: Bool): (GLuint, I32) {
 fn time (*void): I64
 
 @Unsafe
-fn makeProgram (vsSrc: List[U8], fsSrc: List[U8]): GLuint {
+fn makeProgram (vsSrc: String, fsSrc: String): GLuint {
     var vs = glCreateShader(_GL_VERTEX_SHADER);
-    var vsSrc_ = vsSrc.ptr as *GLchar;
+    var vsSrc_ = vsSrc.getCPtr() as *GLchar;
     glShaderSource(vs, 1, &vsSrc_, nullptr);
     glCompileShader(vs);
     var status: GLint = 0;
@@ -96,7 +96,7 @@ fn makeProgram (vsSrc: List[U8], fsSrc: List[U8]): GLuint {
     if status == 0 { throw &"Vertex shader compilation error"; }
 
     var fs = glCreateShader(_GL_FRAGMENT_SHADER);
-    var fsSrc_ = fsSrc.ptr as *GLchar;
+    var fsSrc_ = fsSrc.getCPtr() as *GLchar;
     glShaderSource(fs, 1, &fsSrc_, nullptr);
     glCompileShader(fs);
     glGetShaderiv(fs, _GL_COMPILE_STATUS, &status);
@@ -120,14 +120,10 @@ fn start () unsafe {
     _ = glfwSetErrorCallback(glfwErrorCallback);
     if glfwInit() == 0 { throw &"GLFW initialisation failure"; }
 
-    var vsSrc = readFile("src/vs.glsl");
-    vsSrc.push(0);
-    var vsDepthSrc = readFile("src/vs_depth.glsl");
-    vsDepthSrc.push(0);
-    var fsSrc = readFile("src/fs.glsl");
-    fsSrc.push(0);
-    var fsDepthSrc = readFile("src/fs_depth.glsl");
-    fsDepthSrc.push(0);
+    var vsSrc = readTextFile("src/vs.glsl");
+    var vsDepthSrc = readTextFile("src/vs_depth.glsl");
+    var fsSrc = readTextFile("src/fs.glsl");
+    var fsDepthSrc = readTextFile("src/fs_depth.glsl");
 
     var window = Window.new();
 

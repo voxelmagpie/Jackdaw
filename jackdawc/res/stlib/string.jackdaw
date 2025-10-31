@@ -152,7 +152,7 @@ struct String {
 
     @Unsafe
     fn getCPtr (self: Self): *CChar {
-        return self.utf8Data.ptr as *CChar;
+        return self.utf8Data.getPtr() as *CChar;
     }
 
     @Unsafe
@@ -240,7 +240,7 @@ struct String {
             return false;
         }
 
-        return M.compare[U8](self.utf8Data.ptr, prefix.utf8Data.ptr, prefix.utf8Data.length() - 1) == 0;
+        return M.compare[U8](self.utf8Data.getPtr(), prefix.utf8Data.getPtr(), prefix.utf8Data.length() - 1) == 0;
     }
 
     fn subString (self: Self, var i: ISize, var n: ISize): String unsafe {

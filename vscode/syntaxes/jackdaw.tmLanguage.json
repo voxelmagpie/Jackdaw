@@ -24,9 +24,6 @@
 			"include": "#attributes"
 		},
 		{
-			"include": "#operators"
-		},
-		{
 			"include": "#self"
 		}
 	],
@@ -102,15 +99,15 @@
 		"numbers": {
 			"patterns": [
 				{
-					"match": "\\b[0-9]+(\\.[0-9]+l?)?\\b",
+					"match": "\\b[0-9]+(\\.[0-9]+)?\\b",
 					"name": "constant.numeric.jackdaw"
 				},
 				{
-					"match": "\\b(0x|0X)[0-9a-fA-F]+\\b",
+					"match": "\\b0(x|X)[0-9a-fA-F]+\\b",
 					"name": "constant.numeric.jackdaw"
 				},
 				{
-					"match": "\\b(0b|0B)[0-1]+\\b",
+					"match": "\\b0(b|B)[0-1]+\\b",
 					"name": "constant.numeric.jackdaw"
 				}
 			]
@@ -121,15 +118,7 @@
 		},
 		"attributes": {
 			"name": "support.function.attribute.jackdaw",
-			"match": "\\@"
-		},
-		"operators": {
-			"patterns": [
-				{
-					"match": "(!|%|\\^|&|\\*|\\+|-|/|=|~|<|>)+",
-					"name": "keyword.operator.jackdaw"
-				}
-			]
+			"match": "\\@[A-Z][A-Za-z0-9_]*"
 		}
 	},
 	"scopeName": "source.jackdaw"

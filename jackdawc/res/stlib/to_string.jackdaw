@@ -62,7 +62,7 @@ fn addToString [A] (x: A, ref s: String) {
 					s ++= getFields[A].at(i);
 					s ++= "=";
 					getField[A, i](x).addToString(s);
-					if i != fieldsCount[A] - 1 { s ++= ","; }
+					if i != fieldsCount[A] - 1 { s ++= ", "; }
 				}
 				s ++= "}";
 			}
@@ -113,7 +113,7 @@ fn addToString [A] (x: A, ref s: String) {
 				s ++= "{";
 				for (var i = 0; i < arrayLength[A]; i += 1) {
 					x.at(i).addToString(s);
-					if i != arrayLength[A] - 1 { s ++= ","; }
+					if i != arrayLength[A] - 1 { s ++= ", "; }
 				}
 				s ++= "}";
 			}
@@ -127,7 +127,7 @@ fn addToString [A] (x: A, ref s: String) {
 				s ++= "{";
 					for (var i: ISize = 0; i < x.length(); i += 1) {
 						x.at(i).addToString(s);
-						if i != x.length() - 1 { s ++= ","; }
+						if i != x.length() - 1 { s ++= ", "; }
 					}
 				s ++= "}";
 			}

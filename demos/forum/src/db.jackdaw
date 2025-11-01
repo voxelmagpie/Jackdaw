@@ -99,6 +99,26 @@ struct MYSQL_FIELD {
 	extension: *void
 }
 
+@Unsafe
+struct MYSQL_TIME {
+	year: U32,
+	month: U32,
+	day: U32,
+	hour: U32,
+	minute: U32,
+	second: U32,
+	second_part: CULong,
+	neg: I8,
+	time_type: MysqlTimestampType
+}
+
+@Unsafe alias MysqlTimestampType = I32
+@Unsafe const _MYSQL_TIMESTAMP_NONE: MysqlTimestampType = -2
+@Unsafe const _MYSQL_TIMESTAMP_ERROR: MysqlTimestampType = -1
+@Unsafe const _MYSQL_TIMESTAMP_DATE: MysqlTimestampType = 0
+@Unsafe const _MYSQL_TIMESTAMP_DATETIME: MysqlTimestampType = 1
+@Unsafe const _MYSQL_TIMESTAMP_TIME: MysqlTimestampType = 2
+
 @Unsafe @NoThrow fn mysql_server_init()
 @Unsafe @NoThrow fn mysql_init (mysql: *MYSQL): *MYSQL
 @Unsafe @NoThrow fn mysql_real_connect (mysql: *MYSQL, host: *I8, user: *I8, passwd: *I8, db: *I8, port: U32, unix_socket: *I8, clientflag: CULong): *MYSQL
@@ -130,9 +150,45 @@ fn dbInit () unsafe {
 }
 
 enum DbValue {
+    tinyInt(I8),
+    smallInt(I16),
     int(I32),
     bigInt(I64),
-    string(String)
+    float(F32),
+    double(F64),
+    string(String),
+    blob(List[U8]),
+    date(Date),
+    time(Time),
+    dateTime(DateTime)
+}
+
+struct Date {
+	year: I32,
+	month: I32,
+	day: I32
+}
+
+struct Time {
+	hours: I32,
+	minutes: I32,
+	seconds: I32,
+	microseconds: I32
+}
+
+struct DateTime {
+    date: Date,
+    time: Time
+}
+
+union SimpleData {
+    tinyInt(I8),
+    smallInt(I16),
+    int(I32),
+    bigInt(I64),
+    float(F32),
+    double(F64),
+    time(MYSQL_TIME)
 }
 
 struct StatementId { x: I32 }
@@ -199,6 +255,7 @@ struct Db {
             paramCount,
             binds = .newWithCapacity(paramCount),
             lengths = .newWithCapacity(paramCount),
+            dateTimes = .newWithCapacity(paramCount),
             resultBinds = .new(),
             resultLengths = .new(),
             resultIsNulls = .new(),
@@ -219,13 +276,14 @@ struct Statement {
     @Unsafe paramCount: ISize,
     @Unsafe binds: List[MYSQL_BIND],
     @Unsafe lengths: List[USize],
+    @Unsafe dateTimes: List[MYSQL_TIME],
 
     @Unsafe resultBinds: List[MYSQL_BIND],
     @Unsafe resultLengths: List[USize],
     @Unsafe resultIsNulls: List[I8],
 
-    // Values for integers but not strings
-    @Unsafe partialResults: List[DbValue]
+    // Values for int/float/date/time but not string/blob
+    @Unsafe partialResults: List[(EnumFieldTypes, SimpleData)]
 
     fn onDrop (ref self: Self) unsafe {
         if mysql_stmt_close(self.stmt) != 0 {
@@ -244,12 +302,23 @@ struct Statement {
 
         self.binds.clear();
         self.lengths.clear();
+        self.dateTimes.clear();
 
         foreach p in params.iter() {
             var b: MYSQL_BIND;
             M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
 
             match p {
+                .tinyInt(x) {
+                    b.buffer_type = _MYSQL_TYPE_TINY; 
+                    b.buffer = &x;
+                    b.buffer_length = 1;
+                }
+                .smallInt(x) {
+                    b.buffer_type = _MYSQL_TYPE_SHORT; 
+                    b.buffer = &x;
+                    b.buffer_length = 2;
+                }
                 .int(x) {
                     b.buffer_type = _MYSQL_TYPE_LONG; 
                     b.buffer = &x;
@@ -257,6 +326,16 @@ struct Statement {
                 }
                 .bigInt(x) {
                     b.buffer_type = _MYSQL_TYPE_LONGLONG; 
+                    b.buffer = &x;
+                    b.buffer_length = 8;
+                }
+                .float(x) {
+                    b.buffer_type = _MYSQL_TYPE_FLOAT; 
+                    b.buffer = &x;
+                    b.buffer_length = 4;
+                }
+                .double(x) {
+                    b.buffer_type = _MYSQL_TYPE_DOUBLE; 
                     b.buffer = &x;
                     b.buffer_length = 8;
                 }
@@ -269,6 +348,61 @@ struct Statement {
                     self.lengths.push(s.length() as USize);
                     b.length = &self.lengths.at(self.lengths.length()-1);
                 }
+                .blob(s) {
+                    b.buffer_type = _MYSQL_TYPE_BLOB; 
+                    b.buffer = s.getPtr();
+                    b.buffer_length = s.length() as USize;
+                    self.lengths.push(s.length() as USize);
+                    b.length = &self.lengths.at(self.lengths.length()-1);
+                }
+                .date(x) {
+                    self.dateTimes.push(.{
+                        year = x.year as U32,
+                        month = x.month as U32,
+                        day = x.day as U32,
+                        hour = 0,
+                        minute = 0,
+                        second = 0,
+                        second_part = 0,
+                        neg = 0,
+                        time_type = _MYSQL_TIMESTAMP_DATE
+                    });
+                    b.buffer_type = _MYSQL_TYPE_DATE;
+                    b.buffer = &self.dateTimes.at(self.dateTimes.length()-1);
+                    b.buffer_length = sizeOf[MYSQL_TIME] as CULong;
+                }
+                .time(x) {
+                    self.dateTimes.push(.{
+                        year = 0,
+                        month = 0,
+                        day = 0,
+                        hour = abs[I32](x.hours) as U32,
+                        minute = x.minutes as U32,
+                        second = x.seconds as U32,
+                        second_part = x.microseconds as U32,
+                        neg = x.hours < 0 ? 1 : 0,
+                        time_type = _MYSQL_TIMESTAMP_TIME
+                    });
+                    b.buffer_type = _MYSQL_TYPE_TIME;
+                    b.buffer = &self.dateTimes.at(self.dateTimes.length()-1);
+                    b.buffer_length = sizeOf[MYSQL_TIME] as CULong;
+                }
+                .dateTime(x) {
+                    self.dateTimes.push(.{
+                        year = x.date.year as U32,
+                        month = x.date.month as U32,
+                        day = x.date.day as U32,
+                        hour = x.time.hours as U32,
+                        minute = x.time.minutes as U32,
+                        second = x.time.seconds as U32,
+                        second_part = x.time.microseconds as U32,
+                        neg = 0,
+                        time_type = _MYSQL_TIMESTAMP_DATETIME
+                    });
+                    b.buffer_type = _MYSQL_TYPE_DATETIME;
+                    b.buffer = &self.dateTimes.at(self.dateTimes.length()-1);
+                    b.buffer_length = sizeOf[MYSQL_TIME] as CULong;
+                }
             }
             self.binds.push(b);
         }
@@ -279,6 +413,7 @@ struct Statement {
         }
     }
 
+    // TODO Parameters should be Slice[Maybe[DbValue]]
     fn execute (ref self: Self, params: Slice[DbValue]): DbExecResult unsafe {
         self._bindParams(params);
 
@@ -310,70 +445,83 @@ struct Statement {
             throw &"Query does not return data";
         }
 
-        self.partialResults.clear();
         var fieldsCount = mysql_num_fields(metadata) as I32;
         var fields = mysql_fetch_fields(metadata);
+       
 
-        // Create results list to store integer results into
+        // Create results lists and then bind the result buffers
+
+        self.partialResults.reserve(fieldsCount);
+        self.partialResults.setLength(fieldsCount); 
+        self.resultBinds.reserve(fieldsCount);
+        self.resultBinds.setLength(fieldsCount);
+        self.resultLengths.reserve(fieldsCount);
+        self.resultLengths.setLength(fieldsCount);
+        self.resultIsNulls.reserve(fieldsCount);
+        self.resultIsNulls.setLength(fieldsCount);
+
+        M.set[U8](self.resultBinds.getPtr() as *U8, 0, sizeOf[MYSQL_BIND] * fieldsCount);
+
         for (var i = 0; i < fieldsCount; i += 1) {
             var f = &fields.(i);
-            if f.*._type == _MYSQL_TYPE_LONG {
-                self.partialResults.push(.int(0));
+            var b = &self.resultBinds.at(i);
+
+            b.*.length = &self.resultLengths.at(i);
+            b.*.is_null = &self.resultIsNulls.at(i);
+            b.*.buffer_type = f.*._type;
+            b.*.buffer = &self.partialResults.at(i).1;
+            self.partialResults.at(i).0 = f.*._type;
+
+            if f.*._type == _MYSQL_TYPE_TINY {
+                b.*.buffer_length = 1;
+            }
+            else if f.*._type == _MYSQL_TYPE_SHORT {
+                b.*.buffer_length = 2;
+            }
+            else if f.*._type == _MYSQL_TYPE_LONG {
+                b.*.buffer_length = 4;
             }
             else if f.*._type == _MYSQL_TYPE_LONGLONG {
-                self.partialResults.push(.bigInt(0));
+                b.*.buffer_length = 8;
             }
-            else if f.*._type == _MYSQL_TYPE_BLOB {
+            else if f.*._type == _MYSQL_TYPE_FLOAT {
+                b.*.buffer_length = 4;
+            }
+            else if f.*._type == _MYSQL_TYPE_DOUBLE {
+                b.*.buffer_length = 8;
+            }
+            else if 
+                f.*._type == _MYSQL_TYPE_STRING or 
+                f.*._type == _MYSQL_TYPE_VAR_STRING or 
+                f.*._type == _MYSQL_TYPE_TINY_BLOB or 
+                f.*._type == _MYSQL_TYPE_BLOB or 
+                f.*._type == _MYSQL_TYPE_MEDIUM_BLOB or 
+                f.*._type == _MYSQL_TYPE_LONG_BLOB 
+            {
+                b.*.buffer = nullptr;
                 if f.*.charsetnr == 63 {
-                    throw &"TODO: Blob";
+                    self.partialResults.at(i).0 = _MYSQL_TYPE_BLOB;
                 }
-                // This String value is never used
-                self.partialResults.push(.string(.new()));
+                else {
+                    self.partialResults.at(i).0 = _MYSQL_TYPE_STRING;
+                }
+            }
+            else if f.*._type == _MYSQL_TYPE_DATE {
+                b.*.buffer_length = sizeOf[MYSQL_TIME] as CULong;
+            }
+            else if f.*._type == _MYSQL_TYPE_TIME {
+                b.*.buffer_length = sizeOf[MYSQL_TIME] as CULong;
+            }
+            else if f.*._type == _MYSQL_TYPE_DATETIME {
+                b.*.buffer_length = sizeOf[MYSQL_TIME] as CULong;
             }
             else {
                 trace("Field type: " ++ f.*._type.toString());
                 throw &"Unknown field type";
             }
         }
+
         mysql_free_result(metadata);
-
-        // Bind result buffers
-
-        self.resultBinds.clear();
-        self.resultBinds.reserve(fieldsCount);
-        self.resultLengths.clear();
-        self.resultLengths.reserve(fieldsCount);
-        self.resultIsNulls.clear();
-        self.resultIsNulls.reserve(fieldsCount);
-
-        for (var i: ISize = 0; i < fieldsCount; i += 1) {
-            var b: MYSQL_BIND;
-            M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
-
-            self.resultLengths.push(0);
-            b.length = &self.resultLengths.at(self.resultLengths.length() - 1);
-            self.resultIsNulls.push(0);
-            b.is_null = &self.resultIsNulls.at(self.resultIsNulls.length() - 1);
-
-            match ref self.partialResults.at(i) {
-                .int(x) {
-                    b.buffer_type = _MYSQL_TYPE_LONG;
-                    b.buffer = &x;
-                    b.buffer_length = 4;
-                }
-                .bigInt(x) {
-                    b.buffer_type = _MYSQL_TYPE_LONGLONG;
-                    b.buffer = &x;
-                    b.buffer_length = 8;
-                }
-                .string(_) {
-                    b.buffer_type = _MYSQL_TYPE_BLOB;
-                    // Don't load strings, only get the lengths
-                }
-            }
-
-            self.resultBinds.push(b);
-        }
 
         if mysql_stmt_bind_result(self.stmt, &self.resultBinds.at(0)) != 0 {
             traceCStr(mysql_stmt_error(self.stmt));
@@ -410,32 +558,95 @@ struct Statement {
                 continue;
             }
 
-            match self.partialResults.at(i) {
-                .int(x) {
-                    results.push(.some(.int(x)));
-                }
-                .bigInt(x) {
-                    results.push(.some(.bigInt(x)));
-                }
-                .string(_) {
-                    var l = self.resultLengths.at(i);
-                    if l > 65535 { throw &"String too large"; }
-                    var l = l as ISize;
-                    var bytes = List[U8]{ ptr = M.alloc[U8](l+1), _length=l+1, capacity=l+1 };
-                    var b: MYSQL_BIND;
-                    M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
-                    b.buffer_type = _MYSQL_TYPE_BLOB;
-                    b.buffer = bytes.getPtr();
-                    b.buffer_length = l as CULong;
-                    if mysql_stmt_fetch_column(self.stmt, &b, i as U32, 0) != 0 {
-                        traceCStr(mysql_stmt_error(self.stmt));
-                        throw &"mysql_stmt_fetch_column error"; 
-                    }
-                    bytes.at(l) = 0;
-                    var s = String.fromByteList(bytes).orThrowMsg(&"Text is not valid UTF8");
-                    results.push(.some(.string(s)));
-                }
+            var t = self.partialResults.at(i).0;
+            var r = &self.partialResults.at(i).1;
+            var x: DbValue;
+            if t == _MYSQL_TYPE_TINY {
+                x = .tinyInt(r.*.tinyInt);
             }
+            else if t == _MYSQL_TYPE_SHORT {
+                x = .smallInt(r.*.smallInt);
+            }
+            else if t == _MYSQL_TYPE_LONG {
+                x = .int(r.*.int);
+            }
+            else if t == _MYSQL_TYPE_LONGLONG {
+                x = .bigInt(r.*.bigInt);
+            }
+            else if t == _MYSQL_TYPE_FLOAT {
+                x = .float(r.*.float);
+            }
+            else if t == _MYSQL_TYPE_DOUBLE {
+                x = .double(r.*.double);
+            }
+            else if t == _MYSQL_TYPE_STRING {
+                var l = self.resultLengths.at(i) as ISize;
+                var bytes = List[U8].newWithCapacity(l+1);
+                bytes.setLength(l+1);
+                var b: MYSQL_BIND;
+                M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
+                b.buffer_type = _MYSQL_TYPE_BLOB;
+                b.buffer = bytes.getPtr();
+                b.buffer_length = l as CULong;
+                if mysql_stmt_fetch_column(self.stmt, &b, i as U32, 0) != 0 {
+                    traceCStr(mysql_stmt_error(self.stmt));
+                    throw &"mysql_stmt_fetch_column error"; 
+                }
+                bytes.at(l) = 0;
+                var s = String.fromByteList(bytes).orThrowMsg(&"Text is not valid UTF8");
+                x = .string(s);
+            }
+            else if t == _MYSQL_TYPE_BLOB {
+                var l = self.resultLengths.at(i) as ISize;
+                var bytes = List[U8].newWithCapacity(l);
+                bytes.setLength(l);
+                var b: MYSQL_BIND;
+                M.set[U8](&b as *U8, 0, sizeOf[MYSQL_BIND]);
+                b.buffer_type = _MYSQL_TYPE_BLOB;
+                b.buffer = bytes.getPtr();
+                b.buffer_length = l as CULong;
+                if mysql_stmt_fetch_column(self.stmt, &b, i as U32, 0) != 0 {
+                    traceCStr(mysql_stmt_error(self.stmt));
+                    throw &"mysql_stmt_fetch_column error"; 
+                }
+                x = .blob(bytes);
+            }
+            // TODO String, VarString, TinyBlob, etc.
+            else if t == _MYSQL_TYPE_DATE {
+                x = .date(.{
+                    year = r.*.time.year as I32,
+                    month = r.*.time.month as I32,
+                    day = r.*.time.day as I32
+                });
+            }
+            else if t == _MYSQL_TYPE_TIME {
+                var h = r.*.time.hour as I32;
+                x = .time(.{
+                    hours = r.*.time.neg != 0 ? -h : h,
+                    minutes = r.*.time.minute as I32,
+                    seconds = r.*.time.second as I32,
+                    microseconds = r.*.time.second_part as I32
+                });
+            }
+            else if t == _MYSQL_TYPE_DATETIME {
+                x = .dateTime(.{
+                    date = .{
+                        year = r.*.time.year as I32,
+                        month = r.*.time.month as I32,
+                        day = r.*.time.day as I32
+                    },
+                    time = .{
+                        hours = r.*.time.hour as I32,
+                        minutes = r.*.time.minute as I32,
+                        seconds = r.*.time.second as I32,
+                        microseconds = r.*.time.second_part as I32
+                    }
+                });
+            }
+            else {
+                throw &"?";
+            }
+            results.push(.some(x));
         }
         return .some(results);
     }
@@ -510,23 +721,77 @@ struct QueryResultString {
 
 @Unsafe
 fn _extractField [T] (ref val: Maybe[DbValue], dst: *T): IsError {
-    // TODO Maybe[I32/I64/String]
-    if const typesEq[T, I32] {
+    // TODO Maybe[...]
+    if const typesEq[T, I8] {
         match ref val {
-            .some(.int(x)) { dst.* = (&x).*; }
+            .some(.tinyInt(x)) { dst.* = x; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, I16] {
+        match ref val {
+            .some(.tinyInt(x)) { dst.* = x; }
+            .some(.smallInt(x)) { dst.* = x; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, I32] {
+        match ref val {
+            .some(.tinyInt(x)) { dst.* = x; }
+            .some(.smallInt(x)) { dst.* = x; }
+            .some(.int(x)) { dst.* = x; }
             _ { return .err; }
         }
     }
     else if const typesEq[T, I64] {
         match ref val {
-            .some(.bigInt(x)) { dst.* = (&x).*; }
-            .some(.int(x)) { dst.* = (&x).*; }
+            .some(.tinyInt(x)) { dst.* = x; }
+            .some(.smallInt(x)) { dst.* = x; }
+            .some(.int(x)) { dst.* = x; }
+            .some(.bigInt(x)) { dst.* = x; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, F32] {
+        match ref val {
+            .some(.float(x)) { dst.* = x; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, F64] {
+        match ref val {
+            .some(.float(x)) { dst.* = x; }
+            .some(.double(x)) { dst.* = x; }
             _ { return .err; }
         }
     }
     else if const typesEq[T, String] {
         match ref val {
             .some(.string(x)) { dst.* = (&x).*; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, List[U8]] {
+        match ref val {
+            .some(.blob(x)) { dst.* = (&x).*; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, Date] {
+        match ref val {
+            .some(.date(x)) { dst.* = x; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, Time] {
+        match ref val {
+            .some(.time(x)) { dst.* = x; }
+            _ { return .err; }
+        }
+    }
+    else if const typesEq[T, DateTime] {
+        match ref val {
+            .some(.dateTime(x)) { dst.* = x; }
             _ { return .err; }
         }
     }
@@ -552,7 +817,13 @@ fn extractRow [T] (ref row: List[Maybe[DbValue]]): T unsafe {
     var result: T = uninitialised;
 
     // TODO type inference for builtin const function args
-    if const (typeInfo[T] == TypeMeta.struct_ or typeInfo[T] == TypeMeta.tuple) and !typesEq[T, String] {
+    if const 
+        (typeInfo[T] == TypeMeta.struct_ or typeInfo[T] == TypeMeta.tuple) and 
+        !typesEq[T, String] and 
+        !typesEq[T, Date] and 
+        !typesEq[T, Time] and 
+        !typesEq[T, DateTime] 
+    {
         if row.length() != fieldsCount[T] {
             leak[T](result);
             throw &"Query returned wrong number of fields";

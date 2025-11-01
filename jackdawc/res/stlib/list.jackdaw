@@ -15,8 +15,10 @@ struct List [A] {
 	@Unsafe @Private
 	_length: ISize, // = 0
 
+	//
 	// Capacity is 0 for const lists
 	// Capacity may be non-zero for empty lists if it had data which was then removed
+	//
 	@Unsafe @Private
 	capacity: ISize // = 0
 
@@ -46,6 +48,9 @@ struct List [A] {
 		return self._length;
 	}
 
+	//
+	// Does not check or change capacity, simply sets the length variable
+	//
 	@Unsafe
 	fn setLength (ref self: Self, l: ISize) {
 		self._length = l;
@@ -134,7 +139,9 @@ struct List [A] {
 		return x;
 	}
 	
+	//
 	// Changes ordering of list elements
+	//
 	fn takeBySwapAt (ref self: Self, i: ISize): A unsafe {
 		if i < 0 or i >= self._length { throw &"Index out of bounds"; }
 

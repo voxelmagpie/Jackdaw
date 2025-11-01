@@ -5,7 +5,7 @@ CC ?= cc
 
 all:
 	mkdir -p build
-	$(JACKDAWC) build src --add-package stlib $(STLIB) --add-package http ../../http --exe $(EXE) --cc $(CC) -lmariadbclient --no-exceptions +RTS -N
+	$(JACKDAWC) build src --add-package stlib $(STLIB) --add-package http ../../http --add-package mariadb ../../mariadb --exe $(EXE) --cc $(CC) -lmariadbclient --no-exceptions +RTS -N
 
 
 clean:

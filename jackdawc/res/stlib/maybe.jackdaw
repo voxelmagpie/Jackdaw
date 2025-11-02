@@ -42,4 +42,10 @@ enum Maybe [A] {
             _ { throw msg; }
         }
     }
+
+    fn take (ref self: Self): Self {
+        var x = Self.none;
+        swap[Self](self, x);
+        return x;
+    }
 }

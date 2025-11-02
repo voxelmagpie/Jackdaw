@@ -326,6 +326,14 @@ fn roundUp [A] (i: A, to: A): A {
 // Can be used to tell the compiler that a variable has been initialised
 fn initialised [A] (*A) {}
 
+fn swap [T] (ref x: T, ref y: T) unsafe {
+    var tmp: T = uninitialised;
+    (&tmp).* = (&x).*;
+    (&x).* = (&y).*;
+    (&y).* = (&tmp).*;
+    leak[T](tmp);
+}
+
 
 //
 // Start

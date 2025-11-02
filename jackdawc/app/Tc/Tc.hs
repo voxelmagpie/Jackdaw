@@ -984,12 +984,12 @@ getDropFn tcIn t sr = do
           _ -> pure $ Just id
         _ -> pure $ Just id
 
-getStructFields :: (MonadTc m) => Ctx -> SrcRange -> I.Type -> m (Ins.InsOrdMap VName (I.Type, [Attribute]))
+getStructFields :: (MonadTc m) => Ctx -> SrcRange -> I.Type -> m (TFqn, Ins.InsOrdMap VName (I.Type, [Attribute]))
 getStructFields ctx sr = \case
   I.ANamedType id -> do
     td <- checkTDef2 id
     case td of
-      I.AStructDef2 s -> pure s.fields
+      I.AStructDef2 s -> pure (s.c.fqn, s.fields)
       _ -> throw ctx.et sr "Expected a struct type"
   _ -> throw ctx.et sr "Expected a struct type"
 

@@ -274,7 +274,9 @@ struct List [A] {
 		for (var i: ISize = 0; i < self._length; i += 1) {
 			drop[A](self.ptr.(i));
 		}
-		free(self.ptr);
+		if self.capacity > 0 {
+			free(self.ptr);
+		}
 		self.ptr = nullptr;
 		self._length = 0;
 		self.capacity = 0;
@@ -289,6 +291,16 @@ struct List [A] {
 			}
 		}
 		s.pushAsciiChar(']');
+	}
+
+	//
+	// The memory will not be freed when the list is dropped
+	// Call toConstPtr on the list or put it in a struct/container/etc. and call toConstPtr on that
+	// Do not resize the list as the reserve function will not work
+	//
+	@Unsafe
+	fn createUnsafeConstList (ptr: *A, _length: ISize): Self {
+		return Self{ptr, _length, capacity=0};
 	}
 
 }

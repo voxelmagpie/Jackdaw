@@ -355,7 +355,7 @@ fn _kStart (argc: I32, argv: **CChar): I32 {
             var args = Args.new();
             args.reserve(argc);
             for (var i: I32 = 0; i < argc; i += 1) {
-                var u = List[U8]{ ptr = argv.(i) as *U8, _length = strlen(argv.(i)) as ISize + 1, capacity=0 };
+                var u = List[U8].createUnsafeConstList(argv.(i) as *U8, strlen(argv.(i)) as ISize + 1);
                 args.push(OsString{ data=u });
             }
 

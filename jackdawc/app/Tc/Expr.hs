@@ -96,7 +96,7 @@ getConstLitExpr ctx hint (e, sr) = case e of
             pure c
   A.StructInitExpr astTypeExprMaybe sr' astFields -> do
     -- Get struct type
-    (structType, fieldTypes) <- case (astTypeExprMaybe, hint) of
+    (structType, (fqn, fieldTypes)) <- case (astTypeExprMaybe, hint) of
       (Just astTypeExpr, _) -> do
         -- Explicit struct type
         t <- getType ctx (astTypeExpr, sr')
@@ -115,7 +115,13 @@ getConstLitExpr ctx hint (e, sr) = case e of
       (expectedType, attribs) <- case Ins.lookup name fieldTypes of
         Just x -> pure x
         _ -> throw ctx.et sr'' "No such field"
-      when (Attribute "Unsafe" `elem` attribs) $ addError SevError ctx.et sr "Unsafe types not valid for constants"
+      when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs)
+        $ addError SevError ctx.et sr
+        $ "Cannot access unsafe field "
+        <> un name
+        <> " in safe code"
+      when (Attribute "Private" `elem` attribs && Just fqn /= (fst <$> ctx.selfType)) $ do
+        addError SevWarning ctx.et sr $ un name <> " is private"
       c@(_, actualType) <- getConstLitExpr ctx (TypeHint expectedType) astEx >>= iCastConstant expectedType
       unless (actualType == expectedType) $ do
         (act, ex) <- format2Types actualType expectedType
@@ -1408,7 +1414,7 @@ getArrayInitExpr ctx hint fullSrcRange astExprs@(List1 astExpr0 astExprs') = do
 
 getStructInitExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> Maybe A.TypeExpr' -> SrcRange -> A.StructFields -> m I.Expr
 getStructInitExpr ctx hint fullSrcRange astTypeExprMaybe sr' astFields = do
-  (structType, fieldTypes) <- case (astTypeExprMaybe, hint) of
+  (structType, (fqn, fieldTypes)) <- case (astTypeExprMaybe, hint) of
     (Just astTypeExpr, _) -> do
       t <- getType ctx (astTypeExpr, sr')
       fs <- getStructFields ctx sr' t
@@ -1423,7 +1429,13 @@ getStructInitExpr ctx hint fullSrcRange astTypeExprMaybe sr' astFields = do
     (expectedType, attribs) <- case Ins.lookup name fieldTypes of
       Just x -> pure x
       _ -> throw ctx.et sr $ "No such field: " <> un name
-    when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs) $ addError SevError ctx.et sr "Cannot access unsafe fields in safe code"
+    when (not ctx.inUnsafeCode && Attribute "Unsafe" `elem` attribs)
+      $ addError SevError ctx.et sr
+      $ "Cannot access unsafe field "
+      <> un name
+      <> " in safe code"
+    when (Attribute "Private" `elem` attribs && Just fqn /= (fst <$> ctx.selfType)) $ do
+      addError SevWarning ctx.et sr $ un name <> " is private"
     e@(_, actualType, _) <- getExpr ctx (TypeHint expectedType) astEx >>= iCast expectedType
     unless (actualType == expectedType) $ do
       (act, ex) <- format2Types actualType expectedType

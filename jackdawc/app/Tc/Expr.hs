@@ -357,7 +357,7 @@ getExpr ctx hint (e, sr) = case e of
   A.MkTupleExpr x -> getMkTupleExpr ctx hint sr x
   A.StructInitExpr typeExpr sr' f -> getStructInitExpr ctx hint sr typeExpr sr' f
   A.ArrayInitExpr es -> getArrayInitExpr ctx hint sr es
-  A.AnAccessorExpr x -> getAccessorExpr ctx sr x
+  A.AnAccessorExpr x -> getAccessorExpr ctx sr x Nothing
   A.AFnCallExpr x -> do
     getFnCallExpr ctx hint sr x False >>= \case
       Left e' -> pure e'
@@ -440,14 +440,16 @@ getMemberFnCallExpr ::
   Ctx ->
   TypeHint ->
   SrcRange ->
-  A.Expr ->
+  Either A.Expr I.Expr ->
   (Either VName OpName, SrcRange) ->
   [A.GenericArg] ->
   [A.Expr] ->
   Bool ->
   m (Either I.Expr I.Statement)
-getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsExprs expectIterator = do
-  lhs@(_, lhsType, _) <- getExpr ctx NoHint lhsAstExpr
+getMemberFnCallExpr ctx _hint sr lhsAstOrIrExpr (vOrOpName, nameSr) fnAstGArgs argsExprs expectIterator = do
+  lhs@(_, lhsType, _) <- case lhsAstOrIrExpr of
+    Right e -> pure e
+    Left e -> getExpr ctx NoHint e
   let getOnlyGArg = case argsExprs of [x] -> pure x; _ -> throw ctx.et sr "Wrong number of arguments"
   resultMaybe <- case (lhsType, null fnAstGArgs) of
     -- Member functions for types without definitions written in jackdaw code
@@ -599,9 +601,11 @@ getMemberFnCallExpr ctx _hint sr lhsAstExpr (vOrOpName, nameSr) fnAstGArgs argsE
 
 getFnCallExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> A.FnCallExpr -> Bool -> m (Either I.Expr I.Statement)
 getFnCallExpr ctx hint sr astExpr expectIterator = do
-  let f = do
+  let f exprMaybe = do
         -- Not a member fn call
-        fnExpr <- getExpr ctx (FnReturningHint hint) astExpr.fn
+        fnExpr <- case exprMaybe of
+          Just x -> pure x
+          _ -> getExpr ctx (FnReturningHint hint) astExpr.fn
         getCallExpr ctx (snd astExpr.fn) sr fnExpr Nothing astExpr.args expectIterator <&> \(ce, r) ->
           case r of
             Just t -> Left (I.AFnCallExpr ce, t, sr)
@@ -612,18 +616,25 @@ getFnCallExpr ctx hint sr astExpr expectIterator = do
     A.AnAccessorExpr a -> case fst a.accessor of
       -- If an accessor has generic arguments then it must be a member function call (fields cannot be generic)
       A.ANameAccessor name (Just gArgs) -> do
-        getMemberFnCallExpr ctx hint sr a.expr (Left name, snd a.accessor) gArgs astExpr.args expectIterator
+        getMemberFnCallExpr ctx hint sr (Left a.expr) (Left name, snd a.accessor) gArgs astExpr.args expectIterator
       A.ANameAccessor name Nothing -> do
-        let getMemberFn =
-              getMemberFnCallExpr ctx hint sr a.expr (Left name, snd a.accessor) [] astExpr.args expectIterator
-        (_, lhsType, _) <- getExpr ctx NoHint a.expr
+        let getMemberFn e' =
+              let e'' = case e' of Just x -> Right x; _ -> Left a.expr
+               in getMemberFnCallExpr ctx hint sr e'' (Left name, snd a.accessor) [] astExpr.args expectIterator
+        e@(_, lhsType, _) <- getExpr ctx NoHint a.expr
         astTsDefMaybe <- getAstTDefFromType ctx.tcIn lhsType
         case astTsDefMaybe of
-          Just (A.AStructDef s) -> if name `notElem` Ins.keys s.fields then getMemberFn else f
+          Just (A.AStructDef s) ->
+            if name `notElem` Ins.keys s.fields
+              then
+                getMemberFn (Just e)
+              else do
+                e' <- getAccessorExpr ctx sr a (Just e)
+                f (Just e')
           -- Could be an enum, tuple, etc.
-          _ -> getMemberFn
-      _ -> f
-    _ -> f
+          _ -> getMemberFn (Just e)
+      _ -> f Nothing
+    _ -> f Nothing
 
 getCallExpr ::
   (MonadTc m) =>
@@ -712,12 +723,15 @@ getCallExpr ctx fnSr sr fnExpr@(_, fnType, _) selfArgMaybe astArgExprs expectIte
 
 getOpExpr :: (MonadTc m) => Ctx -> TypeHint -> SrcRange -> OpName' -> A.Expr -> Maybe A.Expr -> m I.Expr
 getOpExpr ctx hint sr opName lhsAstExpr rhsAstExprMaybe =
-  let action = getMemberFnCallExpr ctx hint sr lhsAstExpr (first Right opName) def (maybeToList rhsAstExprMaybe) False
+  let action = getMemberFnCallExpr ctx hint sr (Left lhsAstExpr) (first Right opName) def (maybeToList rhsAstExprMaybe) False
    in action >>= \case Left e -> pure e; _ -> throw ctx.et sr "Operator returns void"
 
-getAccessorExpr :: (MonadTc m) => Ctx -> SrcRange -> A.AccessorExpr -> m I.Expr
-getAccessorExpr ctx sr astAccessorExpr = do
-  e@(_, t, _) <- getExpr ctx NoHint astAccessorExpr.expr
+-- lhsExprMaybe is for when getFnCallExpr has already visited the lhs expr
+getAccessorExpr :: (MonadTc m) => Ctx -> SrcRange -> A.AccessorExpr -> Maybe I.Expr -> m I.Expr
+getAccessorExpr ctx sr astAccessorExpr lhsExprMaybe = do
+  e@(_, t, _) <- case lhsExprMaybe of
+    Just x -> pure x
+    _ -> getExpr ctx NoHint astAccessorExpr.expr
   case t of
     I.TupleType tupType -> case fst astAccessorExpr.accessor of
       A.AnIndexAccessor i -> do
